@@ -1,0 +1,6 @@
+{
+  "name": "Academia ITECH",
+  "description": "Plateforme e-learning LMS nouvelle génération avec création de contenu IA, studio interactif, tuteur virtuel, gamification complète et gestion multi-centres.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
