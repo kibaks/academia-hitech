@@ -376,6 +376,12 @@ export interface TutorMessage {
   timestamp: string;
   codeSnippet?: string;
   suggestions?: string[];
+  audioUrl?: string;
+  audioDuration?: number;
+  isVoiceNote?: boolean;
+  transcription?: string;
+  status?: 'sending' | 'transcribing' | 'done' | 'error';
+  isStreaming?: boolean;
 }
 
 export interface WhatsAppSimMessage {

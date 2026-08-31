@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Center, Trainer, Course } from '../../types';
 import { CENTER_TEMPLATES } from '../../data/templatesData';
+import { AdminCurrencySettings } from '../admin/AdminCurrencySettings';
+import { AdminInstructorManagement } from '../admin/AdminInstructorManagement';
 import {
   Building2,
   Users,
@@ -21,7 +23,8 @@ import {
   Layers,
   GraduationCap,
   Calendar,
-  Check
+  Check,
+  Coins
 } from 'lucide-react';
 
 interface CenterDirectorManagementProps {
@@ -35,7 +38,7 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
   courses,
   onUpdateCenter,
 }) => {
-  const [activeTab, setActiveTab] = useState<'trainers' | 'configuration' | 'cohorts' | 'templates'>('trainers');
+  const [activeTab, setActiveTab] = useState<'trainers' | 'configuration' | 'currencies' | 'cohorts' | 'templates'>('trainers');
   const [trainers, setTrainers] = useState<Trainer[]>(activeCenter.trainers || []);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -173,7 +176,7 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
             onClick={() => setActiveTab('trainers')}
             className={`flex items-center gap-2 px-5 py-3.5 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'trainers'
-                ? 'border-indigo-600 text-indigo-700 bg-white'
+                ? 'border-sky-500 text-sky-700 bg-white'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -185,7 +188,7 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
             onClick={() => setActiveTab('configuration')}
             className={`flex items-center gap-2 px-5 py-3.5 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'configuration'
-                ? 'border-indigo-600 text-indigo-700 bg-white'
+                ? 'border-sky-500 text-sky-700 bg-white'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -194,10 +197,22 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
           </button>
 
           <button
+            onClick={() => setActiveTab('currencies')}
+            className={`flex items-center gap-2 px-5 py-3.5 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'currencies'
+                ? 'border-sky-500 text-sky-700 bg-white'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Coins className="w-4 h-4 text-sky-600" />
+            <span>Devises & Conversions</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('cohorts')}
             className={`flex items-center gap-2 px-5 py-3.5 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'cohorts'
-                ? 'border-indigo-600 text-indigo-700 bg-white'
+                ? 'border-sky-500 text-sky-700 bg-white'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -209,7 +224,7 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
             onClick={() => setActiveTab('templates')}
             className={`flex items-center gap-2 px-5 py-3.5 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'templates'
-                ? 'border-indigo-600 text-indigo-700 bg-white'
+                ? 'border-sky-500 text-sky-700 bg-white'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -220,75 +235,16 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
 
         {/* TAB 1: TRAINERS MANAGEMENT */}
         {activeTab === 'trainers' && (
-          <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900">Corps Enseignant & Formateurs Référents</h3>
-                <p className="text-xs text-slate-500">Supervisez les formateurs affectés à votre campus et assignez-leur des cours</p>
-              </div>
-
-              <button
-                onClick={() => setShowInviteModal(true)}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Inviter un Formateur</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {trainers.map((t) => (
-                <div
-                  key={t.id}
-                  className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-md transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={t.avatar}
-                          alt={t.name}
-                          className="w-12 h-12 rounded-full object-cover border border-slate-200"
-                        />
-                        <div>
-                          <h4 className="font-bold text-sm text-slate-900">{t.name}</h4>
-                          <span className="text-xs text-indigo-600 font-semibold">{t.specialty}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-slate-600 line-clamp-2 mb-3">{t.bio}</p>
-
-                    <div className="flex items-center justify-between py-2 border-t border-slate-100 text-xs">
-                      <span className="flex items-center gap-1 text-amber-500 font-bold">
-                        <Star className="w-3.5 h-3.5 fill-amber-400" />
-                        <span>{t.rating} / 5.0</span>
-                      </span>
-                      <span className="text-slate-500 font-medium">
-                        {t.coursesAssigned?.length || 1} cours assigné(s)
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-                    <button
-                      onClick={() => alert(`Message envoyé à ${t.name}`)}
-                      className="flex-1 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Mail className="w-3.5 h-3.5" />
-                      <span>Contacter</span>
-                    </button>
-                    <button
-                      onClick={() => handleDeleteTrainer(t.id)}
-                      className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                      title="Retirer du campus"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="p-6">
+            <AdminInstructorManagement
+              trainers={trainers}
+              courses={courses}
+              activeCenter={activeCenter}
+              onUpdateTrainers={(updatedTrainers) => {
+                setTrainers(updatedTrainers);
+                onUpdateCenter({ trainers: updatedTrainers, trainerCount: updatedTrainers.length });
+              }}
+            />
           </div>
         )}
 
@@ -409,7 +365,14 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
           </form>
         )}
 
-        {/* TAB 3: COHORTS & CALENDAR */}
+        {/* TAB 3: CURRENCIES */}
+        {activeTab === 'currencies' && (
+          <div className="p-6">
+            <AdminCurrencySettings />
+          </div>
+        )}
+
+        {/* TAB 4: COHORTS & CALENDAR */}
         {activeTab === 'cohorts' && (
           <div className="p-6 space-y-4">
             <h3 className="text-base font-extrabold text-slate-900">Cohortes Actives & Calendrier de Rentrée</h3>
@@ -435,7 +398,7 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
           </div>
         )}
 
-        {/* TAB 4: TEMPLATES */}
+        {/* TAB 5: TEMPLATES */}
         {activeTab === 'templates' && (
           <div className="p-6 space-y-4">
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800 flex items-start gap-3">
@@ -452,11 +415,11 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
               {CENTER_TEMPLATES.map((tpl) => (
                 <div
                   key={tpl.id}
-                  className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between"
+                  className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-sky-400 hover:shadow-md transition-all flex flex-col justify-between"
                 >
                   <div>
                     <img src={tpl.logo} alt={tpl.name} className="w-12 h-12 rounded-xl object-cover mb-3" />
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
                       {tpl.subscriptionPlan.toUpperCase()}
                     </span>
                     <h4 className="font-bold text-sm text-slate-900 mt-2">{tpl.name}</h4>
@@ -464,7 +427,7 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
                   </div>
                   <button
                     onClick={() => handleApplyCenterTemplate(tpl)}
-                    className="w-full mt-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-1.5"
+                    className="w-full mt-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all"
                   >
                     <Wand2 className="w-3.5 h-3.5" />
                     <span>Appliquer ce Modèle de Centre</span>
@@ -475,77 +438,6 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
           </div>
         )}
       </div>
-
-      {/* Invite Trainer Modal */}
-      {showInviteModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm p-4 flex items-center justify-center animate-fadeIn">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 border border-slate-200 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-              <h3 className="font-extrabold text-base text-slate-900">Inviter un Formateur</h3>
-              <button
-                onClick={() => setShowInviteModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-xs font-bold"
-              >
-                Fermer
-              </button>
-            </div>
-
-            <form onSubmit={handleAddTrainer} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Nom & Prénom *</label>
-                <input
-                  type="text"
-                  value={newTrainerName}
-                  onChange={(e) => setNewTrainerName(e.target.value)}
-                  placeholder="Dr. Jean Dupont"
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Email Professionnel *</label>
-                <input
-                  type="email"
-                  value={newTrainerEmail}
-                  onChange={(e) => setNewTrainerEmail(e.target.value)}
-                  placeholder="jean.dupont@campus.academy"
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Spécialité Principale</label>
-                <input
-                  type="text"
-                  value={newTrainerSpecialty}
-                  onChange={(e) => setNewTrainerSpecialty(e.target.value)}
-                  placeholder="Intelligence Artificielle & Deep Learning"
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowInviteModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Ajouter au Campus</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

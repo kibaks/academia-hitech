@@ -438,7 +438,7 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
               {existingCourse ? 'Édition de Formation' : 'Nouvelle Formation'}
             </span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-black text-slate-900 break-words">
             {existingCourse ? `Édition : ${title || existingCourse.title}` : 'Créateur de Cours Certifiant'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">

@@ -1,4 +1,5 @@
 import React from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { EarnedCertificate } from '../../types';
 import { Award, Download, Printer, ShieldCheck, QrCode, CheckCircle2, Sparkles, ExternalLink } from 'lucide-react';
 
@@ -36,7 +37,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ certificate,
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 shadow-xs transition-all"
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-400 text-white flex items-center gap-1.5 shadow-xs active:scale-95 shadow-sky-500/20 transition-all"
             >
               <Printer className="w-4 h-4" />
               <span>Imprimer / Télécharger PDF</span>
@@ -63,11 +64,11 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ certificate,
           {/* Certificate Header Branding */}
           <div className="space-y-2 relative z-10">
             <div className="flex items-center justify-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-lg shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-sky-500 flex items-center justify-center text-white font-black text-lg shadow-xs">
                 AI
               </div>
               <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-                ACADEMIA <span className="text-indigo-600">ITECH</span>
+                ACADEMIA <span className="text-sky-600">ITECH</span>
               </span>
             </div>
             <p className="text-xs uppercase tracking-[0.25em] text-amber-700 font-bold">
@@ -91,7 +92,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ certificate,
               pour avoir complété avec succès et brio l'intégralité des modules, projets pratiques et l'évaluation finale du programme certifiant :
             </p>
 
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-base sm:text-xl font-bold text-slate-900 max-w-2xl mx-auto shadow-xs">
+            <div className="p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm sm:text-base md:text-xl font-bold text-slate-900 max-w-2xl mx-auto shadow-xs break-words leading-snug">
               {certificate.courseTitle}
             </div>
 
@@ -134,10 +135,12 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ certificate,
 
             {/* Right: QR Code & Verification info */}
             <div className="text-center sm:text-right space-y-1">
-              <div className="inline-block p-1.5 bg-slate-50 border border-slate-200 rounded-lg shadow-xs">
-                <svg viewBox="0 0 24 24" className="w-10 h-10 text-slate-900 fill-current">
-                  <path d="M2 2h8v8H2zm2 2v4h4V4zm-2 10h8v8H2zm2 2v4h4v-4zm10-14h8v8h-8zm2 2v4h4V4zm0 10h2v2h-2zm4 0h2v2h-2zm-4 4h2v2h-2zm4 0h2v2h-2zm2-2h2v2h-2zm0-4h2v2h-2zm-6 6h2v2h-2z" />
-                </svg>
+              <div className="inline-block p-1 bg-white border border-slate-200 rounded-lg shadow-xs">
+                <QRCodeSVG
+                  value={`https://academia-itech.edu/verify/${certificate.certificateNumber}`}
+                  size={42}
+                  level="M"
+                />
               </div>
               <div className="text-[10px] font-semibold text-emerald-700">
                 Certificat Authentifié

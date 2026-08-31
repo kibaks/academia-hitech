@@ -89,20 +89,20 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
     <div id="course-player-container" className="space-y-6 pb-20">
       {/* Top Header & Breadcrumbs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
           <button
             id="back-to-catalog-btn"
             onClick={onBackToCatalog}
-            className="p-2 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200 transition-colors flex items-center gap-1.5 text-xs font-semibold shadow-xs"
+            className="p-2 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200 transition-colors flex items-center gap-1.5 text-xs font-semibold shadow-xs shrink-0"
           >
             <ChevronLeft className="w-4 h-4 text-slate-500" />
-            <span>Catalogue</span>
+            <span className="hidden xs:inline">Catalogue</span>
           </button>
-          <div>
-            <div className="text-xs text-indigo-600 font-semibold truncate max-w-sm">
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] sm:text-xs text-sky-600 font-semibold truncate">
               {course.title}
             </div>
-            <h1 className="text-lg font-bold text-slate-900 truncate max-w-lg">
+            <h1 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 truncate">
               {currentLesson.title}
             </h1>
           </div>
@@ -114,7 +114,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
             <span className="text-xs font-bold text-slate-700">{progressPercent}% terminé</span>
             <div className="w-32 h-2 rounded-full bg-slate-100 border border-slate-200 overflow-hidden mt-1">
               <div
-                className="h-full bg-indigo-600 transition-all duration-500"
+                className="h-full bg-sky-500 transition-all duration-500"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -149,7 +149,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                   />
                 ) : (
                   <div className="text-center p-8 space-y-3">
-                    <PlayCircle className="w-16 h-16 text-indigo-400 mx-auto" />
+                    <PlayCircle className="w-16 h-16 text-sky-400 mx-auto" />
                     <p className="text-sm text-slate-100 font-semibold">
                       Vidéo de formation interactive Academia ITECH
                     </p>
@@ -190,7 +190,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                     value={userCode}
                     onChange={(e) => setUserCode(e.target.value)}
                     rows={8}
-                    className="w-full p-4 rounded-xl bg-slate-950 text-emerald-300 font-mono text-xs sm:text-sm border border-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 leading-relaxed resize-none"
+                    className="w-full p-4 rounded-xl bg-slate-950 text-emerald-300 font-mono text-xs sm:text-sm border border-slate-800 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 leading-relaxed resize-none"
                     placeholder="Écrivez votre code ici..."
                   />
                 </div>
@@ -201,7 +201,28 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                   </div>
                 )}
               </div>
-            ) : null}
+            ) : (
+              <div className="relative h-64 sm:h-80 w-full overflow-hidden bg-slate-900 flex items-end">
+                <img
+                  src={course.bannerImage || course.thumbnail || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80'}
+                  alt={currentLesson.title}
+                  className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent" />
+                <div className="relative z-10 p-6 sm:p-8 space-y-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>Module de Cours & Synthèse</span>
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                    {currentLesson.title}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-300 max-w-2xl">
+                    {course.title} • Animé par {course.authorName} ({course.centerName})
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Bottom Actions of Stage */}
             <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
@@ -222,9 +243,9 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                 <button
                   id="ask-aida-context-btn"
                   onClick={() => onOpenAIAssistantWithContext(currentLesson.title)}
-                  className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5 transition-colors"
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 flex items-center gap-1.5 transition-colors"
                 >
-                  <Bot className="w-4 h-4 text-indigo-600" />
+                  <Bot className="w-4 h-4 text-sky-600" />
                   <span>Demander à AIDA (Tuteur IA)</span>
                 </button>
               </div>
@@ -258,7 +279,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                 onClick={() => setActiveTab('content')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                   activeTab === 'content'
-                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                    ? 'bg-sky-50 text-sky-700 border border-sky-200'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -268,7 +289,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                 onClick={() => setActiveTab('notes')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                   activeTab === 'notes'
-                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                    ? 'bg-sky-50 text-sky-700 border border-sky-200'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -278,7 +299,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                 onClick={() => setActiveTab('resources')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                   activeTab === 'resources'
-                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                    ? 'bg-sky-50 text-sky-700 border border-sky-200'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -307,8 +328,8 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                         )}
 
                         {block.type === 'callout' && (
-                          <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/80 border-l-4 border-indigo-600 text-indigo-950 font-medium text-sm sm:text-base flex items-start gap-3 shadow-2xs">
-                            <Sparkles className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                          <div className="p-4 sm:p-5 rounded-2xl bg-sky-50/80 border-l-4 border-sky-500 text-sky-950 font-medium text-sm sm:text-base flex items-start gap-3 shadow-2xs">
+                            <Sparkles className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
                             <div className="leading-relaxed">
                               {block.title && <div className="font-bold mb-1">{block.title}</div>}
                               {block.content}
@@ -320,7 +341,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                           <div className="rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md">
                             <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 font-mono">
                               <span>{block.codeLanguage || 'Code Snippet'}</span>
-                              <span className="text-[10px] uppercase font-bold text-indigo-400">Sandbox ITECH</span>
+                              <span className="text-[10px] uppercase font-bold text-sky-400">Sandbox ITECH</span>
                             </div>
                             <pre className="p-4 text-emerald-300 font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed">
                               <code>{block.codeContent || block.content}</code>
@@ -346,7 +367,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                         {block.type === 'video' && (
                           <div className="aspect-video w-full rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 shadow-md flex items-center justify-center text-white">
                             <div className="text-center space-y-2">
-                              <PlayCircle className="w-12 h-12 mx-auto text-indigo-400 animate-pulse" />
+                              <PlayCircle className="w-12 h-12 mx-auto text-sky-400 animate-pulse" />
                               <p className="text-xs font-semibold">{block.title || block.content || 'Vidéo Pédagogique Intégrée'}</p>
                             </div>
                           </div>
@@ -388,7 +409,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                 ) : (
                   <>
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                      <div className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-1">
+                      <div className="text-xs font-bold text-sky-700 uppercase tracking-wider mb-1">
                         Résumé de la Leçon
                       </div>
                       <p className="text-xs text-slate-600">{course.shortDescription}</p>
@@ -412,7 +433,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={6}
-                  className="w-full p-3 rounded-xl bg-slate-50 text-slate-800 text-xs sm:text-sm border border-slate-200 focus:outline-none focus:border-indigo-500 focus:bg-white"
+                  className="w-full p-3 rounded-xl bg-slate-50 text-slate-800 text-xs sm:text-sm border border-slate-200 focus:outline-none focus:border-sky-500 focus:bg-white"
                 />
               </div>
             )}
@@ -422,7 +443,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
               <div className="space-y-3">
                 <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-indigo-600" />
+                    <FileText className="w-5 h-5 text-sky-600" />
                     <div>
                       <span className="text-xs font-bold text-slate-900 block">
                         Fiche Mnémonique & Guide Complet (PDF)
@@ -432,7 +453,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                   </div>
                   <button
                     onClick={() => alert("Téléchargement de la ressource ITECH démarré !")}
-                    className="p-2 rounded-lg bg-white border border-slate-200 text-indigo-700 hover:bg-indigo-50 text-xs font-semibold flex items-center gap-1 shadow-xs"
+                    className="p-2 rounded-lg bg-white border border-slate-200 text-sky-700 hover:bg-sky-50 text-xs font-semibold flex items-center gap-1 shadow-xs"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Télécharger</span>
@@ -451,7 +472,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                 <h3 className="text-sm font-bold text-slate-900">Plan de la Formation</h3>
                 <span className="text-xs text-slate-500">{completedCount} sur {totalLessons} leçons terminées</span>
               </div>
-              <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-200">
+              <span className="text-xs font-bold text-sky-700 bg-sky-50 px-2 py-1 rounded-md border border-sky-200">
                 {progressPercent}%
               </span>
             </div>
@@ -479,7 +500,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                           onClick={() => setCurrentLessonId(lesson.id)}
                           className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left text-xs transition-all ${
                             isCurrent
-                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold'
+                              ? 'bg-sky-50 text-sky-700 border border-sky-200 font-bold'
                               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                           }`}
                         >
@@ -487,7 +508,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                             {isDone ? (
                               <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                             ) : (
-                              <PlayCircle className={`w-4 h-4 flex-shrink-0 ${isCurrent ? 'text-indigo-600' : 'text-slate-400'}`} />
+                              <PlayCircle className={`w-4 h-4 flex-shrink-0 ${isCurrent ? 'text-sky-600' : 'text-slate-400'}`} />
                             )}
                             <span className="truncate">{lesson.title}</span>
                           </div>

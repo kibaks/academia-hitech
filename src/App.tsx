@@ -42,7 +42,9 @@ import { CourseCurriculumBuilder } from './components/teacher/CourseCurriculumBu
 import { LearnerProgressTracker } from './components/teacher/LearnerProgressTracker';
 import { CenterDirectorManagement } from './components/centers/CenterDirectorManagement';
 import { LearnerJourneyView } from './components/learner/LearnerJourneyView';
+import { AdminCurrencySettings } from './components/admin/AdminCurrencySettings';
 import { MobileDrawer } from './components/common/MobileDrawer';
+import { Footer } from './components/common/Footer';
 import { Lock, ShieldAlert, ArrowRight, Sparkles } from 'lucide-react';
 
 export default function App() {
@@ -297,13 +299,13 @@ export default function App() {
         <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Accès Restreint par les Permissions RBAC</h2>
         <p className="text-sm text-slate-600 max-w-md mx-auto">
           Cette section nécessite le rôle <strong>{roleName}</strong>. Votre profil actif est{' '}
-          <span className="text-indigo-600 font-semibold">{ROLE_DETAILS[currentUser.role]?.title || currentUser.role}</span>.
+          <span className="text-sky-600 font-semibold">{ROLE_DETAILS[currentUser.role]?.title || currentUser.role}</span>.
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <button
           onClick={() => handleRoleChange(requiredRole)}
-          className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all flex items-center gap-2"
+          className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-sky-500 hover:bg-sky-400 text-white shadow-xs active:scale-95 shadow-sky-500/20 transition-all flex items-center gap-2"
         >
           <Sparkles className="w-4 h-4" />
           <span>Basculer en tant que {roleName} (Démo)</span>
@@ -319,7 +321,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-sky-500 selection:text-white">
       {/* Animated Tech Logo Preloader on startup & role transitions */}
       {isLoading && (
         <Preloader
@@ -558,7 +560,35 @@ export default function App() {
             onOpenAuthModal={() => handleOpenAuth('demo')}
           />
         )}
+
+        {/* VIEW 14: Global Admin Currencies & FX Rates */}
+        {(activeTab === 'admin-currency' || activeTab === 'currencies') && (
+          <div className="max-w-6xl mx-auto space-y-6">
+            <AdminCurrencySettings />
+          </div>
+        )}
       </main>
+
+      {/* Global Academic & Campus Network Footer */}
+      {activeTab !== 'player' && (
+        <Footer
+          onNavigate={(tab) => {
+            setActiveTab(tab);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          centers={centers}
+          activeCenter={activeCenter}
+          onSelectCenter={setActiveCenter}
+          onOpenCertVerifier={() => {
+            if (currentUser.earnedCertificates.length > 0) {
+              setActiveCertificate(currentUser.earnedCertificates[0]);
+            } else {
+              setActiveTab('home');
+              window.scrollTo({ top: 900, behavior: 'smooth' });
+            }
+          }}
+        />
+      )}
 
       {/* Interactive Quiz Assessment Modal Overlay */}
       {activeQuiz && (

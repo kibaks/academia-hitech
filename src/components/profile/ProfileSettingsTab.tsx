@@ -119,7 +119,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
           onClick={() => setActiveSection('general')}
           className={`flex items-center gap-2 px-5 py-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeSection === 'general'
-              ? 'border-indigo-600 text-indigo-700 bg-white'
+              ? 'border-sky-500 text-sky-700 bg-white'
               : 'border-transparent text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -131,7 +131,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
           onClick={() => setActiveSection('experience')}
           className={`flex items-center gap-2 px-5 py-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeSection === 'experience'
-              ? 'border-indigo-600 text-indigo-700 bg-white'
+              ? 'border-sky-500 text-sky-700 bg-white'
               : 'border-transparent text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -143,7 +143,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
           onClick={() => setActiveSection('privacy')}
           className={`flex items-center gap-2 px-5 py-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeSection === 'privacy'
-              ? 'border-indigo-600 text-indigo-700 bg-white'
+              ? 'border-sky-500 text-sky-700 bg-white'
               : 'border-transparent text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -155,7 +155,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
           onClick={() => setActiveSection('templates')}
           className={`flex items-center gap-2 px-5 py-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeSection === 'templates'
-              ? 'border-indigo-600 text-indigo-700 bg-white'
+              ? 'border-sky-500 text-sky-700 bg-white'
               : 'border-transparent text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -183,7 +183,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
                 required
               />
             </div>
@@ -197,7 +197,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
                 value={headline}
                 onChange={(e) => setHeadline(e.target.value)}
                 placeholder="Ex: Développeur Full-Stack IA | Étudiant Certifié"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
               />
             </div>
 
@@ -210,7 +210,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
                 onChange={(e) => setBio(e.target.value)}
                 rows={3}
                 placeholder="Présentez vos objectifs académiques, vos centres d'intérêt et vos projets..."
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
               />
             </div>
 
@@ -222,7 +222,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
                 required
               />
             </div>
@@ -235,7 +235,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
               />
             </div>
 
@@ -291,7 +291,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
           {/* Social Links Section */}
           <div className="pt-4 border-t border-slate-200">
             <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-              <Globe2 className="w-4 h-4 text-indigo-600" />
+              <Globe2 className="w-4 h-4 text-sky-600" />
               <span>Liens Web & Réseaux Sociaux</span>
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -341,7 +341,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
           <div className="flex justify-end pt-4">
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md flex items-center gap-2 transition-all hover:scale-[1.02]"
+              className="px-6 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-sm shadow-xs active:scale-95 shadow-sky-500/20 flex items-center gap-2 transition-all"
             >
               <Save className="w-4 h-4" />
               <span>Enregistrer les Modifications</span>
@@ -355,7 +355,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
         <div className="p-6 space-y-6">
           <div>
             <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-indigo-600" />
+              <Briefcase className="w-4 h-4 text-sky-600" />
               <span>Expériences Professionnelles & Stages</span>
             </h4>
             <div className="space-y-3">
@@ -380,7 +380,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
 
           <div className="pt-4 border-t border-slate-200">
             <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-              <GraduationCap className="w-4 h-4 text-indigo-600" />
+              <GraduationCap className="w-4 h-4 text-sky-600" />
               <span>Formation & Diplômes Obtenus</span>
             </h4>
             <div className="space-y-3">
@@ -413,7 +413,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
                   onClick={() => setVisibility(item.id as any)}
                   className={`p-4 rounded-xl border cursor-pointer transition-all ${
                     visibility === item.id
-                      ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20'
+                      ? 'border-sky-500 bg-sky-50/60 ring-2 ring-sky-500/20'
                       : 'border-slate-200 hover:border-slate-300 bg-white'
                   }`}
                 >
@@ -423,7 +423,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
                       type="radio"
                       checked={visibility === item.id}
                       onChange={() => {}}
-                      className="text-indigo-600"
+                      className="text-sky-600"
                     />
                   </div>
                   <p className="text-xs text-slate-500">{item.desc}</p>
@@ -437,7 +437,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
             <div className="space-y-3">
               <label className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
                 <div className="flex items-center gap-3">
-                  <Mail className="w-4 h-4 text-indigo-600" />
+                  <Mail className="w-4 h-4 text-sky-600" />
                   <div>
                     <span className="text-xs sm:text-sm font-semibold text-slate-900">Notifications par Email</span>
                     <p className="text-[11px] text-slate-500">Rappels de cours, certifications obtenues et réponses de formateurs</p>
@@ -447,7 +447,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
                   type="checkbox"
                   checked={emailNotifications}
                   onChange={(e) => setEmailNotifications(e.target.checked)}
-                  className="rounded text-indigo-600 w-4 h-4"
+                  className="rounded text-sky-600 w-4 h-4"
                 />
               </label>
 
@@ -472,7 +472,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
           <div className="flex justify-end pt-4">
             <button
               onClick={handleSaveGeneral}
-              className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md flex items-center gap-2"
+              className="px-6 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-sm shadow-xs active:scale-95 shadow-sky-500/20 flex items-center gap-2"
             >
               <Save className="w-4 h-4" />
               <span>Enregistrer les Préférences</span>
@@ -498,11 +498,11 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
             {PROFILE_TEMPLATES.map((tpl) => (
               <div
                 key={tpl.id}
-                className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between"
+                className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-sky-400 hover:shadow-md transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
                       {tpl.role.toUpperCase()}
                     </span>
                   </div>
@@ -511,7 +511,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
                 </div>
                 <button
                   onClick={() => applyTemplate(tpl)}
-                  className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-xs active:scale-95 shadow-sky-500/20"
                 >
                   <Wand2 className="w-3.5 h-3.5" />
                   <span>Appliquer ce Modèle</span>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Logo } from './Logo';
 import { UserRole, Center, UserProfile } from '../../types';
 import { ROLE_DETAILS, hasPermission } from '../../lib/permissions';
+import { useCurrency } from '../../context/CurrencyContext';
 import {
   Search,
   Flame,
@@ -29,7 +30,9 @@ import {
   CheckCircle2,
   PlayCircle,
   Layers,
-  Users
+  Users,
+  Coins,
+  Settings
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -78,6 +81,9 @@ export const Header: React.FC<HeaderProps> = ({
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
+
+  const { currencyCode, currencyInfo, setCurrencyCode, availableCurrencies } = useCurrency();
 
   const isVisitor = !isAuthenticated || currentUser.role === 'visitor';
   const rolesOrder: UserRole[] = ['visitor', 'learner', 'trainer', 'center_admin', 'super_admin'];
@@ -92,13 +98,12 @@ export const Header: React.FC<HeaderProps> = ({
         ];
 
       case 'learner':
-        // Core learner actions in navbar: Catalogue, Mon Parcours, Mes Formations, Tuteur AIDA
-        // (Profil Facebook, Badges & XP, Permissions are in Profile dropdown)
+        // Core learner actions in navbar: Catalogue, Tuteur IA, Profil & Mes Formations
+        // (Mes Formations and Mon cours are seamlessly hosted inside the Learner Profile view)
         return [
           { id: 'catalog', label: 'Catalogue de Cours', shortLabel: 'Catalogue', icon: BookOpen },
-          { id: 'learner-journey', label: 'Mon Parcours', shortLabel: 'Mon Parcours', icon: GraduationCap, badge: `Nv.${currentUser.level}`, badgeColor: 'bg-amber-100 text-amber-800' },
-          { id: 'my-learning', label: 'Mes Formations', shortLabel: 'Mes Formations', icon: BookOpen, badge: `${currentUser.earnedCertificates.length > 0 ? currentUser.earnedCertificates.length : ''}` },
           { id: 'tuteur', label: 'Tuteur AIDA', shortLabel: 'Tuteur IA', icon: Bot, badge: 'WhatsApp', badgeColor: 'bg-emerald-100 text-emerald-800' },
+          { id: 'profile', label: 'Mon Profil & Mes Formations', shortLabel: 'Mon Profil', icon: GraduationCap, badge: `Nv.${currentUser.level || 1}`, badgeColor: 'bg-sky-100 text-sky-800' },
         ];
 
       case 'trainer':
@@ -160,7 +165,7 @@ export const Header: React.FC<HeaderProps> = ({
               onNavigate(isVisitor ? 'home' : currentUser.role === 'trainer' ? 'studio' : currentUser.role === 'center_admin' ? 'centers' : 'catalog');
               closeAllMenus();
             }}
-            className="flex-shrink-0 cursor-pointer"
+            className="flex-shrink-0 cursor-pointer min-w-0 max-w-[210px] sm:max-w-none"
           >
             <Logo size="sm" showTagline={false} centerName={currentUser.role !== 'visitor' ? activeCenter.name : undefined} />
           </div>
@@ -181,7 +186,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className={`flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
                     isCurrent
-                      ? 'bg-indigo-600 text-white shadow-xs'
+                      ? 'bg-sky-500 text-white shadow-xs'
                       : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
                   }`}
                 >
@@ -212,7 +217,7 @@ export const Header: React.FC<HeaderProps> = ({
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Rechercher..."
-              className="w-full pl-7 pr-3 py-1.5 text-xs bg-slate-100/90 text-slate-800 placeholder-slate-400 rounded-xl border border-slate-200/80 focus:bg-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+              className="w-full pl-7 pr-3 py-1.5 text-xs bg-slate-100/90 text-slate-800 placeholder-slate-400 rounded-xl border border-slate-200/80 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all"
             />
             {searchQuery && (
               <button
@@ -226,6 +231,85 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* 4. Right: Profile Controls, Role Switcher, Notifications & Auth */}
           <div className="flex items-center gap-2">
+            {/* Configurable Multi-Currency Switcher */}
+            <div className="relative">
+              <button
+                id="currency-switcher-toggle"
+                onClick={() => {
+                  setShowCurrencyMenu(!showCurrencyMenu);
+                  setShowRoleMenu(false);
+                  setShowUserMenu(false);
+                  setShowNotifications(false);
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200/80 text-slate-800 border border-slate-200/80 shadow-2xs transition-all active:scale-95"
+                title={`Devise active : ${currencyInfo.name} (${currencyInfo.symbol})`}
+              >
+                <span className="text-sm">{currencyInfo.flag}</span>
+                <span className="font-mono text-xs">{currencyInfo.code}</span>
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </button>
+
+              {showCurrencyMenu && (
+                <div
+                  id="currency-switcher-dropdown"
+                  className="absolute right-0 mt-2 w-64 rounded-2xl bg-white border border-slate-200 shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150"
+                >
+                  <div className="px-3 py-1.5 border-b border-slate-100 text-[11px] text-slate-500 font-bold uppercase tracking-wider flex items-center justify-between">
+                    <span>Devise & Monnaie :</span>
+                    <Coins className="w-3.5 h-3.5 text-sky-500" />
+                  </div>
+                  <div className="mt-1 space-y-1 max-h-64 overflow-y-auto">
+                    {availableCurrencies.map((curr) => {
+                      const isSelected = curr.code === currencyCode;
+                      return (
+                        <button
+                          key={curr.code}
+                          id={`currency-option-${curr.code}`}
+                          onClick={() => {
+                            setCurrencyCode(curr.code);
+                            setShowCurrencyMenu(false);
+                          }}
+                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all ${
+                            isSelected
+                              ? 'bg-sky-50 text-sky-950 font-bold border border-sky-200'
+                              : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">{curr.flag}</span>
+                            <div>
+                              <div className="text-xs font-bold text-slate-900 leading-tight">
+                                {curr.name}
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-medium">
+                                {curr.country}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-xs font-mono font-bold text-sky-600 bg-sky-100/60 px-1.5 py-0.5 rounded-md">
+                            {curr.symbol}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="pt-2 mt-1 border-t border-slate-100">
+                    <button
+                      onClick={() => {
+                        setShowCurrencyMenu(false);
+                        onNavigate('admin-currency');
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-[11px] font-bold text-sky-600 hover:text-sky-700 hover:bg-sky-50 transition-colors"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      <span>Paramétrage des Taux (Admin)</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Quick Diploma Verifier for Visitor */}
             {isVisitor && (
               <button
@@ -241,19 +325,19 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* IF VISITOR / NOT AUTHENTICATED */}
             {isVisitor ? (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
                 <button
                   onClick={() => onOpenAuth('login')}
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-all flex items-center gap-1"
+                  className="px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-sky-600 hover:bg-sky-50 border border-slate-200 transition-all flex items-center gap-1 whitespace-nowrap"
                 >
-                  <LogIn className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Connexion</span>
+                  <LogIn className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                  <span className="hidden xs:inline">Connexion</span>
                 </button>
                 <button
                   onClick={() => onOpenAuth('demo')}
-                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all flex items-center gap-1"
+                  className="px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-400 text-white shadow-xs shadow-sky-500/20 active:scale-95 transition-all flex items-center gap-1 whitespace-nowrap"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
                   <span>Démo 1-Clic</span>
                 </button>
               </div>
@@ -274,7 +358,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <div
                       onClick={() => onNavigate('gamification')}
                       title={`Niveau ${currentUser.level} - Cliquez pour voir les récompenses`}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-extrabold cursor-pointer hover:bg-indigo-100 transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-sky-50 border border-sky-200 text-sky-700 text-xs font-extrabold cursor-pointer hover:bg-sky-100 transition-colors"
                     >
                       <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                       <span>{currentUser.xp} XP</span>
@@ -307,7 +391,7 @@ export const Header: React.FC<HeaderProps> = ({
                     >
                       <div className="px-3 py-1.5 border-b border-slate-100 text-[11px] text-slate-500 font-bold uppercase tracking-wider flex items-center justify-between">
                         <span>Changer de profil (Démo) :</span>
-                        <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                        <ShieldCheck className="w-3.5 h-3.5 text-sky-600" />
                       </div>
                       <div className="mt-1 space-y-1">
                         {rolesOrder.map((r) => {
@@ -323,7 +407,7 @@ export const Header: React.FC<HeaderProps> = ({
                               }}
                               className={`w-full flex items-start gap-2.5 p-2 rounded-xl text-left transition-all ${
                                 isCurrent
-                                  ? 'bg-indigo-50 text-indigo-950 font-bold border border-indigo-200'
+                                  ? 'bg-sky-50 text-sky-950 font-bold border border-sky-200'
                                   : 'text-slate-600 hover:bg-slate-50'
                               }`}
                             >
@@ -331,7 +415,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 <div className="text-xs font-bold flex items-center justify-between text-slate-900">
                                   <span>{info.title}</span>
                                   {isCurrent && (
-                                    <span className="text-[10px] text-indigo-600 font-extrabold">Actif</span>
+                                    <span className="text-[10px] text-sky-600 font-extrabold">Actif</span>
                                   )}
                                 </div>
                                 <div className="text-[11px] text-slate-500 font-normal mt-0.5 leading-tight line-clamp-1">
@@ -358,7 +442,7 @@ export const Header: React.FC<HeaderProps> = ({
                     className="p-1.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors relative"
                   >
                     <Bell className="w-4 h-4" />
-                    <span className="w-2 h-2 rounded-full bg-indigo-600 absolute top-1 right-1 ring-2 ring-white" />
+                    <span className="w-2 h-2 rounded-full bg-sky-500 absolute top-1 right-1 ring-2 ring-white" />
                   </button>
 
                   {showNotifications && (
@@ -368,12 +452,12 @@ export const Header: React.FC<HeaderProps> = ({
                     >
                       <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                         <span className="text-xs font-bold text-slate-900">Notifications</span>
-                        <span className="text-[10px] text-indigo-600 font-semibold cursor-pointer">Tout lire</span>
+                        <span className="text-[10px] text-sky-600 font-semibold cursor-pointer">Tout lire</span>
                       </div>
                       <div className="mt-2 space-y-1.5 text-xs">
                         <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                          <div className="font-semibold text-indigo-700 text-[11px] flex items-center gap-1">
-                            <Sparkles className="w-3 h-3 text-indigo-600" />
+                          <div className="font-semibold text-sky-700 text-[11px] flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-sky-600" />
                             Session Prête
                           </div>
                           <p className="text-slate-600 text-[11px]">Votre module d'IA Générative est disponible.</p>
@@ -414,7 +498,7 @@ export const Header: React.FC<HeaderProps> = ({
                           <div className="min-w-0 flex-1">
                             <div className="text-xs font-bold text-slate-900 truncate">{currentUser.name}</div>
                             <div className="text-[11px] text-slate-500 truncate">{currentUser.email}</div>
-                            <div className="text-[10px] text-indigo-600 font-semibold mt-0.5 flex items-center gap-1 truncate">
+                            <div className="text-[10px] text-sky-600 font-semibold mt-0.5 flex items-center gap-1 truncate">
                               <Building2 className="w-3 h-3 shrink-0" />
                               <span className="truncate">{currentUser.centerName}</span>
                             </div>
@@ -435,10 +519,10 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                       </div>
 
-                      {/* 2. Section: Mon Espace & Profil (Moved items) */}
+                      {/* 2. Section: Mon Espace & Profil (Moved items for Learner) */}
                       <div className="py-2 space-y-0.5 text-xs">
                         <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          Mon Espace Personnel
+                          Mon Espace & Apprentissage
                         </div>
 
                         <button
@@ -446,18 +530,37 @@ export const Header: React.FC<HeaderProps> = ({
                             onNavigate('profile');
                             setShowUserMenu(false);
                           }}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-50 text-left font-medium group transition-colors"
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
                         >
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
+                            <div className="w-6 h-6 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
                               <User className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-800 group-hover:text-indigo-600">Profil & Paramètres</div>
-                              <div className="text-[10px] text-slate-400">Mur, biographie & sécurité</div>
+                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Mon Profil Apprenant</div>
+                              <div className="text-[10px] text-slate-400">Mur, progression & paramètres</div>
                             </div>
                           </div>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">FB</span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-50 text-sky-600">PROFIL</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            onNavigate('profile');
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+                              <BookOpen className="w-3.5 h-3.5" />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Mes Formations & Cours</div>
+                              <div className="text-[10px] text-slate-400">Reprendre ma leçon en cours</div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-500 text-white">Actif</span>
                         </button>
 
                         <button
@@ -465,15 +568,15 @@ export const Header: React.FC<HeaderProps> = ({
                             onNavigate('learner-journey');
                             setShowUserMenu(false);
                           }}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-50 text-left font-medium group transition-colors"
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
                         >
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
                               <GraduationCap className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-800 group-hover:text-indigo-600">Mon Parcours & Micro-cours</div>
-                              <div className="text-[10px] text-slate-400">Jalons & Nano Banana</div>
+                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Mon Parcours Pédagogique</div>
+                              <div className="text-[10px] text-slate-400">Jalons, Nano Banana & modules</div>
                             </div>
                           </div>
                         </button>
@@ -483,14 +586,14 @@ export const Header: React.FC<HeaderProps> = ({
                             onNavigate('gamification');
                             setShowUserMenu(false);
                           }}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-50 text-left font-medium group transition-colors"
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
                         >
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
                               <Trophy className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-800 group-hover:text-indigo-600">Badges & Gamification</div>
+                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Badges & Gamification</div>
                               <div className="text-[10px] text-slate-400">{(currentUser.unlockedBadgeIds?.length || 0)} badges débloqués</div>
                             </div>
                           </div>
@@ -515,11 +618,11 @@ export const Header: React.FC<HeaderProps> = ({
                             className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-50 text-left font-medium group transition-colors"
                           >
                             <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0">
+                              <div className="w-6 h-6 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center shrink-0">
                                 <Sparkles className="w-3.5 h-3.5" />
                               </div>
                               <div>
-                                <div className="font-semibold text-slate-800 group-hover:text-indigo-600">Studio IA Pédagogique</div>
+                                <div className="font-semibold text-slate-800 group-hover:text-sky-600">Studio IA Pédagogique</div>
                                 <div className="text-[10px] text-slate-400">Générateur de cours Gemini</div>
                               </div>
                             </div>
@@ -539,7 +642,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 <Layers className="w-3.5 h-3.5" />
                               </div>
                               <div>
-                                <div className="font-semibold text-slate-800 group-hover:text-indigo-600">Créateur de Cours</div>
+                                <div className="font-semibold text-slate-800 group-hover:text-sky-600">Créateur de Cours</div>
                                 <div className="text-[10px] text-slate-400">Plan & Nano Banana</div>
                               </div>
                             </div>
@@ -559,7 +662,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 <Users className="w-3.5 h-3.5" />
                               </div>
                               <div>
-                                <div className="font-semibold text-slate-800 group-hover:text-indigo-600">Suivi des Apprenants</div>
+                                <div className="font-semibold text-slate-800 group-hover:text-sky-600">Suivi des Apprenants</div>
                                 <div className="text-[10px] text-slate-400">Progression & Notes</div>
                               </div>
                             </div>
@@ -578,7 +681,7 @@ export const Header: React.FC<HeaderProps> = ({
                               <Bot className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-800 group-hover:text-indigo-600">Tuteur IA AIDA</div>
+                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Tuteur IA AIDA</div>
                               <div className="text-[10px] text-slate-400">Assistance 24/7 & WhatsApp</div>
                             </div>
                           </div>
@@ -596,7 +699,7 @@ export const Header: React.FC<HeaderProps> = ({
                               <Award className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-800 group-hover:text-indigo-600">Vérificateur de Diplômes</div>
+                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Vérificateur de Diplômes</div>
                               <div className="text-[10px] text-slate-400">Contrôle QR & Blockchain</div>
                             </div>
                           </div>
@@ -622,7 +725,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 <Building2 className="w-3.5 h-3.5" />
                               </div>
                               <div>
-                                <div className="font-semibold text-slate-800 group-hover:text-indigo-600">Réseau Multi-Campus</div>
+                                <div className="font-semibold text-slate-800 group-hover:text-sky-600">Réseau Multi-Campus</div>
                                 <div className="text-[10px] text-slate-400">Vue globale des centres</div>
                               </div>
                             </div>
@@ -641,7 +744,7 @@ export const Header: React.FC<HeaderProps> = ({
                               <ShieldCheck className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-800 group-hover:text-indigo-600">Matrice des Permissions</div>
+                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Matrice des Permissions</div>
                               <div className="text-[10px] text-slate-400">Audit des rôles RBAC</div>
                             </div>
                           </div>
@@ -667,7 +770,7 @@ export const Header: React.FC<HeaderProps> = ({
               </>
             )}
 
-            {/* Mobile Menu Hamburger / Drawer Trigger */}
+            {/* Mobile Menu Hamburger / Drawer Trigger - Icon Only */}
             <button
               id="mobile-menu-toggle"
               onClick={() => {
@@ -676,10 +779,10 @@ export const Header: React.FC<HeaderProps> = ({
                 }
               }}
               aria-label="Ouvrir le menu latéral"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100/90 text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200/80 md:hidden transition-colors"
+              title="Menu latéral"
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100/90 text-slate-700 hover:text-sky-600 hover:bg-sky-50 border border-slate-200/80 md:hidden transition-all active:scale-95 shrink-0"
             >
-              <Menu className="w-4 h-4 text-slate-700" />
-              <span className="text-xs font-bold">Menu</span>
+              <Menu className="w-5 h-5 text-slate-700" />
             </button>
           </div>
         </div>

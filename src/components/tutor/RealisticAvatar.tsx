@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TutorPersona } from '../../types';
-import { Sparkles, Mic, Brain, Volume2, ShieldCheck, Zap } from 'lucide-react';
+import { Sparkles, Mic, Brain, Volume2, ShieldCheck, Zap, Bot, Camera, Play, VolumeX } from 'lucide-react';
+import { AndroidStyleCharacter } from './AndroidStyleCharacter';
 
 interface RealisticAvatarProps {
   persona: TutorPersona;
@@ -10,6 +11,8 @@ interface RealisticAvatarProps {
   isCalling?: boolean;
   showControlsOverlay?: boolean;
   speedMode?: 'flash' | 'pro';
+  avatarStyle?: 'android_animated' | 'realistic';
+  onToggleStyle?: () => void;
 }
 
 export const RealisticAvatar: React.FC<RealisticAvatarProps> = ({
@@ -18,11 +21,14 @@ export const RealisticAvatar: React.FC<RealisticAvatarProps> = ({
   size = 'md',
   isCalling = false,
   speedMode = 'flash',
+  avatarStyle: initialAvatarStyle = 'android_animated',
+  onToggleStyle,
 }) => {
+  const [currentStyle, setCurrentStyle] = useState<'android_animated' | 'realistic'>(initialAvatarStyle);
   const [mouthPhase, setMouthPhase] = useState(0);
   const [audioWaves, setAudioWaves] = useState<number[]>([12, 24, 18, 32, 16, 28, 14]);
 
-  // Syllable/mouth animation simulation when speaking
+  // Syllable/mouth animation simulation when speaking in realistic mode
   useEffect(() => {
     if (state !== 'speaking') return;
     const interval = setInterval(() => {
@@ -63,6 +69,42 @@ export const RealisticAvatar: React.FC<RealisticAvatarProps> = ({
 
   const CurrentBadgeIcon = stateBadge[state].icon;
 
+  // Toggle style handler
+  const handleToggleStyle = () => {
+    if (onToggleStyle) {
+      onToggleStyle();
+    } else {
+      setCurrentStyle((prev) => (prev === 'android_animated' ? 'realistic' : 'android_animated'));
+    }
+  };
+
+  // If in Android Language App Animation Mode (Default):
+  if (currentStyle === 'android_animated') {
+    return (
+      <div className="relative flex flex-col items-center">
+        {/* Android Vector Rigged Character with Real-time Lip Movements and Blinks */}
+        <AndroidStyleCharacter
+          persona={persona}
+          state={state}
+          size={size}
+          isCalling={isCalling}
+        />
+
+        {/* Quick Style Switcher Pill */}
+        <button
+          type="button"
+          onClick={handleToggleStyle}
+          title="Basculer vers le mode photo réaliste"
+          className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 text-[10px] font-semibold border border-slate-800 transition-colors"
+        >
+          <Camera className="w-3 h-3 text-cyan-400" />
+          <span>Passer en Mode Photo</span>
+        </button>
+      </div>
+    );
+  }
+
+  // Realistic Photomontage Mode with Lip Morphing Overlay
   return (
     <div className="relative flex flex-col items-center justify-center select-none">
       {/* Dynamic Background Halo Pulse */}
@@ -176,6 +218,17 @@ export const RealisticAvatar: React.FC<RealisticAvatarProps> = ({
           <CurrentBadgeIcon className="w-3.5 h-3.5" />
           <span>{stateBadge[state].label}</span>
         </div>
+
+        {/* Switch back to Android Character Animation Mode */}
+        <button
+          type="button"
+          onClick={handleToggleStyle}
+          title="Basculer vers le mode animé Android"
+          className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-indigo-300 text-[10px] font-semibold border border-slate-800 transition-colors"
+        >
+          <Bot className="w-3 h-3 text-indigo-400" />
+          <span>Passer en Mode Animé Android (Lèvres Actives)</span>
+        </button>
       </div>
     </div>
   );

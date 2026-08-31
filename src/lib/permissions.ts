@@ -205,10 +205,10 @@ export const ROLE_DETAILS: Record<
   learner: {
     title: 'Apprenant / Étudiant',
     badgeLabel: 'Étudiant Certifiant',
-    badgeStyle: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    badgeStyle: 'bg-sky-50 text-sky-700 border-sky-200',
     description: 'Accès complet au parcours d’apprentissage, joueur interactif, examens, tuteur AIDA et obtention de certificats officiels.',
     typicalUsers: 'Étudiants en informatique, ingénieurs en reconversion, professionnels en formation continue.',
-    colorTheme: 'indigo',
+    colorTheme: 'sky',
   },
   trainer: {
     title: 'Formateur / Enseignant',

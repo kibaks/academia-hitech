@@ -64,13 +64,13 @@ export const LearnerJourneyView: React.FC<LearnerJourneyViewProps> = ({
       )}
 
       {/* 1. Header Profile & Journey Banner */}
-      <div className="bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-sky-900 via-slate-900 to-sky-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <div className="relative">
             <img
               src={currentUser.avatar}
               alt={currentUser.name}
-              className="w-20 h-20 rounded-2xl object-cover border-2 border-indigo-400 shadow-lg"
+              className="w-20 h-20 rounded-2xl object-cover border-2 border-sky-400 shadow-lg"
             />
             <span className="absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
               Nv.{currentUser.level}
@@ -78,7 +78,7 @@ export const LearnerJourneyView: React.FC<LearnerJourneyViewProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/30 text-indigo-300 border border-indigo-500/40">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-500/30 text-sky-300 border border-sky-500/40">
                 Parcours d'Excellence Apprenant
               </span>
               <span className="text-xs text-slate-400">{currentUser.centerName}</span>
@@ -94,7 +94,7 @@ export const LearnerJourneyView: React.FC<LearnerJourneyViewProps> = ({
             className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 backdrop-blur-md flex items-center gap-2 transition-all"
           >
             <User className="w-4 h-4" />
-            <span>Voir Mon Profil Facebook</span>
+            <span>Voir Mon Espace Profil</span>
           </button>
         </div>
       </div>
@@ -102,7 +102,7 @@ export const LearnerJourneyView: React.FC<LearnerJourneyViewProps> = ({
       {/* 2. Key Progress Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600">
+          <div className="p-3 rounded-xl bg-sky-50 text-sky-600">
             <GraduationCap className="w-6 h-6" />
           </div>
           <div>
@@ -147,7 +147,7 @@ export const LearnerJourneyView: React.FC<LearnerJourneyViewProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-              <Target className="w-5 h-5 text-indigo-600" />
+              <Target className="w-5 h-5 text-sky-600" />
               <span>Feuille de Route Pédagogique (Roadmap)</span>
             </h2>
             <p className="text-xs text-slate-500">Validez vos jalons étape par étape pour débloquer votre diplôme officiel</p>

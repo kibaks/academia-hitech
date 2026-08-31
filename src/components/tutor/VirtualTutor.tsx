@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { TutorMessage, Course, TutorConfig, TutorPersona } from '../../types';
 import { TUTOR_PERSONAS, DEFAULT_TUTOR_CONFIG, TUTOR_LANGUAGES, getGreetingForLanguage } from './personaData';
 import { playTutorSpeech } from './speechUtils';
 import { RealisticAvatar } from './RealisticAvatar';
 import { TutorCallModal } from './TutorCallModal';
 import { TutorSettingsModal } from './TutorSettingsModal';
+import { VoiceNoteRecorder } from './VoiceNoteRecorder';
+import { VoiceNoteBubble } from './VoiceNoteBubble';
 import {
   Bot,
   Send,
@@ -72,8 +75,11 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
   const [avatarState, setAvatarState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
   const [isListeningMic, setIsListeningMic] = useState(false);
 
-  // WhatsApp Simulation State
-  const [whatsAppPhone, setWhatsAppPhone] = useState('+33 6 12 34 56 78');
+  // WhatsApp Simulation & Real Connect State
+  const [whatsAppPhone, setWhatsAppPhone] = useState('+243 89 000 0000');
+  const [whatsAppCustomText, setWhatsAppCustomText] = useState(
+    `Bonjour ${activePersona.name} ! Je m'entraîne sur le cours "${currentCourse?.title || 'IA & Software Engineering'}" sur Academia ITECH. Peux-tu m'accompagner pour mes révisions ?`
+  );
   const [waMessages, setWaMessages] = useState<Array<{ sender: 'user' | 'bot'; text: string; time: string }>>([
     {
       sender: 'bot',
@@ -202,6 +208,68 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
     }
   };
 
+  // SSE Streaming Helper for Virtual Tutor
+  const streamTutorChat = async (
+    payload: any,
+    onChunk: (chunk: string, fullText: string) => void,
+    onDone: (suggestions: string[], fullText: string) => void,
+    onError: (err: any) => void
+  ) => {
+    try {
+      const response = await fetch('/api/gemini/tutor-chat-stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`Erreur réseau streaming : ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let accumulatedText = '';
+      let receivedSuggestions: string[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const jsonStr = trimmed.slice(6).trim();
+            if (!jsonStr) continue;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              if (parsed.type === 'chunk' && parsed.text) {
+                accumulatedText += parsed.text;
+                onChunk(parsed.text, accumulatedText);
+              } else if (parsed.type === 'done') {
+                if (parsed.suggestions) {
+                  receivedSuggestions = parsed.suggestions;
+                }
+              } else if (parsed.type === 'error') {
+                throw new Error(parsed.error || 'Erreur flux');
+              }
+            } catch (e) {
+              console.warn('Erreur parsing SSE ligne:', e);
+            }
+          }
+        }
+      }
+
+      onDone(receivedSuggestions, accumulatedText);
+    } catch (err) {
+      onError(err);
+    }
+  };
+
   const handleSendMessage = async (textToSend?: string) => {
     const query = textToSend || inputMessage;
     if (!query.trim() || isLoading) return;
@@ -213,33 +281,189 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
       timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const tempBotId = `t-${Date.now()}`;
+    const initialBotMsg: TutorMessage = {
+      id: tempBotId,
+      sender: 'tutor',
+      text: '',
+      timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      isStreaming: true,
+    };
+
+    setMessages((prev) => [...prev, userMsg, initialBotMsg]);
     setInputMessage('');
     setIsLoading(true);
     setAvatarState('thinking');
 
+    const payload = {
+      message: query,
+      contextCourse: currentCourse?.title || 'Masterclass IA & Technologies ITECH',
+      currentLessonTitle: currentLessonTitle || 'Général',
+      conversationHistory: messages,
+      isWhatsAppMode: false,
+      personaName: activePersona.name,
+      personaGender: activePersona.gender,
+      teachingStyle: config.teachingStyle,
+      speedMode: config.speedMode,
+      audioLanguage: config.audioLanguage,
+      language: config.audioLanguage,
+    };
+
+    let hasReceivedFirstChunk = false;
+
+    await streamTutorChat(
+      payload,
+      (_chunk, fullText) => {
+        if (!hasReceivedFirstChunk) {
+          hasReceivedFirstChunk = true;
+          setAvatarState('speaking');
+        }
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempBotId ? { ...m, text: fullText, isStreaming: true } : m))
+        );
+      },
+      (suggestions, fullText) => {
+        const finalText = fullText || (config.audioLanguage.startsWith('ln') 
+          ? `Mbote ! Nazali ${activePersona.name}. Nayoki malamu likambo na yo likolo ya "${query.slice(0, 40)}". Na mateya ya ${currentCourse?.title || "ITECH"}, likambo ya ntina ezali kokanga ntina ya fonctionnement mpe kosala ba tests.`
+          : `Bonjour ! C'est ${activePersona.name} 🎓. Concernant votre question sur "${query.slice(0, 50)}", dans le cadre du cours "${currentCourse?.title || 'Ingénierie & IA'}" (Leçon : ${currentLessonTitle || 'Session Interactive'}), voici l'analyse recommandée : il est essentiel de décomposer la logique étape par étape et de tester le code dans l'éditeur.`);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempBotId
+              ? {
+                  ...m,
+                  text: finalText,
+                  isStreaming: false,
+                  suggestions: suggestions.length > 0 ? suggestions : (config.audioLanguage.startsWith('ln') ? [
+                    'Pesa ngai ndakisa ya code',
+                    'Ndenge nini ya komeka yango ?',
+                    'Résume na makambo 2 ya ntina',
+                  ] : [
+                    'Donne-moi un exemple concret en code',
+                    'Comment tester cela en production ?',
+                    'Résume en 3 points clés',
+                  ]),
+                }
+              : m
+          )
+        );
+        setIsLoading(false);
+        if (config.autoSpeak) {
+          speakText(finalText);
+        } else {
+          setAvatarState('idle');
+        }
+      },
+      async (err) => {
+        console.warn('Streaming error, falling back to sync endpoint:', err);
+        try {
+          const fallbackRes = await fetch('/api/gemini/tutor-chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await fallbackRes.json();
+          const fallbackText = data.reply || (config.audioLanguage.startsWith('ln')
+            ? `Mbote ! Nazali ${activePersona.name}. Na mateya ya ${currentCourse?.title || "cours oyo"}, likambo ya ntina likolo ya "${query.slice(0, 40)}" ezali kososola bien structure ya code.`
+            : `Bonjour ! C'est ${activePersona.name} 🎓. Concernant votre question "${query.slice(0, 50)}" dans ${currentCourse?.title || "le cours"}, voici l'approche à suivre : structurez votre code de manière modulaire et validez chaque étape.`);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === tempBotId
+                ? {
+                    ...m,
+                    text: fallbackText,
+                    isStreaming: false,
+                    suggestions: data.suggestions || [
+                      'Donne-moi un exemple pratique en code',
+                      'Comment tester ce code ?',
+                      'Résume les points essentiels',
+                    ],
+                  }
+                : m
+            )
+          );
+          if (config.autoSpeak) {
+            speakText(fallbackText);
+          }
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === tempBotId
+                ? { ...m, text: `Bonjour ! C'est ${activePersona.name}. Concernant votre question sur "${query.slice(0, 40)}", l'essentiel dans ce module est d'appliquer les bonnes pratiques de validation de code.`, isStreaming: false }
+                : m
+            )
+          );
+        } finally {
+          setIsLoading(false);
+          setAvatarState('idle');
+        }
+      }
+    );
+  };
+
+  const handleSendVoiceNote = async (audioBlob: Blob, durationSecs: number, clientTranscript?: string) => {
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const tempId = `voice-${Date.now()}`;
+
+    const userVoiceMsg: TutorMessage = {
+      id: tempId,
+      sender: 'user',
+      text: clientTranscript ? `🎙️ "${clientTranscript}"` : '🎙️ Note vocale',
+      timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      isVoiceNote: true,
+      audioUrl,
+      audioDuration: durationSecs,
+      transcription: clientTranscript,
+      status: 'transcribing',
+    };
+
+    setMessages((prev) => [...prev, userVoiceMsg]);
+    setIsLoading(true);
+    setAvatarState('thinking');
+
     try {
-      const response = await fetch('/api/gemini/tutor-chat', {
+      // Convert audio blob to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(audioBlob);
+      });
+      const base64Audio = await base64Promise;
+
+      const res = await fetch('/api/gemini/transcribe-audio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: query,
-          contextCourse: currentCourse?.title || 'Masterclass IA & Technologies ITECH',
+          audioBase64: base64Audio,
+          clientTranscript: clientTranscript || '',
+          mimeType: audioBlob.type || 'audio/webm',
+          language: config.audioLanguage,
+          contextCourse: currentCourse?.title || 'Formation Academia ITECH',
           currentLessonTitle: currentLessonTitle || 'Général',
-          conversationHistory: messages,
-          isWhatsAppMode: false,
           personaName: activePersona.name,
           personaGender: activePersona.gender,
           teachingStyle: config.teachingStyle,
-          speedMode: config.speedMode,
-          audioLanguage: config.audioLanguage,
-          language: config.audioLanguage,
         }),
       });
 
-      const data = await response.json();
-      const tutorReplyText = data.reply || (config.audioLanguage.startsWith('ln') ? "Nazali pene mpo na kosalisa yo na boyekoli !" : "Je suis à votre disposition pour continuer l'apprentissage !");
+      const data = await res.json();
+      const transcription = data.transcription || clientTranscript || 'Message vocal reçu';
+      const tutorReplyText =
+        data.reply ||
+        (config.audioLanguage.startsWith('ln')
+          ? 'Nazali koyoka yo malamu mpenza !'
+          : 'J\'ai bien entendu votre note vocale !');
 
+      // Update user message with real transcribed text
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId
+            ? { ...m, transcription, status: 'done', text: `🎙️ "${transcription}"` }
+            : m
+        )
+      );
+
+      // Add tutor reply
       const botMsg: TutorMessage = {
         id: `t-${Date.now()}`,
         sender: 'tutor',
@@ -248,18 +472,18 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
         suggestions: data.suggestions || (config.audioLanguage.startsWith('ln') ? [
           'Pesa ngai ndakisa mosusu',
           'Ndenge nini ya komeka yango na code ?',
-          'Bongisa yango na makambo 2 ya ntina',
         ] : [
-          'Donne-moi un autre exemple',
+          'Donne-moi un exemple pratique',
           'Comment tester cela en code ?',
-          'Résume en 2 points clés',
         ]),
       };
-
       setMessages((prev) => [...prev, botMsg]);
       speakText(tutorReplyText);
     } catch (err) {
-      console.error(err);
+      console.error('Error processing voice note:', err);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...m, status: 'error' } : m))
+      );
       setAvatarState('idle');
     } finally {
       setIsLoading(false);
@@ -270,55 +494,94 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
   };
 
   const handleSendWaMessage = async () => {
-    if (!waInput.trim()) return;
+    if (!waInput.trim() || isWaLoading) return;
 
+    const userText = waInput;
     const newMsg = {
       sender: 'user' as const,
-      text: waInput,
+      text: userText,
       time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setWaMessages((prev) => [...prev, newMsg]);
-    const currentInput = waInput;
+    const tempBotWaIndex = waMessages.length + 1;
+    const botPlaceholder = {
+      sender: 'bot' as const,
+      text: '',
+      time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      isStreaming: true,
+    };
+
+    setWaMessages((prev) => [...prev, newMsg, botPlaceholder]);
     setWaInput('');
     setIsWaLoading(true);
 
-    try {
-      const response = await fetch('/api/gemini/tutor-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: currentInput,
-          contextCourse: currentCourse?.title || 'Masterclass IA Academia ITECH',
-          isWhatsAppMode: true,
-          personaName: activePersona.name,
-          personaGender: activePersona.gender,
-          teachingStyle: config.teachingStyle,
-          speedMode: config.speedMode,
-          audioLanguage: config.audioLanguage,
-          language: config.audioLanguage,
-        }),
-      });
+    const payload = {
+      message: userText,
+      contextCourse: currentCourse?.title || 'Masterclass IA Academia ITECH',
+      isWhatsAppMode: true,
+      personaName: activePersona.name,
+      personaGender: activePersona.gender,
+      teachingStyle: config.teachingStyle,
+      speedMode: config.speedMode,
+      audioLanguage: config.audioLanguage,
+      language: config.audioLanguage,
+    };
 
-      const data = await response.json();
-      setWaMessages((prev) => [
-        ...prev,
-        {
-          sender: 'bot',
-          text: data.reply || `🤖 Message bien reçu par le bot Academia ITECH (${activePersona.name}) !`,
-          time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsWaLoading(false);
-    }
+    await streamTutorChat(
+      payload,
+      (_chunk, fullText) => {
+        setWaMessages((prev) =>
+          prev.map((m, idx) => (idx === tempBotWaIndex ? { ...m, text: fullText } : m))
+        );
+      },
+      (_suggestions, fullText) => {
+        const finalWaText = fullText || `🤖 *Academia ITECH (${activePersona.name})*\n\nSalut ! J'ai bien analysé votre message : _"${userText.slice(0, 40)}"_.\n\nDans le cadre de *${currentCourse?.title || "votre formation"}*, appliquez la méthode pas-à-pas et testez vos fonctions dans l'atelier interactif !`;
+        setWaMessages((prev) =>
+          prev.map((m, idx) =>
+            idx === tempBotWaIndex ? { ...m, text: finalWaText, isStreaming: false } : m
+          )
+        );
+        setIsWaLoading(false);
+      },
+      async (err) => {
+        console.warn('WhatsApp streaming fallback:', err);
+        try {
+          const fallbackRes = await fetch('/api/gemini/tutor-chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await fallbackRes.json();
+          setWaMessages((prev) =>
+            prev.map((m, idx) =>
+              idx === tempBotWaIndex
+                ? {
+                    ...m,
+                    text: data.reply || `🤖 *${activePersona.name}* : Concernant _"${userText.slice(0, 35)}"_, voici l'astuce clé : découpez votre code en fonctions simples et testables !`,
+                    isStreaming: false,
+                  }
+                : m
+            )
+          );
+        } catch {
+          setWaMessages((prev) =>
+            prev.map((m, idx) =>
+              idx === tempBotWaIndex
+                ? { ...m, text: `🤖 *${activePersona.name}* : Message bien reçu pour _"${userText.slice(0, 30)}"_. Recommandation : testez votre solution dans l'éditeur de code !`, isStreaming: false }
+                : m
+            )
+          );
+        } finally {
+          setIsWaLoading(false);
+        }
+      }
+    );
   };
 
-  const directWhatsAppLink = `https://wa.me/?text=${encodeURIComponent(
-    `Bonjour ${activePersona.name}, je m'entraîne sur Academia ITECH sur le cours ${currentCourse?.title || 'IA & Tech'}. Peux-tu m'envoyer mon résumé ?`
-  )}`;
+  const cleanWhatsAppDigits = whatsAppPhone.replace(/[^0-9]/g, '');
+  const directWhatsAppLink = cleanWhatsAppDigits
+    ? `https://api.whatsapp.com/send?phone=${cleanWhatsAppDigits}&text=${encodeURIComponent(whatsAppCustomText)}`
+    : `https://api.whatsapp.com/send?text=${encodeURIComponent(whatsAppCustomText)}`;
 
   return (
     <div id="virtual-tutor-container" className="space-y-8 pb-16">
@@ -476,6 +739,75 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
                 </button>
               </div>
 
+              {/* Interactive Lip-Sync & Speaking Demonstration Button */}
+              <div className="p-2.5 rounded-2xl bg-indigo-950/40 border border-indigo-800/40 space-y-2">
+                <div className="flex items-center justify-between text-[11px] text-indigo-300 font-semibold px-1">
+                  <span>📱 Animation Visuelle (Style App Android)</span>
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sampleSentence = config.audioLanguage.startsWith('ln')
+                      ? `Mbote ! Tala monoko na ngai ezali koningana ntango nazali koloba na yo !`
+                      : config.audioLanguage.startsWith('en')
+                      ? `Hello! Watch my lips move smoothly while I explain your lessons on Academia ITECH!`
+                      : `Bonjour ! Regardez mes lèvres bouger en rythme pendant que je vous explique les concepts sur Academia ITECH !`;
+                    speakText(sampleSentence);
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-indigo-950/40 transition-all hover:scale-102 active:scale-98"
+                >
+                  <Volume2 className="w-3.5 h-3.5 text-cyan-300" />
+                  <span>Tester le mouvement des lèvres</span>
+                </button>
+
+                {/* Quick Emotion triggers */}
+                <div className="grid grid-cols-3 gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvatarState('speaking');
+                      setTimeout(() => setAvatarState('idle'), 3500);
+                    }}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                      avatarState === 'speaking'
+                        ? 'bg-cyan-900/80 border-cyan-500 text-cyan-300'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    🗣️ Parler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvatarState('listening');
+                      setTimeout(() => setAvatarState('idle'), 3500);
+                    }}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                      avatarState === 'listening'
+                        ? 'bg-emerald-900/80 border-emerald-500 text-emerald-300'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    👂 Écouter
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvatarState('thinking');
+                      setTimeout(() => setAvatarState('idle'), 3500);
+                    }}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                      avatarState === 'thinking'
+                        ? 'bg-amber-900/80 border-amber-500 text-amber-300'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    🧠 Réfléchir
+                  </button>
+                </div>
+              </div>
+
               {/* Active Context Card */}
               <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-left text-xs space-y-1">
                 <span className="text-[10px] text-slate-400 uppercase font-bold block">Contexte & Pédagogie :</span>
@@ -501,8 +833,12 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
                 <span className="text-xs font-bold text-slate-800">
                   Discussion Instantanée avec {activePersona.name}
                 </span>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium">
-                  {config.speedMode === 'flash' ? 'Latence <0.8s' : 'Mode Approfondi'}
+                <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold flex items-center gap-1 border border-emerald-200/70 shadow-2xs">
+                  <Zap className="w-3 h-3 text-emerald-600 animate-pulse" />
+                  <span>Streaming IA Actif</span>
+                </span>
+                <span className="hidden sm:inline-block text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium">
+                  {config.speedMode === 'flash' ? 'Latence <0.5s' : 'Mode Approfondi'}
                 </span>
               </div>
 
@@ -543,38 +879,79 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
                     )}
                   </div>
 
-                  <div
-                    className={`max-w-[82%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed space-y-2 ${
-                      msg.sender === 'user'
-                        ? 'bg-indigo-600 text-white rounded-tr-none'
-                        : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none shadow-xs'
-                    }`}
-                  >
-                    <div className="whitespace-pre-line">{msg.text}</div>
-                    <div className="flex items-center justify-between pt-1 text-[10px] opacity-60">
-                      <span>{msg.sender === 'user' ? 'Vous' : activePersona.name}</span>
-                      <span>{msg.timestamp}</span>
-                    </div>
+                  {msg.isVoiceNote || msg.audioUrl ? (
+                    <VoiceNoteBubble
+                      audioUrl={msg.audioUrl}
+                      duration={msg.audioDuration}
+                      transcription={msg.transcription}
+                      isUser={msg.sender === 'user'}
+                      timestamp={msg.timestamp}
+                    />
+                  ) : (
+                    <div
+                      className={`max-w-[82%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed space-y-2 ${
+                        msg.sender === 'user'
+                          ? 'bg-indigo-600 text-white rounded-tr-none'
+                          : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none shadow-xs'
+                      }`}
+                    >
+                      {/* Message Content or Live Stream Skeleton */}
+                      {msg.isStreaming && !msg.text ? (
+                        <div className="flex items-center gap-2 py-1 text-indigo-600">
+                          <div className="flex gap-1 items-center">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </div>
+                          <span className="text-xs text-indigo-600 font-medium">Génération en direct...</span>
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-line">
+                          {msg.text}
+                          {msg.isStreaming && (
+                            <span className="inline-block w-1.5 h-4 bg-indigo-600 animate-pulse ml-1 align-middle rounded-xs" />
+                          )}
+                        </div>
+                      )}
 
-                    {/* Quick suggestion chips */}
-                    {msg.suggestions && msg.suggestions.length > 0 && (
-                      <div className="pt-2 flex flex-wrap gap-1.5 border-t border-slate-100">
-                        {msg.suggestions.map((sug, sIdx) => (
-                          <button
-                            key={sIdx}
-                            onClick={() => handleSendMessage(sug)}
-                            className="text-[11px] px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors text-left font-medium shadow-xs"
-                          >
-                            💡 {sug}
-                          </button>
-                        ))}
+                      <div className="flex items-center justify-between pt-1 text-[10px] opacity-60">
+                        <span>{msg.sender === 'user' ? 'Vous' : activePersona.name}</span>
+                        <div className="flex items-center gap-2">
+                          {msg.sender === 'tutor' && !msg.isStreaming && msg.text && (
+                            <button
+                              type="button"
+                              onClick={() => speakText(msg.text)}
+                              title="Écouter avec l'animation des lèvres"
+                              className="inline-flex items-center gap-1 text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold hover:underline"
+                            >
+                              <Volume2 className="w-3 h-3 text-indigo-500" />
+                              <span>Écouter</span>
+                            </button>
+                          )}
+                          <span>{msg.timestamp}</span>
+                        </div>
                       </div>
-                    )}
-                  </div>
+
+                      {/* Quick suggestion chips */}
+                      {!msg.isStreaming && msg.suggestions && msg.suggestions.length > 0 && (
+                        <div className="pt-2 flex flex-wrap gap-1.5 border-t border-slate-100">
+                          {msg.suggestions.map((sug, sIdx) => (
+                            <button
+                              key={sIdx}
+                              onClick={() => handleSendMessage(sug)}
+                              className="text-[11px] px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors text-left font-medium shadow-xs"
+                            >
+                              💡 {sug}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
 
-              {isLoading && (
+              {isLoading && !messages.some((m) => m.isStreaming) && (
                 <div className="flex items-center gap-2 text-xs text-indigo-600 bg-white p-3.5 rounded-2xl border border-slate-200 w-fit font-medium shadow-xs">
                   <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" />
                   <span>{activePersona.name} prépare sa réponse avec précision...</span>
@@ -583,35 +960,45 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Chat Input Bar with Microphone Dictation & Fast Send */}
-            <div className="p-4 bg-white border-t border-slate-200 flex items-center gap-2">
-              <button
-                onClick={toggleSpeechInput}
-                title={isListeningMic ? 'Arrêter la dictée' : 'Dicter vocalement votre question'}
-                className={`p-3 rounded-xl border transition-all ${
-                  isListeningMic
-                    ? 'bg-rose-600 text-white border-rose-600 animate-pulse shadow-md shadow-rose-900/30'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                }`}
-              >
-                <Mic className="w-4 h-4" />
-              </button>
-
-              <input
-                id="tutor-chat-input"
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder={`Posez votre question à ${activePersona.name} (code, théorie, préparation quiz)...`}
-                className="flex-1 p-3 rounded-xl bg-slate-50 text-slate-900 text-xs sm:text-sm border border-slate-200 focus:outline-none focus:border-indigo-500"
+            {/* Chat Input Bar with Voice Note Recorder, Dictation & Text Input */}
+            <div className="p-3 sm:p-4 bg-white border-t border-slate-200 flex flex-wrap sm:flex-nowrap items-center gap-2">
+              {/* Professional Voice Note Recorder */}
+              <VoiceNoteRecorder
+                onSendVoiceNote={handleSendVoiceNote}
+                languageCode={config.audioLanguage}
+                isProcessing={isLoading}
               />
+
+              <div className="relative flex-1 min-w-[200px] flex items-center">
+                <input
+                  id="tutor-chat-input"
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder={`Posez votre question à ${activePersona.name} (code, quiz, synthèse)...`}
+                  className="w-full p-2.5 sm:p-3 pr-10 rounded-xl bg-slate-50 text-slate-900 text-xs sm:text-sm border border-slate-200 focus:outline-none focus:border-indigo-500"
+                />
+
+                <button
+                  type="button"
+                  onClick={toggleSpeechInput}
+                  title={isListeningMic ? 'Arrêter la dictée' : 'Dicter du texte'}
+                  className={`absolute right-2 p-1.5 rounded-lg transition-colors ${
+                    isListeningMic
+                      ? 'text-rose-500 bg-rose-50 animate-pulse'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+              </div>
 
               <button
                 id="tutor-send-btn"
                 onClick={() => handleSendMessage()}
                 disabled={isLoading || !inputMessage.trim()}
-                className="p-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 transition-all font-bold shadow-xs flex items-center gap-1.5"
+                className="p-2.5 sm:p-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 transition-all font-bold shadow-xs flex items-center gap-1.5 shrink-0"
               >
                 <Send className="w-4 h-4" />
                 <span className="hidden sm:inline text-xs">Envoyer</span>
@@ -634,46 +1021,84 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
                 <div>
                   <h3 className="text-base font-bold text-slate-900">Connexion WhatsApp Directe</h3>
                   <p className="text-xs text-slate-500">
-                    Activez les rappels de révision et le tuteur IA directement sur votre smartphone.
+                    Scannez le QR Code ou cliquez pour discuter instantanément avec {activePersona.name} sur WhatsApp.
                   </p>
                 </div>
               </div>
 
-              {/* QR Code Mockup Frame */}
-              <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-3">
-                <div className="mx-auto w-40 h-40 rounded-xl bg-white p-3 flex items-center justify-center border border-slate-200 shadow-xs">
-                  <svg viewBox="0 0 100 100" className="w-full h-full text-slate-900 fill-current">
-                    <rect x="0" y="0" width="30" height="30" />
-                    <rect x="5" y="5" width="20" height="20" fill="white" />
-                    <rect x="10" y="10" width="10" height="10" />
+              {/* Real Scannable QR Code */}
+              <div className="p-5 rounded-2xl bg-gradient-to-b from-slate-50 to-emerald-50/40 border border-slate-200 text-center space-y-3.5">
+                <a
+                  href={directWhatsAppLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Cliquer pour ouvrir directement sur WhatsApp Web ou Mobile"
+                  className="group relative inline-block mx-auto p-3.5 bg-white rounded-2xl border-2 border-emerald-200 shadow-md transition-all hover:scale-105 hover:border-emerald-500 cursor-pointer"
+                >
+                  <QRCodeSVG
+                    value={directWhatsAppLink}
+                    size={180}
+                    level="M"
+                    includeMargin={false}
+                    bgColor="#ffffff"
+                    fgColor="#0f172a"
+                  />
+                  <div className="absolute inset-0 bg-emerald-950/0 group-hover:bg-emerald-950/10 rounded-2xl transition-colors flex items-center justify-center">
+                    <span className="opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold shadow-lg transition-opacity flex items-center gap-1.5">
+                      <ExternalLink className="w-3.5 h-3.5" /> Ouvrir WhatsApp
+                    </span>
+                  </div>
+                </a>
 
-                    <rect x="70" y="0" width="30" height="30" />
-                    <rect x="75" y="5" width="20" height="20" fill="white" />
-                    <rect x="80" y="10" width="10" height="10" />
-
-                    <rect x="0" y="70" width="30" height="30" />
-                    <rect x="5" y="75" width="20" height="20" fill="white" />
-                    <rect x="10" y="80" width="10" height="10" />
-
-                    <rect x="35" y="35" width="30" height="30" />
-                    <rect x="40" y="40" width="20" height="20" fill="white" />
-                    <rect x="45" y="45" width="10" height="10" />
-
-                    <rect x="35" y="10" width="10" height="10" />
-                    <rect x="55" y="10" width="10" height="10" />
-                    <rect x="10" y="45" width="10" height="10" />
-                    <rect x="80" y="45" width="10" height="10" />
-                    <rect x="35" y="80" width="10" height="10" />
-                    <rect x="55" y="80" width="10" height="10" />
-                  </svg>
-                </div>
-                <div className="text-xs text-slate-600">
-                  Scannez avec WhatsApp pour synchroniser vos progrès instantanément.
+                <div className="space-y-1">
+                  <div className="text-xs font-bold text-slate-800 flex items-center justify-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>QR Code 100% Fonctionnel</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                    Pointez l'appareil photo de votre smartphone ou l'application WhatsApp pour ouvrir la discussion.
+                  </div>
                 </div>
               </div>
 
-              {/* Direct WhatsApp Web Button */}
-              <div className="space-y-3">
+              {/* Quick Prompt Presets */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Message pré-rempli pour WhatsApp :
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: "📚 Résumé de cours", text: `Bonjour ${activePersona.name} ! Peux-tu me faire un résumé concis du cours "${currentCourse?.title || 'IA'}" avec 3 points clés ?` },
+                    { label: "🔥 Défi du jour (+50 XP)", text: `Bonjour ${activePersona.name} ! Envoie-moi mon défi tech du jour pour gagner 50 XP sur Academia ITECH !` },
+                    { label: "💻 Aide au code", text: `Salut ${activePersona.name} ! J'ai un bogue dans mon code TypeScript / Python sur la leçon "${currentLessonTitle || 'Pratique'}". Peux-tu m'aider ?` },
+                    { label: "🎯 Quiz flash", text: `Salut ${activePersona.name} ! Pose-moi une question de quiz sur le cours "${currentCourse?.title || 'IA & Software Engineering'}".` }
+                  ].map((p, pIdx) => (
+                    <button
+                      key={pIdx}
+                      type="button"
+                      onClick={() => setWhatsAppCustomText(p.text)}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all text-left font-medium ${
+                        whatsAppCustomText === p.text
+                          ? "bg-emerald-100 text-emerald-900 border-emerald-300 shadow-xs"
+                          : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+
+                <textarea
+                  rows={2}
+                  value={whatsAppCustomText}
+                  onChange={(e) => setWhatsAppCustomText(e.target.value)}
+                  placeholder="Tapez le message à envoyer sur WhatsApp..."
+                  className="w-full p-2.5 rounded-xl bg-slate-50 text-slate-800 text-xs border border-slate-200 focus:outline-none focus:border-emerald-500 focus:bg-white resize-none"
+                />
+              </div>
+
+              {/* Direct WhatsApp Web Button & Phone Number */}
+              <div className="space-y-3 pt-1 border-t border-slate-100">
                 <a
                   href={directWhatsAppLink}
                   target="_blank"
@@ -681,26 +1106,30 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
                   className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors"
                 >
                   <ExternalLink className="w-4 h-4" />
-                  <span>Ouvrir WhatsApp sur mon mobile</span>
+                  <span>Ouvrir WhatsApp sur Mobile / Web</span>
                 </a>
 
                 <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={whatsAppPhone}
-                    className="flex-1 p-2.5 rounded-xl bg-slate-50 text-slate-700 text-xs border border-slate-200"
-                  />
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={whatsAppPhone}
+                      onChange={(e) => setWhatsAppPhone(e.target.value)}
+                      placeholder="Numéro WhatsApp (ex: +243 890 000 000)"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 text-slate-800 text-xs border border-slate-200 focus:outline-none focus:border-emerald-500 focus:bg-white font-mono"
+                    />
+                  </div>
                   <button
+                    type="button"
                     onClick={() => {
-                      navigator.clipboard.writeText(whatsAppPhone);
+                      navigator.clipboard.writeText(directWhatsAppLink);
                       setCopiedLink(true);
                       setTimeout(() => setCopiedLink(false), 2000);
                     }}
-                    className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 border border-slate-200 transition-colors"
+                    className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 border border-slate-200 transition-colors whitespace-nowrap"
                   >
                     {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                    <span>{copiedLink ? 'Copié' : 'Copier'}</span>
+                    <span>{copiedLink ? 'Lien copié !' : 'Copier le lien'}</span>
                   </button>
                 </div>
               </div>

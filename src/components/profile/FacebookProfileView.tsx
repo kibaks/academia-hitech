@@ -35,7 +35,8 @@ import {
   ShieldCheck,
   Check,
   Sliders,
-  Tv
+  Tv,
+  Play
 } from 'lucide-react';
 
 interface FacebookProfileViewProps {
@@ -208,7 +209,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                       onUpdateProfile({ coverPhoto: cov });
                       setIsEditingCover(false);
                     }}
-                    className="w-14 h-10 object-cover rounded-lg cursor-pointer hover:ring-2 hover:ring-indigo-600 transition-all"
+                    className="w-14 h-10 object-cover rounded-lg cursor-pointer hover:ring-2 hover:ring-sky-500 transition-all"
                   />
                 ))}
               </div>
@@ -232,7 +233,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                   {/* Avatar Edit Button */}
                   <button
                     onClick={() => setIsEditingAvatar(!isEditingAvatar)}
-                    className="absolute bottom-2 right-2 p-2 rounded-full bg-slate-900/90 text-white hover:bg-indigo-600 border-2 border-white shadow-md transition-colors"
+                    className="absolute bottom-2 right-2 p-2 rounded-full bg-slate-900/90 text-white hover:bg-sky-500 border-2 border-white shadow-md transition-colors"
                     title="Modifier la photo de profil"
                   >
                     <Camera className="w-4 h-4" />
@@ -250,7 +251,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                             onUpdateProfile({ avatar: av });
                             setIsEditingAvatar(false);
                           }}
-                          className="w-12 h-12 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-indigo-600"
+                          className="w-12 h-12 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-sky-500"
                         />
                       ))}
                     </div>
@@ -273,7 +274,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                   </p>
 
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200 flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" />
                       {currentUser.role === 'trainer' ? 'Formateur Certifié' : currentUser.role === 'center_admin' ? 'Chef de Centre' : 'Apprenant Académie'}
                     </span>
@@ -294,7 +295,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                 {currentUser.role === 'trainer' && onOpenStudio && (
                   <button
                     onClick={onOpenStudio}
-                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md hover:scale-105 transition-all"
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md hover:scale-105 transition-all"
                   >
                     <Sparkles className="w-4 h-4" />
                     <span>Créer un Cours</span>
@@ -303,7 +304,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
 
                 <button
                   onClick={() => setActiveTab('settings')}
-                  className="px-4 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs sm:text-sm flex items-center gap-2 border border-indigo-200 transition-colors"
+                  className="px-4 py-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs sm:text-sm flex items-center gap-2 border border-sky-200 transition-colors"
                 >
                   <Edit3 className="w-4 h-4" />
                   <span>Modifier le profil</span>
@@ -322,9 +323,9 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
             {/* FACEBOOK STYLE TAB NAVIGATION */}
             <div className="flex border-t border-slate-200 mt-6 -mb-4 overflow-x-auto">
               {[
+                { id: 'courses', label: currentUser.role === 'trainer' ? 'Cours Créés' : 'Mes Formations & Cours', icon: BookOpen, badge: `${userCourses.length}` },
                 { id: 'posts', label: 'Publications & Journal', icon: MessageSquare },
                 { id: 'about', label: 'À Propos & Parcours', icon: Briefcase },
-                { id: 'courses', label: currentUser.role === 'trainer' ? 'Cours Créés' : 'Formations & Diplômes', icon: BookOpen, badge: `${userCourses.length}` },
                 { id: 'network', label: 'Réseau & Amis', icon: Users, badge: `${network.length}` },
                 { id: 'badges', label: 'Vitrine & Badges', icon: Award },
                 { id: 'settings', label: 'Paramètres & Modèles', icon: Sliders },
@@ -337,14 +338,14 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                     onClick={() => setActiveTab(tab.id as any)}
                     className={`flex items-center gap-2 px-4 sm:px-6 py-3.5 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
                       isActive
-                        ? 'border-indigo-600 text-indigo-700 bg-indigo-50/40'
+                        ? 'border-sky-500 text-sky-600 bg-sky-50/50'
                         : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-sky-500' : 'text-slate-400'}`} />
                     <span>{tab.label}</span>
                     {tab.badge && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${isActive ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${isActive ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-700'}`}>
                         {tab.badge}
                       </span>
                     )}
@@ -354,6 +355,57 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
             </div>
           </div>
         </div>
+
+        {/* ACTIVE COURSE HERO BANNER FOR LEARNER */}
+        {currentUser.role === 'learner' && userCourses.length > 0 && (
+          <div className="mb-6 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 text-white border border-sky-500/30 shadow-lg">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+              <div className="flex items-start gap-4">
+                <img
+                  src={userCourses[0].thumbnail}
+                  alt={userCourses[0].title}
+                  className="w-20 h-20 rounded-xl object-cover border border-sky-400/40 shrink-0 hidden sm:block"
+                />
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-400/40 uppercase tracking-wider">
+                      Cours en Cours
+                    </span>
+                    <span className="text-xs text-slate-400">{userCourses[0].category}</span>
+                  </div>
+                  <h3 className="text-sm sm:text-base md:text-lg font-bold text-white leading-snug break-words">
+                    {userCourses[0].title}
+                  </h3>
+                  <p className="text-xs text-slate-300 mt-1 line-clamp-1">
+                    Formateur : {userCourses[0].trainerName} • {userCourses[0].durationHours}h de formation
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end shrink-0">
+                <div className="text-right hidden sm:block">
+                  <div className="text-xs text-slate-400">Progression</div>
+                  <div className="text-sm font-extrabold text-sky-400">68% complété</div>
+                </div>
+                <button
+                  onClick={() => onNavigateToCourse(userCourses[0].id)}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs sm:text-sm transition-all shadow-md shadow-sky-500/20 active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Play className="w-4 h-4 fill-white" />
+                  <span>Reprendre le Cours</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="mt-4 pt-3 border-t border-white/10 flex items-center gap-3">
+              <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-sky-400 to-sky-500 rounded-full" style={{ width: '68%' }} />
+              </div>
+              <span className="text-xs text-sky-300 font-mono font-bold">68%</span>
+            </div>
+          </div>
+        )}
 
         {/* TAB CONTENTS */}
 
@@ -369,7 +421,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                 </h3>
 
                 {currentUser.bio && (
-                  <p className="text-xs sm:text-sm text-slate-700 leading-relaxed italic border-l-2 border-indigo-500 pl-3">
+                  <p className="text-xs sm:text-sm text-slate-700 leading-relaxed italic border-l-2 border-sky-500 pl-3">
                     "{currentUser.bio}"
                   </p>
                 )}
@@ -411,7 +463,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
               <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
                 <h3 className="text-sm font-extrabold text-slate-900 flex items-center justify-between">
                   <span>Compétences & Outils</span>
-                  <span className="text-[11px] text-indigo-600 font-semibold cursor-pointer" onClick={() => setActiveTab('about')}>
+                  <span className="text-[11px] text-sky-600 font-semibold cursor-pointer" onClick={() => setActiveTab('about')}>
                     Gérer
                   </span>
                 </h3>
@@ -431,7 +483,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
               <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-extrabold text-slate-900">Certificats Débloqués</h3>
-                  <span className="text-[11px] text-indigo-600 font-semibold cursor-pointer" onClick={() => setActiveTab('courses')}>
+                  <span className="text-[11px] text-sky-600 font-semibold cursor-pointer" onClick={() => setActiveTab('courses')}>
                     Tout voir ({currentUser.earnedCertificates.length})
                   </span>
                 </div>
@@ -440,11 +492,11 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                     <div
                       key={cert.id}
                       onClick={() => onOpenCertificateModal(cert)}
-                      className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-100 hover:border-indigo-300 cursor-pointer transition-all text-center"
+                      className="p-3 rounded-xl bg-sky-50/60 border border-sky-100 hover:border-sky-300 cursor-pointer transition-all text-center"
                     >
-                      <Award className="w-8 h-8 text-indigo-600 mx-auto mb-1" />
+                      <Award className="w-8 h-8 text-sky-600 mx-auto mb-1" />
                       <p className="font-bold text-[11px] text-slate-900 truncate">{cert.courseTitle}</p>
-                      <span className="text-[9px] text-indigo-700 font-bold">{cert.distinction}</span>
+                      <span className="text-[9px] text-sky-700 font-bold">{cert.distinction}</span>
                     </div>
                   ))}
                 </div>
@@ -467,7 +519,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                       onChange={(e) => setNewPostContent(e.target.value)}
                       placeholder={`Que souhaitez-vous partager avec l'académie, ${currentUser.name.split(' ')[0]} ?`}
                       rows={2}
-                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"
                     />
 
                     {newPostType === 'code_snippet' && (
@@ -489,7 +541,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                       onClick={() => setNewPostType(newPostType === 'code_snippet' ? 'status' : 'code_snippet')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
                         newPostType === 'code_snippet'
-                          ? 'bg-indigo-600 text-white'
+                          ? 'bg-sky-500 text-white'
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
@@ -501,7 +553,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                   <button
                     onClick={handleCreatePost}
                     disabled={!newPostContent.trim()}
-                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
+                    className="px-5 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>Publier</span>
@@ -545,16 +597,16 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
 
                     {/* Certificate Ref Attachment */}
                     {post.certificateRef && (
-                      <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 flex items-center justify-between">
+                      <div className="p-4 rounded-xl bg-gradient-to-r from-sky-50 to-purple-50 border border-sky-200 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-xl bg-sky-500 text-white flex items-center justify-center">
                             <Award className="w-5 h-5" />
                           </div>
                           <div>
                             <h5 className="font-bold text-xs sm:text-sm text-slate-900">
                               {post.certificateRef.courseTitle}
                             </h5>
-                            <p className="text-[11px] text-indigo-700 font-semibold">
+                            <p className="text-[11px] text-sky-700 font-semibold">
                               {post.certificateRef.distinction} • {post.certificateRef.certificateNumber}
                             </p>
                           </div>
@@ -631,11 +683,11 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                           if (e.key === 'Enter') handleAddComment(post.id);
                         }}
                         placeholder="Écrivez un commentaire..."
-                        className="flex-1 px-3 py-1.5 text-xs rounded-xl bg-slate-100 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="flex-1 px-3 py-1.5 text-xs rounded-xl bg-slate-100 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500"
                       />
                       <button
                         onClick={() => handleAddComment(post.id)}
-                        className="p-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500"
+                        className="p-1.5 rounded-lg bg-sky-500 text-white hover:bg-sky-400"
                       >
                         <Send className="w-3.5 h-3.5" />
                       </button>
@@ -652,7 +704,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-8">
             <div>
               <h3 className="text-lg font-extrabold text-slate-900 mb-4 flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-indigo-600" />
+                <Briefcase className="w-5 h-5 text-sky-500" />
                 <span>Expériences & Postes Professionnels</span>
               </h3>
               <div className="space-y-4">
@@ -677,7 +729,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
 
             <div className="pt-6 border-t border-slate-200">
               <h3 className="text-lg font-extrabold text-slate-900 mb-4 flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-indigo-600" />
+                <GraduationCap className="w-5 h-5 text-sky-500" />
                 <span>Cursus Académique & Certifications</span>
               </h3>
               <div className="space-y-3">
@@ -694,12 +746,12 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
 
             <div className="pt-6 border-t border-slate-200">
               <h3 className="text-lg font-extrabold text-slate-900 mb-4 flex items-center gap-2">
-                <Globe2 className="w-5 h-5 text-indigo-600" />
+                <Globe2 className="w-5 h-5 text-sky-500" />
                 <span>Coordonnées & Réseaux Sociaux</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
                 <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-3">
-                  <Mail className="w-4 h-4 text-indigo-600" />
+                  <Mail className="w-4 h-4 text-sky-500" />
                   <span className="text-slate-800">{currentUser.email}</span>
                 </div>
                 <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-3">
@@ -753,7 +805,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                   {currentUser.earnedCertificates.map((cert) => (
                     <div
                       key={cert.id}
-                      className="p-5 rounded-2xl bg-gradient-to-br from-indigo-900 to-slate-900 text-white shadow-md flex flex-col justify-between"
+                      className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-sky-950 to-slate-900 text-white shadow-md border border-sky-500/30 flex flex-col justify-between"
                     >
                       <div>
                         <div className="flex items-center justify-between mb-2">
@@ -769,7 +821,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                         <span className="text-[10px] font-mono text-slate-400">{cert.certificateNumber}</span>
                         <button
                           onClick={() => onOpenCertificateModal(cert)}
-                          className="px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs transition-colors flex items-center gap-1"
+                          className="px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs transition-colors flex items-center gap-1 shadow-sm active:scale-95"
                         >
                           <span>Voir le Diplôme</span>
                           <ExternalLink className="w-3 h-3" />
@@ -783,27 +835,50 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
 
             {/* Courses List */}
             <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs">
-              <h3 className="text-base font-extrabold text-slate-900 mb-4 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-indigo-600" />
-                <span>{currentUser.role === 'trainer' ? 'Formations Créées' : 'Formations en Cours'}</span>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {userCourses.map((c) => (
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-sky-500" />
+                  <span>{currentUser.role === 'trainer' ? 'Formations Créées' : 'Mes Formations & Cours'}</span>
+                </h3>
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
+                  {userCourses.length} {userCourses.length > 1 ? 'cours' : 'cours'}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {userCourses.map((c, index) => (
                   <div
                     key={c.id}
                     onClick={() => onNavigateToCourse(c.id)}
-                    className="p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-md cursor-pointer transition-all bg-white flex flex-col justify-between"
+                    className="p-4 rounded-2xl border border-slate-200 hover:border-sky-400 hover:shadow-lg hover:shadow-sky-500/10 cursor-pointer transition-all bg-white flex flex-col justify-between group"
                   >
                     <div>
-                      <img src={c.thumbnail} alt={c.title} className="w-full h-32 object-cover rounded-lg mb-3" />
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700">
-                        {c.level}
-                      </span>
-                      <h4 className="font-bold text-sm text-slate-900 mt-2 line-clamp-2">{c.title}</h4>
+                      <div className="relative mb-3 overflow-hidden rounded-xl">
+                        <img src={c.thumbnail} alt={c.title} className="w-full h-36 object-cover rounded-xl group-hover:scale-105 transition-transform duration-300" />
+                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-slate-900/80 backdrop-blur-xs text-white border border-white/20">
+                          {c.category}
+                        </span>
+                        <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-500 text-white">
+                          {c.level}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-xs sm:text-sm text-slate-900 line-clamp-2 group-hover:text-sky-600 transition-colors leading-snug break-words">{c.title}</h4>
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-1">{c.trainerName} • {c.centerName}</p>
                     </div>
-                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100 text-xs text-slate-500">
-                      <span>{c.durationHours}h de contenu</span>
-                      <span className="text-indigo-600 font-bold">Ouvrir →</span>
+
+                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span>Progression</span>
+                        <span className="font-bold text-sky-600">{index === 0 ? '68%' : '25%'}</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-sky-500 rounded-full" style={{ width: index === 0 ? '68%' : '25%' }} />
+                      </div>
+                      <div className="flex items-center justify-between pt-1 text-xs">
+                        <span className="text-slate-400 text-[11px]">{c.durationHours}h de contenu</span>
+                        <span className="text-sky-600 font-bold group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                          Continuer →
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -820,7 +895,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                 <h3 className="text-lg font-extrabold text-slate-900">Réseau Académique & Connexions</h3>
                 <p className="text-xs text-slate-500">Formateurs, mentors et apprenants de votre campus</p>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700">
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-700">
                 {network.length} Contacts
               </span>
             </div>
@@ -855,7 +930,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                       className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-colors ${
                         conn.isFriend
                           ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                          : 'bg-indigo-600 text-white hover:bg-indigo-500'
+                          : 'bg-sky-500 text-white hover:bg-sky-400'
                       }`}
                     >
                       {conn.isFriend ? 'Ami ✓' : 'Ajouter'}
@@ -889,7 +964,7 @@ export const FacebookProfileView: React.FC<FacebookProfileViewProps> = ({
                   <span className="text-3xl mb-2">{b.icon}</span>
                   <h4 className="font-bold text-xs sm:text-sm text-slate-900">{b.title}</h4>
                   <p className="text-[10px] text-slate-500 mt-0.5">{b.desc}</p>
-                  <span className="mt-2 px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-100 text-indigo-800">
+                  <span className="mt-2 px-2 py-0.5 rounded-full text-[9px] font-bold bg-sky-100 text-sky-800">
                     {b.level}
                   </span>
                 </div>

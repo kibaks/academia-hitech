@@ -108,7 +108,7 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
             <div className="lg:col-span-8 space-y-3">
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 leading-snug break-words">
                 {activeCourse.title}
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 line-clamp-2 leading-relaxed">
@@ -191,23 +191,23 @@ export const LearnerDashboard: React.FC<LearnerDashboardProps> = ({
                 <div
                   key={course.id}
                   onClick={() => onSelectCourse(course)}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-xs cursor-pointer transition-all flex items-center justify-between gap-4 shadow-xs"
+                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-sky-300 hover:shadow-xs cursor-pointer transition-all flex items-center justify-between gap-3 sm:gap-4 shadow-xs"
                 >
-                  <div className="flex items-center gap-3 truncate">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <img
                       src={course.thumbnail}
                       alt={course.title}
-                      className="w-14 h-14 rounded-xl object-cover flex-shrink-0 border border-slate-200"
+                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover shrink-0 border border-slate-200"
                     />
-                    <div className="truncate">
-                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">{course.title}</h4>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-2 leading-snug break-words">{course.title}</h4>
                       <span className="text-[11px] text-slate-500 block truncate mt-0.5">
                         {doneCount} / {totalLessons} leçons ({percent}%)
                       </span>
                     </div>
                   </div>
 
-                  <button className="p-2 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 flex-shrink-0 transition-colors">
+                  <button className="p-2 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 shrink-0 transition-colors">
                     <PlayCircle className="w-5 h-5" />
                   </button>
                 </div>

@@ -57,12 +57,12 @@ export const MobileNav: React.FC<MobileNavProps> = ({
                 id={`mobile-nav-${item.id}`}
                 onClick={() => onNavigate(item.id)}
                 className={`flex-1 flex flex-col items-center justify-center py-1 min-h-[44px] rounded-xl transition-all ${
-                  isActive ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+                  isActive ? 'text-sky-500 font-bold' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 <div
                   className={`p-1 rounded-xl transition-all ${
-                    isActive ? 'bg-indigo-50 border border-indigo-200/80 scale-105' : ''
+                    isActive ? 'bg-sky-50 border border-sky-200/80 scale-105' : ''
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -76,9 +76,9 @@ export const MobileNav: React.FC<MobileNavProps> = ({
           <button
             id="mobile-nav-visitor-drawer-btn"
             onClick={onOpenDrawer}
-            className="flex-1 flex flex-col items-center justify-center py-1 min-h-[44px] rounded-xl text-slate-500 hover:text-indigo-600 transition-all"
+            className="flex-1 flex flex-col items-center justify-center py-1 min-h-[44px] rounded-xl text-slate-500 hover:text-sky-500 transition-all"
           >
-            <div className="p-1 rounded-xl bg-slate-100 hover:bg-indigo-50 transition-colors">
+            <div className="p-1 rounded-xl bg-slate-100 hover:bg-sky-50 transition-colors">
               <Menu className="w-4 h-4 text-slate-700" />
             </div>
             <span className="text-[10px] tracking-tight mt-0.5 font-semibold text-slate-700">Menu</span>
@@ -87,7 +87,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
 
         <button
           onClick={onOpenAuth}
-          className="ml-1 px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-xs flex items-center gap-1 shrink-0"
+          className="ml-1 px-3 py-2 rounded-xl bg-sky-500 text-white text-xs font-bold shadow-xs flex items-center gap-1 shrink-0 active:scale-95"
         >
           <LogIn className="w-3.5 h-3.5" />
           <span>Connexion</span>
@@ -102,10 +102,9 @@ export const MobileNav: React.FC<MobileNavProps> = ({
   switch (userRole) {
     case 'learner':
       items = [
-        { id: 'learner-journey', label: 'Parcours', icon: GraduationCap },
         { id: 'catalog', label: 'Catalogue', icon: BookOpen },
-        { id: 'profile', label: 'Profil', icon: User },
         { id: 'tuteur', label: 'Tuteur IA', icon: Bot },
+        { id: 'profile', label: 'Mon Profil', icon: User },
       ];
       break;
 
@@ -159,17 +158,17 @@ export const MobileNav: React.FC<MobileNavProps> = ({
               id={`mobile-nav-${item.id}`}
               onClick={() => onNavigate(item.id)}
               className={`flex-1 flex flex-col items-center justify-center py-1 min-h-[44px] transition-all ${
-                isActive ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+                isActive ? 'text-sky-500 font-bold' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               <div
                 className={`p-1 rounded-xl transition-all ${
-                  isActive ? 'bg-indigo-50 border border-indigo-200/80 scale-105' : ''
+                  isActive ? 'bg-sky-50 border border-sky-200/80 scale-105' : ''
                 }`}
               >
                 <Icon className="w-4 h-4" />
               </div>
-              <span className={`text-[10px] tracking-tight mt-0.5 truncate max-w-[68px] ${isActive ? 'font-bold text-indigo-600' : 'font-medium text-slate-600'}`}>
+              <span className={`text-[10px] tracking-tight mt-0.5 truncate max-w-[68px] ${isActive ? 'font-bold text-sky-500' : 'font-medium text-slate-600'}`}>
                 {item.label}
               </span>
             </button>
@@ -180,9 +179,9 @@ export const MobileNav: React.FC<MobileNavProps> = ({
         <button
           id="mobile-nav-drawer-trigger"
           onClick={onOpenDrawer}
-          className="flex-1 flex flex-col items-center justify-center py-1 min-h-[44px] transition-all text-slate-600 hover:text-indigo-600"
+          className="flex-1 flex flex-col items-center justify-center py-1 min-h-[44px] transition-all text-slate-600 hover:text-sky-500"
         >
-          <div className="p-1 rounded-xl bg-slate-100/90 border border-slate-200/60 hover:bg-indigo-50 hover:border-indigo-200 transition-colors">
+          <div className="p-1 rounded-xl bg-slate-100/90 border border-slate-200/60 hover:bg-sky-50 hover:border-sky-200 transition-colors">
             <Menu className="w-4 h-4 text-slate-700" />
           </div>
           <span className="text-[10px] tracking-tight mt-0.5 font-bold text-slate-700">

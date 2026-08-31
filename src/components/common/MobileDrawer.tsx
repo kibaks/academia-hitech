@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserRole, Center, UserProfile } from '../../types';
 import { ROLE_DETAILS, hasPermission } from '../../lib/permissions';
+import { useCurrency } from '../../context/CurrencyContext';
 import {
   X,
   Search,
@@ -26,7 +27,9 @@ import {
   MapPin,
   HelpCircle,
   FolderDown,
-  ChevronDown
+  ChevronDown,
+  Coins,
+  Settings
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -67,6 +70,9 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 }) => {
   const [showRoleSelector, setShowRoleSelector] = useState(false);
   const [showCenterSelector, setShowCenterSelector] = useState(false);
+  const [showCurrencySelector, setShowCurrencySelector] = useState(false);
+
+  const { currencyCode, currencyInfo, setCurrencyCode, availableCurrencies } = useCurrency();
 
   if (!isOpen) return null;
 
@@ -114,11 +120,15 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
           {/* 1. USER IDENTITY CARD OR VISITOR CALLOUT */}
           {!isVisitor ? (
-            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-indigo-50/90 to-purple-50/70 border border-indigo-100 shadow-2xs space-y-3">
+            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-sky-50/90 to-blue-50/70 border border-sky-100 shadow-2xs space-y-3">
               <div className="flex items-center gap-3">
                 <img
                   src={currentUser.avatar}
                   alt={currentUser.name}
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
+                  }}
                   className="w-11 h-11 rounded-2xl object-cover border-2 border-white shadow-xs shrink-0"
                 />
                 <div className="min-w-0 flex-1">
@@ -126,11 +136,11 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                     {currentUser.name}
                   </div>
                   <div className="text-xs text-slate-500 truncate">{currentUser.email}</div>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white shadow-2xs">
+                  <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-600 text-white shadow-2xs shrink-0">
                       {ROLE_DETAILS[currentUser.role]?.badgeLabel || currentUser.role}
                     </span>
-                    <span className="text-[11px] text-indigo-700 font-semibold truncate flex items-center gap-1">
+                    <span className="text-[11px] text-sky-700 font-semibold truncate flex items-center gap-1 min-w-0">
                       <Building2 className="w-3 h-3 shrink-0" />
                       <span className="truncate">{activeCenter.city}</span>
                     </span>
@@ -140,17 +150,17 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
               {/* Gamification Stats for Learner */}
               {currentUser.role === 'learner' && (
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-indigo-100/80">
-                  <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-white/80 border border-indigo-100 text-xs font-bold text-slate-800">
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-sky-100/80">
+                  <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-white/80 border border-sky-100 text-xs font-bold text-slate-800">
                     <Flame className="w-4 h-4 text-orange-500 fill-orange-500 shrink-0" />
-                    <span>{currentUser.streakDays || 0} jours conséc.</span>
+                    <span className="truncate">{currentUser.streakDays || 0}j conséc.</span>
                   </div>
                   <div
                     onClick={() => handleLinkClick('gamification')}
-                    className="flex items-center gap-1.5 p-1.5 rounded-xl bg-white/80 border border-indigo-100 text-xs font-extrabold text-indigo-700 cursor-pointer"
+                    className="flex items-center gap-1.5 p-1.5 rounded-xl bg-white/80 border border-sky-100 text-xs font-extrabold text-sky-700 cursor-pointer"
                   >
                     <Zap className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
-                    <span>{currentUser.xp || 0} XP (Nv.{currentUser.level || 1})</span>
+                    <span className="truncate">{currentUser.xp || 0} XP (Nv.{currentUser.level || 1})</span>
                   </div>
                 </div>
               )}
@@ -163,7 +173,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                   Non connecté
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 leading-relaxed">
                 Connectez-vous pour accéder à vos cours certifiants et à votre espace personnalisé.
               </p>
               <div className="grid grid-cols-2 gap-2 pt-1">
@@ -174,18 +184,18 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                   }}
                   className="py-2 rounded-xl text-xs font-bold bg-white text-slate-800 border border-slate-300 shadow-2xs hover:bg-slate-50 transition-colors flex items-center justify-center gap-1"
                 >
-                  <LogIn className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Connexion</span>
+                  <LogIn className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                  <span className="truncate">Connexion</span>
                 </button>
                 <button
                   onClick={() => {
                     onOpenAuth('demo');
                     onClose();
                   }}
-                  className="py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-xs hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1"
+                  className="py-2 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-400 text-white shadow-xs transition-colors flex items-center justify-center gap-1"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Démo 1-Clic</span>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                  <span className="truncate">Démo 1-Clic</span>
                 </button>
               </div>
             </div>
@@ -199,7 +209,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Rechercher formations, compétences..."
-              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 text-slate-800 placeholder-slate-400 rounded-xl border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 text-slate-800 placeholder-slate-400 rounded-xl border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
             />
             {searchQuery && (
               <button
@@ -220,12 +230,12 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 onClick={() => setShowRoleSelector(!showRoleSelector)}
                 className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-slate-800 hover:bg-slate-100/80 transition-colors"
               >
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                  <span>Profil & Rôle ({ROLE_DETAILS[currentUser.role]?.title || currentUser.role})</span>
+                <div className="flex items-center gap-2 truncate">
+                  <ShieldCheck className="w-4 h-4 text-sky-600 shrink-0" />
+                  <span className="truncate">Profil & Rôle ({ROLE_DETAILS[currentUser.role]?.title || currentUser.role})</span>
                 </div>
                 <ChevronDown
-                  className={`w-4 h-4 text-slate-400 transition-transform ${
+                  className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${
                     showRoleSelector ? 'rotate-180' : ''
                   }`}
                 />
@@ -248,20 +258,20 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                         }}
                         className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-colors ${
                           isCurrent
-                            ? 'bg-indigo-50 text-indigo-900 font-bold border border-indigo-200'
+                            ? 'bg-sky-50 text-sky-900 font-bold border border-sky-200'
                             : 'text-slate-700 hover:bg-slate-50'
                         }`}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 truncate">
                           <span
-                            className={`w-2 h-2 rounded-full ${
-                              isCurrent ? 'bg-indigo-600' : 'bg-slate-300'
+                            className={`w-2 h-2 rounded-full shrink-0 ${
+                              isCurrent ? 'bg-sky-600' : 'bg-slate-300'
                             }`}
                           />
-                          <span>{info.title}</span>
+                          <span className="truncate">{info.title}</span>
                         </div>
                         {isCurrent && (
-                          <span className="text-[10px] font-bold text-indigo-600">Actif</span>
+                          <span className="text-[10px] font-bold text-sky-600 shrink-0 ml-1">Actif</span>
                         )}
                       </button>
                     );
@@ -278,7 +288,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-slate-800 hover:bg-slate-100/80 transition-colors"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <MapPin className="w-4 h-4 text-sky-500 shrink-0" />
                   <span className="truncate">Campus : {activeCenter.name}</span>
                 </div>
                 <ChevronDown
@@ -304,7 +314,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                         }}
                         className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-colors ${
                           isSelected
-                            ? 'bg-emerald-50 text-emerald-900 font-bold border border-emerald-200'
+                            ? 'bg-sky-50 text-sky-900 font-bold border border-sky-200'
                             : 'text-slate-700 hover:bg-slate-50'
                         }`}
                       >
@@ -313,11 +323,76 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                           <div className="text-[10px] text-slate-500">{c.city} • {c.country}</div>
                         </div>
                         {isSelected && (
-                          <span className="text-[10px] font-bold text-emerald-600 ml-1">Choisi</span>
+                          <span className="text-[10px] font-bold text-sky-600 ml-1">Choisi</span>
                         )}
                       </button>
                     );
                   })}
+                </div>
+              )}
+            </div>
+
+            {/* Currency Selector Accordion */}
+            <div className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setShowCurrencySelector(!showCurrencySelector)}
+                className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-slate-800 hover:bg-slate-100/80 transition-colors"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Coins className="w-4 h-4 text-sky-500 shrink-0" />
+                  <span className="truncate">Devise : {currencyInfo.flag} {currencyInfo.name} ({currencyInfo.code})</span>
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${
+                    showCurrencySelector ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {showCurrencySelector && (
+                <div className="p-2 border-t border-slate-200 space-y-1 bg-white max-h-52 overflow-y-auto">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 flex items-center justify-between">
+                    <span>Devise & Monnaie locale :</span>
+                  </div>
+                  {availableCurrencies.map((curr) => {
+                    const isSelected = curr.code === currencyCode;
+                    return (
+                      <button
+                        key={curr.code}
+                        onClick={() => {
+                          setCurrencyCode(curr.code);
+                          setShowCurrencySelector(false);
+                        }}
+                        className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-colors ${
+                          isSelected
+                            ? 'bg-sky-50 text-sky-950 font-bold border border-sky-200'
+                            : 'text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{curr.flag}</span>
+                          <div>
+                            <div className="font-semibold text-slate-900">{curr.name}</div>
+                            <div className="text-[10px] text-slate-500">{curr.country}</div>
+                          </div>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-sky-600 bg-sky-100/60 px-1.5 py-0.5 rounded-md">
+                          {curr.symbol}
+                        </span>
+                      </button>
+                    );
+                  })}
+
+                  <div className="pt-2 border-t border-slate-100">
+                    <button
+                      onClick={() => handleLinkClick('admin-currency')}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold text-sky-600 hover:bg-sky-50 transition-colors"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      <span>Gérer les conversions (Admin)</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -334,7 +409,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               onClick={() => handleLinkClick('home')}
               className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
                 activeTab === 'home'
-                  ? 'bg-indigo-600 text-white shadow-xs'
+                  ? 'bg-sky-500 text-white shadow-xs'
                   : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
@@ -349,7 +424,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               onClick={() => handleLinkClick('catalog')}
               className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
                 activeTab === 'catalog'
-                  ? 'bg-indigo-600 text-white shadow-xs'
+                  ? 'bg-sky-500 text-white shadow-xs'
                   : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
@@ -360,44 +435,23 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               <ChevronRight className="w-3.5 h-3.5 opacity-50" />
             </button>
 
-            {/* Learner specific links */}
-            {currentUser.role === 'learner' && (
-              <>
-                <button
-                  onClick={() => handleLinkClick('learner-journey')}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
-                    activeTab === 'learner-journey'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <GraduationCap className="w-4 h-4 text-amber-500" />
-                    <span>Mon Parcours & Jalons</span>
-                  </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 font-bold">
-                    Nv.{currentUser.level || 1}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => handleLinkClick('my-learning')}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
-                    activeTab === 'my-learning'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <BookOpen className="w-4 h-4 text-indigo-500" />
-                    <span>Mes Formations en Cours</span>
-                  </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-900 font-bold">
-                    {currentUser.enrolledCourseIds?.length || 0}
-                  </span>
-                </button>
-              </>
-            )}
+            {/* Tuteur IA Link */}
+            <button
+              onClick={() => handleLinkClick('tuteur')}
+              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
+                activeTab === 'tuteur'
+                  ? 'bg-sky-500 text-white shadow-xs'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Bot className="w-4 h-4 text-sky-500" />
+                <span>Tuteur Intelligent AIDA (24/7)</span>
+              </div>
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
+                WhatsApp
+              </span>
+            </button>
           </div>
 
           {/* 5. PEDAGOGICAL & PRO TOOLS (ROLE GUARDED) */}
@@ -411,15 +465,15 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 onClick={() => handleLinkClick('course-builder')}
                 className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
                   activeTab === 'course-builder'
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-sky-500 text-white shadow-xs'
                     : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Layers className="w-4 h-4 text-purple-600" />
-                  <span>Créateur MasterStudy & Elementor</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Layers className="w-4 h-4 text-purple-600 shrink-0" />
+                  <span className="truncate">Créateur MasterStudy & Elementor</span>
                 </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-black">
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-black shrink-0">
                   LMS
                 </span>
               </button>
@@ -430,15 +484,15 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 onClick={() => handleLinkClick('studio')}
                 className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
                   activeTab === 'studio'
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-sky-500 text-white shadow-xs'
                     : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Sparkles className="w-4 h-4 text-indigo-600" />
-                  <span>Studio IA Pédagogique (Gemini)</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Sparkles className="w-4 h-4 text-sky-500 shrink-0" />
+                  <span className="truncate">Studio IA Pédagogique (Gemini)</span>
                 </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold">
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 font-bold shrink-0">
                   IA
                 </span>
               </button>
@@ -449,15 +503,15 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 onClick={() => handleLinkClick('progress-tracker')}
                 className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
                   activeTab === 'progress-tracker'
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-sky-500 text-white shadow-xs'
                     : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Users className="w-4 h-4 text-teal-600" />
-                  <span>Suivi & Notes des Apprenants</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Users className="w-4 h-4 text-teal-600 shrink-0" />
+                  <span className="truncate">Suivi & Notes des Apprenants</span>
                 </div>
-                <ChevronRight className="w-3.5 h-3.5 opacity-50" />
+                <ChevronRight className="w-3.5 h-3.5 opacity-50 shrink-0" />
               </button>
             )}
 
@@ -466,15 +520,15 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 onClick={() => handleLinkClick('center-management')}
                 className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
                   activeTab === 'center-management'
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-sky-500 text-white shadow-xs'
                     : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Building2 className="w-4 h-4 text-blue-600" />
-                  <span>Direction & Gestion du Campus</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span className="truncate">Direction & Gestion du Campus</span>
                 </div>
-                <ChevronRight className="w-3.5 h-3.5 opacity-50" />
+                <ChevronRight className="w-3.5 h-3.5 opacity-50 shrink-0" />
               </button>
             )}
 
@@ -483,34 +537,17 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 onClick={() => handleLinkClick('centers')}
                 className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
                   activeTab === 'centers'
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-sky-500 text-white shadow-xs'
                     : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Building2 className="w-4 h-4 text-indigo-600" />
-                  <span>Réseau Multi-Campus ITECH</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Building2 className="w-4 h-4 text-sky-600 shrink-0" />
+                  <span className="truncate">Réseau Multi-Campus ITECH</span>
                 </div>
-                <ChevronRight className="w-3.5 h-3.5 opacity-50" />
+                <ChevronRight className="w-3.5 h-3.5 opacity-50 shrink-0" />
               </button>
             )}
-
-            <button
-              onClick={() => handleLinkClick('tuteur')}
-              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
-                activeTab === 'tuteur'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Bot className="w-4 h-4 text-emerald-600" />
-                <span>Tuteur Intelligent AIDA (24/7)</span>
-              </div>
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
-                WhatsApp
-              </span>
-            </button>
           </div>
 
           {/* 6. PERSONAL SPACE & CERTIFICATION */}
@@ -525,30 +562,49 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                   onClick={() => handleLinkClick('profile')}
                   className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
                     activeTab === 'profile'
-                      ? 'bg-indigo-600 text-white shadow-xs'
+                      ? 'bg-sky-500 text-white shadow-xs'
                       : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <User className="w-4 h-4 text-blue-600" />
-                    <span>Profil & Mur Social (Style FB)</span>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <User className="w-4 h-4 text-sky-500 shrink-0" />
+                    <span className="truncate">Mon Profil & Formations</span>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 opacity-50" />
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-sky-100 text-sky-800 font-bold shrink-0">
+                    {currentUser.enrolledCourseIds?.length || 0} Cours
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => handleLinkClick('learner-journey')}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
+                    activeTab === 'learner-journey'
+                      ? 'bg-sky-500 text-white shadow-xs'
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <GraduationCap className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span className="truncate">Mon Parcours Pédagogique</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 font-bold shrink-0">
+                    Nv.{currentUser.level || 1}
+                  </span>
                 </button>
 
                 <button
                   onClick={() => handleLinkClick('gamification')}
                   className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
                     activeTab === 'gamification'
-                      ? 'bg-indigo-600 text-white shadow-xs'
+                      ? 'bg-sky-500 text-white shadow-xs'
                       : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <Trophy className="w-4 h-4 text-amber-500" />
-                    <span>Badges, Succès & Récompenses</span>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Trophy className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span className="truncate">Badges, Succès & Récompenses</span>
                   </div>
-                  <span className="text-[10px] font-bold text-amber-700">
+                  <span className="text-[10px] font-bold text-amber-700 shrink-0">
                     {currentUser.xp || 0} XP
                   </span>
                 </button>
@@ -562,26 +618,26 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               }}
               className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
             >
-              <div className="flex items-center gap-2.5">
-                <Award className="w-4 h-4 text-amber-600" />
-                <span>Vérificateur de Diplôme (QR Code)</span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Award className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="truncate">Vérificateur de Diplôme (QR Code)</span>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 opacity-50" />
+              <ChevronRight className="w-3.5 h-3.5 opacity-50 shrink-0" />
             </button>
 
             <button
               onClick={() => handleLinkClick('permissions')}
               className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
                 activeTab === 'permissions'
-                  ? 'bg-indigo-600 text-white shadow-xs'
+                  ? 'bg-sky-500 text-white shadow-xs'
                   : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                <span>Matrice des Permissions (RBAC)</span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <ShieldCheck className="w-4 h-4 text-sky-600 shrink-0" />
+                <span className="truncate">Matrice des Permissions (RBAC)</span>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 opacity-50" />
+              <ChevronRight className="w-3.5 h-3.5 opacity-50 shrink-0" />
             </button>
           </div>
         </div>
@@ -596,8 +652,8 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               }}
               className="w-full py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center justify-center gap-2 border border-rose-200 transition-colors shadow-2xs"
             >
-              <LogOut className="w-4 h-4" />
-              <span>Se Déconnecter ({currentUser.name})</span>
+              <LogOut className="w-4 h-4 shrink-0" />
+              <span className="truncate">Se Déconnecter ({currentUser.name})</span>
             </button>
           ) : (
             <button
@@ -605,10 +661,10 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 onOpenAuth('demo');
                 onClose();
               }}
-              className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors"
+              className="w-full py-2.5 px-4 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors"
             >
-              <Sparkles className="w-4 h-4 text-amber-300" />
-              <span>Explorer la Plateforme (Démo 1-Clic)</span>
+              <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
+              <span className="truncate">Explorer la Plateforme (Démo 1-Clic)</span>
             </button>
           )}
         </div>

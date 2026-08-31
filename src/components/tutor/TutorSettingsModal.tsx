@@ -236,9 +236,12 @@ export const TutorSettingsModal: React.FC<TutorSettingsModalProps> = ({
               <div className="flex items-center justify-between mb-3">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
                   <User className="w-4 h-4 text-cyan-400" />
-                  2. Choix de l'Avatar Animé (Homme / Femme)
+                  2. Choix du Tuteur Animé (Style Application de Langues Android)
                 </label>
-                <span className="text-xs text-indigo-400 font-medium">4 Profils Photoréalistes</span>
+                <span className="text-xs text-indigo-400 font-medium flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  Lèvres Réactives & Visèmes
+                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
