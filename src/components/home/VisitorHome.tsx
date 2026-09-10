@@ -23,7 +23,8 @@ import {
   ChevronRight,
   Play,
   CreditCard,
-  Coins
+  Coins,
+  Film
 } from 'lucide-react';
 
 interface VisitorHomeProps {
@@ -34,6 +35,7 @@ interface VisitorHomeProps {
   onSelectCourse: (course: Course) => void;
   onVerifyCert: () => void;
   onViewPermissions: () => void;
+  onOpenStudio?: () => void;
 }
 
 export const VisitorHome: React.FC<VisitorHomeProps> = ({
@@ -44,6 +46,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({
   onSelectCourse,
   onVerifyCert,
   onViewPermissions,
+  onOpenStudio,
 }) => {
   const { formatPrice, currencyInfo } = useCurrency();
   const [searchQuery, setSearchQuery] = useState('');
@@ -164,6 +167,17 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({
                 <span>Créer un Compte Apprenant Gratuit</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
+
+              {onOpenStudio && (
+                <button
+                  onClick={onOpenStudio}
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-md active:scale-95 transition-all flex items-center gap-2"
+                >
+                  <Film className="w-4 h-4 text-amber-300" />
+                  <span>Ouvrir le Studio Animaker (2D)</span>
+                </button>
+              )}
+
               <button
                 onClick={() => onOpenAuth('login')}
                 className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition-all flex items-center gap-2"

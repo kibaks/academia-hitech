@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Course, Chapter, Lesson, Quiz, QuizQuestion, NanoBananaLesson } from '../../types';
-import { COURSE_TEMPLATES, NANO_BANANA_TEMPLATES } from '../../data/templatesData';
+import { Course, Chapter, Lesson, Quiz, QuizQuestion, NanoBananaLesson, AnimakerLesson, CourseVideoProject } from '../../types';
+import { COURSE_TEMPLATES, NANO_BANANA_TEMPLATES, ANIMAKER_MOTION_PRESETS } from '../../data/templatesData';
 import { ElementorLessonBuilder } from './ElementorLessonBuilder';
 import { NanoBananaPlayer } from './NanoBananaPlayer';
+import { InteractiveMindMapCanvas } from './InteractiveMindMapCanvas';
+import { VideoEditingStudio } from '../studio/VideoEditingStudio';
+import { GeneratedVideoPlayer } from '../player/GeneratedVideoPlayer';
+import { ANIMAKER_CHARACTERS, convertVideoProjectToAnimakerLesson, convertAnimakerLessonToVideoProject } from '../../data/videoProjectsData';
 import {
   Plus,
   Trash2,
@@ -33,7 +37,14 @@ import {
   LayoutGrid,
   Copy,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Brain,
+  Film,
+  Zap,
+  Cpu,
+  Shield,
+  ArrowRight,
+  Presentation
 } from 'lucide-react';
 
 interface CourseCurriculumBuilderProps {
@@ -55,6 +66,7 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
 }) => {
   // MASTERSTUDY TABS: 'settings' | 'curriculum' | 'quiz' | 'pricing'
   const [activeTab, setActiveTab] = useState<'settings' | 'curriculum' | 'quiz' | 'pricing'>('curriculum');
+  const [curriculumViewMode, setCurriculumViewMode] = useState<'tree' | 'mindmap'>('tree');
 
   // Course Metadata
   const [courseId, setCourseId] = useState(existingCourse?.id || `course-${Date.now()}`);
@@ -142,8 +154,19 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
     lesson: Lesson;
   } | null>(null);
 
+  // ACTIVE ANIMAKER / MOTION STUDIO EDITING LESSON
+  const [editingAnimakerInfo, setEditingAnimakerInfo] = useState<{
+    chapterId: string;
+    chapterTitle: string;
+    lesson: Lesson;
+  } | null>(null);
+
   // Previews & UI Modals
   const [previewNanoBanana, setPreviewNanoBanana] = useState<NanoBananaLesson | null>(null);
+  const [previewAnimakerLesson, setPreviewAnimakerLesson] = useState<AnimakerLesson | null>(null);
+  const [showMotionExplainerModal, setShowMotionExplainerModal] = useState<{
+    chapterId: string;
+  } | null>(null);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -210,23 +233,171 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
     const lessonIndex = (targetChap?.lessons.length || 0) + 1;
 
     let defaultTitle = `Leçon ${lessonIndex} : `;
-    if (type === 'animated_nano_banana') defaultTitle += 'Micro-Cours Animé Nano Banana';
+    if (type === 'animaker_animated') defaultTitle += 'Animation Motion d\'Explication (Studio 2D)';
+    else if (type === 'animated_nano_banana') defaultTitle += 'Micro-Cours Animé Nano Banana';
     else if (type === 'interactive_code') defaultTitle += 'Atelier Pratique de Code';
     else if (type === 'video') defaultTitle += 'Vidéo de Démonstration';
+    else if (type === 'presentation') defaultTitle += 'Support de Présentation PowerPoint (PPTX)';
     else defaultTitle += 'Synthèse Pédagogique & Guide';
+
+    const defaultAnimakerData: AnimakerLesson | undefined =
+      type === 'animaker_animated'
+        ? {
+            id: `animaker-${Date.now()}`,
+            title: `Animation Motion : ${title || 'Concept Fondamental'}`,
+            topic: title || 'Concept Pédagogique Clé',
+            targetAudience: 'Étudiants & Ingénieurs Tech',
+            leadCharacterName: ANIMAKER_CHARACTERS[0].name,
+            leadCharacterAvatar: ANIMAKER_CHARACTERS[0].avatar,
+            totalDurationSeconds: 150,
+            scenes: [
+              {
+                id: `sc-${Date.now()}-1`,
+                title: '1. Introduction Visuelle & Mise en Contexte',
+                characterId: ANIMAKER_CHARACTERS[0].id,
+                characterName: ANIMAKER_CHARACTERS[0].name,
+                characterAvatar: ANIMAKER_CHARACTERS[0].avatar,
+                pose: 'waving',
+                dialogueText: `Bienvenue dans cette leçon explicative animée ! Nous allons décortiquer ensemble les principes fondamentaux de cette séquence.`,
+                background: 'tech_classroom',
+                boardContent: {
+                  type: 'bullet_points',
+                  title: 'Ce que nous allons explorer :',
+                  items: [
+                    'Compréhension intuitive des concepts',
+                    'Démonstration technique animée',
+                    'Bonnes pratiques d\'architecture en entreprise'
+                  ],
+                  highlightText: 'Académie d\'Excellence ITECH'
+                },
+                keyTakeaway: 'Une assimilation accélérée grâce aux explications visuelles interactives.',
+                durationSeconds: 35
+              },
+              {
+                id: `sc-${Date.now()}-2`,
+                title: '2. Démonstration Technique & Schéma Dynamique',
+                characterId: ANIMAKER_CHARACTERS[0].id,
+                characterName: ANIMAKER_CHARACTERS[0].name,
+                characterAvatar: ANIMAKER_CHARACTERS[0].avatar,
+                pose: 'explaining',
+                dialogueText: `Voici le cœur du mécanisme. Observez attentivement le flux d'exécution et les interactions entre les différents blocs logiques.`,
+                background: 'ai_lab',
+                boardContent: {
+                  type: 'code',
+                  title: 'Pipeline d\'Exécution Standard :',
+                  codeSnippet: '// Flux de traitement temps réel\nexport async function runPipeline(input) {\n  const sanitized = sanitize(input);\n  return await executeSafely(sanitized);\n}',
+                  codeLanguage: 'typescript',
+                  highlightText: 'Architecture résiliente et performante'
+                },
+                keyTakeaway: 'La rigueur dans les contrats d\'interfaces garantit la pérennité du système.',
+                miniQuiz: {
+                  question: 'Quel est l\'objectif prioritaire de cette architecture ?',
+                  options: [
+                    'Garantir l\'isolation et la robustesse des flux',
+                    'Supprimer les tests automatisés',
+                    'Ralentir les traitements'
+                  ],
+                  correctIndex: 0,
+                  explanation: 'Bravo ! La séparation claire des responsabilités permet une maintenance sereine.'
+                },
+                durationSeconds: 45
+              }
+            ]
+          }
+        : undefined;
 
     const newLesson: Lesson = {
       id: `les-${Date.now()}`,
       title: defaultTitle,
-      durationMinutes: type === 'animated_nano_banana' ? 10 : 25,
+      durationMinutes: type === 'animaker_animated' ? 12 : type === 'animated_nano_banana' ? 10 : 25,
       type,
       content: 'Contenu pédagogique enrichi...',
       nanoBananaData: type === 'animated_nano_banana' ? NANO_BANANA_TEMPLATES[0] : undefined,
+      animakerData: defaultAnimakerData,
+      presentationData:
+        type === 'presentation'
+          ? {
+              fileName: 'Support_Presentation_Module.pptx',
+              fileSize: '4.8 MB',
+              format: 'pptx',
+              slideCount: 3,
+              slides: [
+                {
+                  title: '1. Objectifs & Cadre Méthodologique',
+                  content: '• Contextualisation du problème en entreprise\n• Objectifs pédagogiques opérationnels\n• Livrables et critères de succès de la session',
+                  speakerNotes: 'Bien insister sur l\'importance de la modélisation avant toute phase de code.',
+                },
+                {
+                  title: '2. Architecture Technique & Schéma des Flux',
+                  content: '• Découpage modulaire du système\n• Traitement des requêtes en flux continu\n• Bonnes pratiques de scalabilité et de sécurité',
+                  speakerNotes: 'Détailler chaque composant en précisant son contrat d\'interface.',
+                },
+                {
+                  title: '3. Synthèse des Acquis & Atelier Pratique',
+                  content: '• Points clés à retenir impérativement\n• Pièges courants rencontrés sur le terrain\n• Passage immédiat à l\'atelier pratique guidé',
+                  speakerNotes: 'Laisser 5 minutes pour les questions avant de lancer l\'atelier.',
+                },
+              ],
+            }
+          : undefined,
     };
 
     setChapters(
       chapters.map((c) => (c.id === chapId ? { ...c, lessons: [...c.lessons, newLesson] } : c))
     );
+  };
+
+  const handleAddMotionPresetLesson = (chapId: string, preset: AnimakerLesson) => {
+    const newLesson: Lesson = {
+      id: `les-${Date.now()}`,
+      title: preset.title,
+      durationMinutes: Math.max(5, Math.ceil(preset.totalDurationSeconds / 60)),
+      type: 'animaker_animated',
+      content: `Leçon animée avec le Studio Motion : ${preset.topic}`,
+      animakerData: JSON.parse(JSON.stringify(preset)),
+    };
+
+    setChapters(
+      chapters.map((c) => (c.id === chapId ? { ...c, lessons: [...c.lessons, newLesson] } : c))
+    );
+    setShowMotionExplainerModal(null);
+  };
+
+  const handleSaveLessonFromAnimaker = (
+    savedAnimakerLesson?: AnimakerLesson,
+    savedVideoProject?: CourseVideoProject
+  ) => {
+    if (!editingAnimakerInfo) return;
+    const { chapterId, lesson } = editingAnimakerInfo;
+
+    const updatedLesson: Lesson = {
+      ...lesson,
+      title: savedVideoProject?.title || savedAnimakerLesson?.title || lesson.title,
+      type: 'video_project',
+      videoProjectData: savedVideoProject || lesson.videoProjectData,
+      animakerData: savedAnimakerLesson || lesson.animakerData,
+      durationMinutes: Math.max(
+        3,
+        Math.ceil(
+          ((savedVideoProject?.totalDurationSeconds || savedAnimakerLesson?.totalDurationSeconds || 120) / 60)
+        )
+      ),
+    };
+
+    setChapters(
+      chapters.map((c) =>
+        c.id === chapterId
+          ? {
+              ...c,
+              lessons: c.lessons.map((l) => (l.id === updatedLesson.id ? updatedLesson : l)),
+            }
+          : c
+      )
+    );
+
+    setEditingAnimakerInfo(null);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3500);
   };
 
   const handleDeleteLesson = (chapId: string, lesId: string) => {
@@ -413,6 +584,132 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
 
   return (
     <div id="masterstudy-course-builder" className="space-y-6 pb-20">
+      {/* GRAND MODAL DU STUDIO DE MONTAGE VIDÉO */}
+      {editingAnimakerInfo && (
+        <VideoEditingStudio
+          isModal={true}
+          initialVideoProject={editingAnimakerInfo.lesson.videoProjectData}
+          initialLesson={editingAnimakerInfo.lesson.animakerData}
+          courseTitle={title || 'Formation ITECH'}
+          chapterTitle={editingAnimakerInfo.chapterTitle}
+          onSaveVideoProject={(savedProject) => {
+            handleSaveLessonFromAnimaker(undefined, savedProject);
+          }}
+          onSaveLesson={(savedAnimaker) => {
+            handleSaveLessonFromAnimaker(savedAnimaker);
+          }}
+          onPublishToCourse={(savedAnimaker, savedProject) => {
+            handleSaveLessonFromAnimaker(savedAnimaker, savedProject);
+            setEditingAnimakerInfo(null);
+          }}
+          onClose={() => setEditingAnimakerInfo(null)}
+        />
+      )}
+
+      {/* APERÇU DE LA VIDÉO GÉNÉRÉE DANS LE LECTEUR ÉLÈVE */}
+      {previewAnimakerLesson && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md p-3 sm:p-6 flex items-center justify-center animate-fadeIn">
+          <div className="w-full max-w-4xl max-h-[94vh] overflow-y-auto rounded-3xl bg-slate-900 border border-slate-700 shadow-2xl p-4 sm:p-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                  <Film className="w-4 h-4" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-black text-white">Aperçu de la Vidéo Générée (Rendu Apprenant)</h3>
+                  <p className="text-xs text-slate-400">{previewAnimakerLesson.title} — Rendu final tel qu'affiché aux élèves</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewAnimakerLesson(null)}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-all"
+              >
+                Fermer l'aperçu
+              </button>
+            </div>
+            <GeneratedVideoPlayer
+              lesson={previewAnimakerLesson}
+              autoPlay={true}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* MOTION EXPLAINER PRESETS SELECTOR MODAL */}
+      {showMotionExplainerModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md p-4 sm:p-6 flex items-center justify-center animate-fadeIn">
+          <div className="w-full max-w-3xl rounded-3xl bg-slate-900 border border-indigo-900/60 shadow-2xl p-6 text-white space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-indigo-600/30 text-indigo-400 border border-indigo-500/40">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black">
+                    Bibliothèque d'Animations Motion d'Explication
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Insérez une leçon animée 2D avec synthèse vocale et tableau interactif prête à l'emploi.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMotionExplainerModal(null)}
+                className="text-slate-400 hover:text-white text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700"
+              >
+                Fermer
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-1">
+              {ANIMAKER_MOTION_PRESETS.map((preset) => (
+                <div
+                  key={preset.id}
+                  className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700 hover:border-indigo-500 transition-all flex flex-col justify-between gap-3 group"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={preset.leadCharacterAvatar}
+                        alt={preset.leadCharacterName}
+                        className="w-8 h-8 rounded-full object-cover border border-indigo-400/50 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-black text-white group-hover:text-indigo-300 transition-colors truncate">
+                          {preset.title}
+                        </h4>
+                        <p className="text-[10px] text-indigo-400">
+                          Animé par {preset.leadCharacterName} • {preset.scenes.length} scènes
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-300 line-clamp-2">
+                      {preset.scenes[0]?.dialogueText || preset.topic}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-700/60">
+                    <span className="text-[11px] font-bold text-slate-400">
+                      ⏱️ {Math.ceil(preset.totalDurationSeconds / 60)} min
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleAddMotionPresetLesson(showMotionExplainerModal.chapterId, preset)}
+                      className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Ajouter au Module</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* NANO BANANA PREVIEW MODAL */}
       {previewNanoBanana && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md p-4 sm:p-8 flex items-center justify-center animate-fadeIn">
@@ -468,6 +765,21 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
               </select>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() => {
+              if (chapters.length > 0) {
+                setShowMotionExplainerModal({ chapterId: chapters[0].id });
+              } else {
+                handleAddChapter();
+              }
+            }}
+            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-105"
+          >
+            <Film className="w-4 h-4" />
+            <span>🎬 Studio Motion Explainer</span>
+          </button>
 
           <button
             type="button"
@@ -562,27 +874,84 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
       {/* TAB 1: CURRICULUM (MASTERSTUDY COURSE BUILDER) */}
       {activeTab === 'curriculum' && (
         <div className="space-y-6">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+          {/* VIEW SWITCHER: LIST TREE vs INTERACTIVE MIND MAP */}
+          <div className="flex items-center justify-between bg-slate-900 text-white p-4 rounded-3xl border border-slate-800 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-indigo-600/30 text-indigo-400 border border-indigo-500/30">
+                <Brain className="w-5 h-5" />
+              </div>
               <div>
-                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-indigo-600" />
-                  <span>Structure du Curriculum MasterStudy</span>
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Ajoutez vos modules et utilisez le constructeur visuel <strong>Elementor</strong> pour concevoir chaque leçon.
+                <h4 className="text-sm font-extrabold text-white">Visualisation & Conception Pédagogique</h4>
+                <p className="text-xs text-slate-400">
+                  Alternez entre la liste arborescente classique et le Canvas Mind Map interactif avec transitions animées.
                 </p>
               </div>
+            </div>
 
+            <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800">
               <button
                 type="button"
-                onClick={handleAddChapter}
-                className="px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                onClick={() => setCurriculumViewMode('tree')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+                  curriculumViewMode === 'tree'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
-                <Plus className="w-4 h-4" />
-                <span>Ajouter un Module</span>
+                <Layers className="w-3.5 h-3.5" />
+                <span>Vue Arborescence</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurriculumViewMode('mindmap')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+                  curriculumViewMode === 'mindmap'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Brain className="w-3.5 h-3.5" />
+                <span>Mind Map Interactif</span>
               </button>
             </div>
+          </div>
+
+          {/* RENDER MIND MAP OR TREE LIST */}
+          {curriculumViewMode === 'mindmap' ? (
+            <InteractiveMindMapCanvas
+              courseTitle={title}
+              chapters={chapters}
+              onUpdateChapters={setChapters}
+              onSelectLessonToEdit={(chapId, lesId) => {
+                const chap = chapters.find((c) => c.id === chapId);
+                const les = chap?.lessons.find((l) => l.id === lesId);
+                if (chap && les) {
+                  setEditingLessonInfo({ lesson: les, chapterTitle: chap.title });
+                }
+              }}
+            />
+          ) : (
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-indigo-600" />
+                    <span>Structure du Curriculum MasterStudy</span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Ajoutez vos modules et utilisez le constructeur visuel <strong>Elementor</strong> pour concevoir chaque leçon.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddChapter}
+                  className="px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Ajouter un Module</span>
+                </button>
+              </div>
 
             {/* Modules List */}
             <div className="space-y-6">
@@ -631,19 +1000,27 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
                         <div className="flex items-center gap-3.5 flex-1 min-w-0">
                           <div
                             className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
-                              les.type === 'animated_nano_banana'
+                              les.type === 'animaker_animated'
+                                ? 'bg-purple-100 text-purple-900 border border-purple-300'
+                                : les.type === 'animated_nano_banana'
                                 ? 'bg-amber-100 text-amber-900 border border-amber-300'
                                 : les.type === 'interactive_code'
                                 ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                : les.type === 'presentation'
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300'
                                 : les.type === 'video'
                                 ? 'bg-blue-100 text-blue-900 border border-blue-300'
                                 : 'bg-slate-100 text-slate-700'
                             }`}
                           >
-                            {les.type === 'animated_nano_banana' ? (
+                            {les.type === 'animaker_animated' ? (
+                              <Film className="w-4 h-4 text-purple-700" />
+                            ) : les.type === 'animated_nano_banana' ? (
                               '🍌'
                             ) : les.type === 'interactive_code' ? (
                               <Code2 className="w-4 h-4" />
+                            ) : les.type === 'presentation' ? (
+                              <Presentation className="w-4 h-4 text-amber-700" />
                             ) : les.type === 'video' ? (
                               <Video className="w-4 h-4" />
                             ) : (
@@ -656,35 +1033,84 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
                               <h4 className="font-bold text-xs sm:text-sm text-slate-900 truncate">
                                 {les.title}
                               </h4>
+                              {les.type === 'presentation' && (
+                                <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                                  <Presentation className="w-3 h-3 text-amber-700" />
+                                  <span>PowerPoint / Diaporama</span>
+                                </span>
+                              )}
+                              {les.type === 'animaker_animated' && (
+                                <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-purple-100 text-purple-900 border border-purple-300 flex items-center gap-1">
+                                  <Film className="w-3 h-3 text-purple-700" />
+                                  <span>Animation Motion (Studio 2D)</span>
+                                </span>
+                              )}
                               {les.blocks && les.blocks.length > 0 && (
-                                <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-purple-100 text-purple-800 border border-purple-200">
+                                <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-indigo-100 text-indigo-800 border border-indigo-200">
                                   {les.blocks.length} Blocs Elementor
                                 </span>
                               )}
                             </div>
                             <p className="text-[11px] text-slate-500 mt-0.5">
-                              {les.durationMinutes} min • Type : {les.type}
+                              {les.durationMinutes} min • {les.type === 'animaker_animated' ? 'Motion Studio Explainer' : `Type : ${les.type}`}
                             </p>
                           </div>
                         </div>
 
-                        {/* Lesson MasterStudy & Elementor Actions */}
+                        {/* Lesson MasterStudy, Studio & Elementor Actions */}
                         <div className="flex flex-wrap items-center gap-2 self-end lg:self-center">
-                          {/* PRIMARY ELEMENTOR TRIGGER */}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setEditingLessonInfo({
-                                chapterId: chap.id,
-                                chapterTitle: chap.title,
-                                lesson: les,
-                              })
-                            }
-                            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-105"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            <span>Éditer avec Elementor</span>
-                          </button>
+                          {/* ANIMAKER STUDIO BUTTON */}
+                          {les.type === 'animaker_animated' || les.type === 'video_project' || les.videoProjectData ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditingAnimakerInfo({
+                                  chapterId: chap.id,
+                                  chapterTitle: chap.title,
+                                  lesson: les,
+                                })
+                              }
+                              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-105"
+                            >
+                              <Film className="w-3.5 h-3.5" />
+                              <span>Ouvrir dans le Logiciel de Montage</span>
+                            </button>
+                          ) : (
+                            /* PRIMARY ELEMENTOR TRIGGER */
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditingLessonInfo({
+                                  chapterId: chap.id,
+                                  chapterTitle: chap.title,
+                                  lesson: les,
+                                })
+                              }
+                              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-105"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>Éditer avec Elementor</span>
+                            </button>
+                          )}
+
+                          {(les.type === 'animaker_animated' || les.type === 'video_project') && (les.animakerData || les.videoProjectData) && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewAnimakerLesson(
+                                  les.animakerData ||
+                                    (les.videoProjectData
+                                      ? convertVideoProjectToAnimakerLesson(les.videoProjectData)
+                                      : null)
+                                )
+                              }
+                              className="px-2.5 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 border border-purple-300 font-black text-xs flex items-center gap-1"
+                              title="Voir la vidéo générée telle que visionnée par les apprenants"
+                            >
+                              <Play className="w-3 h-3 fill-purple-900" />
+                              <span>Aperçu Vidéo Générée</span>
+                            </button>
+                          )}
 
                           {les.type === 'animated_nano_banana' && les.nanoBananaData && (
                             <button
@@ -724,11 +1150,38 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
                   <div className="flex flex-wrap items-center gap-2 pt-2">
                     <button
                       type="button"
+                      onClick={() => handleAddLesson(chap.id, 'animaker_animated')}
+                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs flex items-center gap-1.5 shadow-2xs transition-all hover:scale-105"
+                    >
+                      <Film className="w-3.5 h-3.5" />
+                      <span>🎬 + Leçon Studio Animé</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowMotionExplainerModal({ chapterId: chap.id })}
+                      className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 font-bold text-xs flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      <span>✨ Explications Motion Prêtes</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => handleAddLesson(chap.id, 'article')}
                       className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-2xs"
                     >
                       <FileText className="w-3.5 h-3.5 text-indigo-600" />
                       <span>+ Article / Théorie</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleAddLesson(chap.id, 'presentation')}
+                      className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <Presentation className="w-3.5 h-3.5 text-amber-600" />
+                      <span>+ Support PowerPoint (PPTX)</span>
                     </button>
 
                     <button
@@ -754,15 +1207,16 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
                       onClick={() => handleAddLesson(chap.id, 'animated_nano_banana')}
                       className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-2xs"
                     >
-                      <span>🍌 + Cours Animé Nano Banana</span>
+                      <span>🍌 + Micro-Cours Nano Banana</span>
                     </button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    )}
 
       {/* TAB 2: GENERAL SETTINGS & MEDIA (MASTERSTUDY SETTINGS) */}
       {activeTab === 'settings' && (

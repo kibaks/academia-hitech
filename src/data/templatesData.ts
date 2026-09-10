@@ -1,4 +1,4 @@
-import { Course, Center, UserProfile, NanoBananaLesson, LearnerCourseProgress, ProfilePost, NetworkConnection } from '../types';
+import { Course, Center, UserProfile, NanoBananaLesson, AnimakerLesson, LearnerCourseProgress, ProfilePost, NetworkConnection } from '../types';
 
 export interface CourseTemplate {
   id: string;
@@ -228,6 +228,316 @@ export const NANO_BANANA_TEMPLATES: NanoBananaLesson[] = [
   }
 ];
 
+// 1.B ANIMAKER STUDIO MOTION EXPLAINER PRESETS
+export const ANIMAKER_MOTION_PRESETS: AnimakerLesson[] = [
+  {
+    id: 'animaker-factory-hse-motion',
+    title: 'Explication Motion : Sécurité Usine & Règles Vitales en Industrie',
+    topic: 'Sécurité Industrielle, HSE & Prévention des Risques',
+    targetAudience: 'Opérateurs, Techniciens, Chefs d’Équipe et Ingénieurs HSE',
+    leadCharacterName: 'Alex Chen',
+    leadCharacterAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    totalDurationSeconds: 180,
+    scenes: [
+      {
+        id: 'sc-hse-1',
+        title: '1. Les Équipements de Protection Individuelle (EPI)',
+        characterId: 'alex-chen',
+        characterName: 'Alex Chen',
+        characterAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        characterLayout: 'left',
+        cameraShot: 'medium',
+        pose: 'alert_danger',
+        dialogueText:
+          'Bienvenue dans cette formation de sécurité vitale ! En atelier et sur les lignes de production, le port complet des EPI est obligatoire dès le franchissement de la ligne jaune. Aucun compromis n’est toléré sur votre intégrité physique.',
+        background: 'factory_floor',
+        boardContent: {
+          type: 'four_grid',
+          title: 'Pack EPI Obligatoire en Zone Industrielle (Norme EN / ISO) :',
+          highlightText: 'Vérifiez l’état de vos EPI avant chaque prise de poste.',
+          gridItems: [
+            {
+              title: 'Casque & Coquilles Antibruit',
+              desc: 'Protection crânienne contre les chutes d’objets et atténuation acoustique > 85 dB(A).',
+              badge: 'Norme EN 397',
+              iconName: 'Shield',
+            },
+            {
+              title: 'Lunettes Enveloppantes',
+              desc: 'Écrans latéraux anti-projections de copeaux, étincelles et éclaboussures chimiques.',
+              badge: 'Norme EN 166',
+              iconName: 'Eye',
+            },
+            {
+              title: 'Chaussures S3 Anti-Perforation',
+              desc: 'Embout acier ou composite 200 Joules, semelle antidérapante SRC et tige hydrofuge.',
+              badge: 'Norme EN ISO 20345',
+              iconName: 'CheckCircle2',
+            },
+            {
+              title: 'Gants de Manutention & Gilet HV',
+              desc: 'Résistance à la coupure niveau 4 ou D, et tissu rétro-réfléchissant classe 2.',
+              badge: 'Norme EN 388 / ISO 20471',
+              iconName: 'Zap',
+            },
+          ],
+        },
+        keyTakeaway:
+          'Les EPI constituent le dernier rempart contre les accidents graves : portez-les systématiquement.',
+        durationSeconds: 45,
+      },
+      {
+        id: 'sc-hse-2',
+        title: '2. Protecteurs de Machines & Sécurité Mécanique',
+        characterId: 'alex-chen',
+        characterName: 'Alex Chen',
+        characterAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        characterLayout: 'left',
+        cameraShot: 'medium',
+        pose: 'warning',
+        dialogueText:
+          'Ne neutralisez jamais un protecteur de machine ! Les carters, barrières immatérielles et interverrouillages sont calibrés pour stopper net les pièces en mouvement en cas d’intrusion.',
+        background: 'factory_floor',
+        boardContent: {
+          type: 'correct_incorrect',
+          title: 'Conformité aux Postes de Travail & Lignes d’Usinage :',
+          highlightText: 'En cas de doute ou anomalie mécanique, appuyez immédiatement sur l’arrêt d’urgence.',
+          correctTitle: 'PRATIQUES STRICTEMENT CONFORMES (SÉCURISÉ)',
+          correctPoints: [
+            'Carter fermé et contact d’interverrouillage actif',
+            'Bouton coup de poing d’arrêt d’urgence accessible et dégagé',
+            'Cheveux attachés, vêtements ajustés sans cordon pendant',
+            'Utilisation exclusive des poussoirs lors du guidage de pièces',
+          ],
+          incorrectTitle: 'COMPORTEMENTS INTERDITS & DANGEREUX',
+          incorrectPoints: [
+            'Shunter un capteur de sécurité ou bloquer un carter avec du ruban',
+            'Accéder aux organes en rotation machine en fonctionnement',
+            'Porter des bijoux, bagues, écharpes ou gants près d’arbres tournants',
+            'Ignorer une alarme sonore ou un voyant rouge clignotant',
+          ],
+        },
+        keyTakeaway:
+          'Neutraliser une sécurité machine est une faute grave passible de sanctions immédiates.',
+        durationSeconds: 45,
+      },
+      {
+        id: 'sc-hse-3',
+        title: '3. Procédure de Consignation LOTO (Lockout / Tagout)',
+        characterId: 'alex-chen',
+        characterName: 'Alex Chen',
+        characterAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        characterLayout: 'left',
+        cameraShot: 'medium',
+        pose: 'pointing',
+        dialogueText:
+          'Toute intervention de maintenance, nettoyage ou débourrage exige une consignation rigoureuse en 4 étapes. C’est la règle de survie absolue pour supprimer toute énergie résiduelle.',
+        background: 'factory_floor',
+        boardContent: {
+          type: 'numbered_steps',
+          title: 'Protocole de Consignation LOTO en 4 Étapes Séquentielles :',
+          highlightText: '1 intervenant = 1 cadenas personnel à clé unique non reproductible.',
+          steps: [
+            {
+              stepNumber: 1,
+              title: 'Séparation & Coupure',
+              desc: 'Ouverture du sectionneur principal ou disjoncteur général.',
+            },
+            {
+              stepNumber: 2,
+              title: 'Condamnation & Cadenassage',
+              desc: 'Pose du cadenas individuel LOTO avec moraillon multiple.',
+            },
+            {
+              stepNumber: 3,
+              title: 'Purge des Énergies Résiduelles',
+              desc: 'Vidange pneumatique, décharge condensateurs et calage mécanique.',
+            },
+            {
+              stepNumber: 4,
+              title: 'Vérification d’Absence (VAT)',
+              desc: 'Test avec vérificateur VAT agréé et tentative de redémarrage.',
+            },
+          ],
+        },
+        keyTakeaway:
+          'Ne travaillez jamais sur un équipement sans avoir vérifié personnellement l’absence de tension (VAT).',
+        durationSeconds: 45,
+      },
+      {
+        id: 'sc-hse-4',
+        title: '4. Gestion des Déversements & Alerte Chimique',
+        characterId: 'alex-chen',
+        characterName: 'Alex Chen',
+        characterAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        characterLayout: 'left',
+        cameraShot: 'medium',
+        pose: 'celebrating',
+        dialogueText:
+          'En cas de fuite ou déversement accidentel de liquide chimique ou d’huile, réagissez selon le protocole d’urgence : baliser, absorber avec le boudin du kit, aérer et prévenir le superviseur.',
+        background: 'factory_floor',
+        boardContent: {
+          type: 'danger_alert',
+          title: 'Alerte Déversement Accidentel : Protocole Réflexe FDS',
+          dangerBannerText: 'DANGER PRODUITS CHIMIQUES & SOL GLISSANT - ZONE SOUS CONTRÔLE',
+          requiredActions: [
+            'Balisage immédiat du périmètre avec rubalise ou cônes de chantier',
+            'Déploiement du kit absorbant (boudins périphériques puis buvard central)',
+            'Consultation de la Fiche de Données de Sécurité (FDS) du produit',
+            'Évacuation des déchets souillés dans les fûts hermétiques prévus',
+          ],
+          prohibitedActions: [
+            'Nettoyer à grande eau vers les caniveaux d’eaux pluviales sans rétention',
+            'Toucher ou inhaler le produit sans masque à cartouche adapté',
+            'Quitter la zone sans avoir alerté le responsable sécurité d’astreinte',
+          ],
+        },
+        miniQuiz: {
+          question:
+            'Que devez-vous poser en premier lieu autour d’une flaque de produit chimique pour contenir l’écoulement ?',
+          options: [
+            'De l’eau savonneuse abondante',
+            'Les boudins absorbants périphériques du kit antipollution',
+            'Un simple chiffon en coton',
+            'Rien, attendre l’évaporation naturelle',
+          ],
+          correctIndex: 1,
+          explanation:
+            'Les boudins absorbants forment une digue de confinement qui stoppe la propagation du liquide vers les grilles d’égout.',
+        },
+        keyTakeaway:
+          'La sécurité est l’affaire de tous : signalez immédiatement toute situation dangereuse (presqu’accident).',
+        durationSeconds: 45,
+      },
+    ],
+  },
+  {
+    id: 'animaker-transformers-motion',
+    title: 'Explication Motion : Architecture Transformers & Attention Multi-Têtes',
+    topic: 'Intelligence Artificielle & Traitement du Langage',
+    targetAudience: 'Ingénieurs IA, Développeurs et Data Scientists',
+    leadCharacterName: 'Fatou Sow',
+    leadCharacterAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80',
+    totalDurationSeconds: 160,
+    scenes: [
+      {
+        id: 'sc-tf-1',
+        title: '1. Du Mot au Vecteur Sémantique (Embeddings)',
+        characterId: 'fatou-sow',
+        characterName: 'Fatou Sow',
+        characterAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80',
+        pose: 'explaining',
+        dialogueText: 'Pour qu\'un modèle de langage comprenne le sens, chaque mot est d\'abord converti en token numérique, puis projeté dans un hyper-espace vectoriel de plusieurs milliers de dimensions.',
+        background: 'ai_lab',
+        boardContent: {
+          type: 'bullet_points',
+          title: 'Mécanique de la Projection Vectorielle :',
+          items: [
+            'Tokenisation : Découpage sub-word binaire',
+            'Embedding : Coordonnées spatiales denses (ex: d_model = 4096)',
+            'Similarité Cosinus : Distance sémantique entre concepts'
+          ],
+          highlightText: 'Matrice de poids entraînée sur des milliards de tokens'
+        },
+        keyTakeaway: 'Deux mots avec un sens similaire se trouvent géométriquement proches dans l\'espace d\'embedding.',
+        durationSeconds: 35
+      },
+      {
+        id: 'sc-tf-2',
+        title: '2. L\'Équation d\'Auto-Attention (Q, K, V)',
+        characterId: 'fatou-sow',
+        characterName: 'Fatou Sow',
+        characterAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80',
+        pose: 'pointing',
+        dialogueText: 'L\'auto-attention compare chaque mot requête (Query) aux clés de tous les autres mots (Keys) pour doser l\'information à extraire de leurs valeurs (Values).',
+        background: 'tech_classroom',
+        boardContent: {
+          type: 'code',
+          title: 'Formule de Scaled Dot-Product Attention :',
+          codeSnippet: '// Attention = Softmax( (Q · K^T) / sqrt(d_k) ) · V\nfunction computeAttention(Q, K, V, dk) {\n  const scores = matmul(Q, transpose(K)).div(Math.sqrt(dk));\n  const weights = softmax(scores);\n  return matmul(weights, V);\n}',
+          codeLanguage: 'typescript',
+          highlightText: 'Softmax normalise les poids d\'attention en distribution de probabilités'
+        },
+        keyTakeaway: 'Le modèle comprend instantanément quel mot apporte du contexte à quel autre mot.',
+        miniQuiz: {
+          question: 'Pourquoi divise-t-on le produit scalaire (Q · K^T) par la racine carrée de la dimension d_k ?',
+          options: [
+            'Pour éviter que les gradients ne s\'annulent dans la fonction softmax pour les grandes dimensions',
+            'Pour compresser le fichier sur le disque dur',
+            'Pour masquer les adresses IP du serveur'
+          ],
+          correctIndex: 0,
+          explanation: 'Exact ! Sans cette mise à l\'échelle, les valeurs d\'entrée du softmax seraient trop grandes et les gradients deviendraient quasi nuls.'
+        },
+        durationSeconds: 45
+      }
+    ]
+  },
+  {
+    id: 'animaker-cloud-arch-motion',
+    title: 'Explication Motion : Architecture Cloud Microservices Résiliente',
+    topic: 'Cloud Computing & Systèmes Distribués',
+    targetAudience: 'Architectes Cloud & Développeurs Backend',
+    leadCharacterName: 'Dr. Landry Bakweto',
+    leadCharacterAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
+    totalDurationSeconds: 150,
+    scenes: [
+      {
+        id: 'sc-cloud-1',
+        title: '1. Le Découplage par API Gateway & Message Broker',
+        characterId: 'landry-bakweto',
+        characterName: 'Dr. Landry Bakweto',
+        characterAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
+        pose: 'explaining',
+        dialogueText: 'Dans une architecture distribuée résiliente, aucun service ne communique de manière synchrone bloquante avec ses voisins. On utilise un Message Broker (Kafka ou RabbitMQ) pour absorber les pics de charge.',
+        background: 'cloud_datacenter',
+        boardContent: {
+          type: 'bullet_points',
+          title: 'Piliers de Résilience Distribuée :',
+          items: [
+            'Circuit Breaker Pattern : Coupe les appels en cas de défaillance',
+            'Event-Driven Architecture : Émission asynchrone d\'événements',
+            'Base de données par microservice : Élimination du point de blocage unique'
+          ],
+          highlightText: 'SLA de haute disponibilité 99.99% garantie'
+        },
+        keyTakeaway: 'Le découplage événementiel empêche une panne locale de faire tomber l\'ensemble de l\'infrastructure.',
+        durationSeconds: 40
+      }
+    ]
+  },
+  {
+    id: 'animaker-fintech-motion',
+    title: 'Explication Motion : Flux Transactionnel Mobile Money & ISO 20022',
+    topic: 'Fintech & Passerelles Bancaires Panafricaines',
+    targetAudience: 'Ingénieurs Fintech & Spécialistes Monétique',
+    leadCharacterName: 'Amina Diallo',
+    leadCharacterAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    totalDurationSeconds: 140,
+    scenes: [
+      {
+        id: 'sc-fin-1',
+        title: '1. Handshake Cryptographique & Notification Webhook',
+        characterId: 'amina-diallo',
+        characterName: 'Amina Diallo',
+        characterAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        pose: 'presenting',
+        dialogueText: 'Lorsqu\'un client déclenche un paiement Mobile Money (Wave, Orange Money, M-Pesa), la passerelle signe un token HMAC-SHA256 pour garantir l\'inviolabilité de la transaction avant notification au marchand.',
+        background: 'modern_office',
+        boardContent: {
+          type: 'code',
+          title: 'Vérification de la Signature Webhook :',
+          codeSnippet: 'import crypto from "crypto";\n\nexport function verifyWebhookSignature(payload, signature, secret) {\n  const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");\n  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));\n}',
+          codeLanguage: 'typescript',
+          highlightText: 'Protection absolue contre les attaques par rejeu (Replay Attacks)'
+        },
+        keyTakeaway: 'L\'utilisation de comparaisons cryptographiques à temps constant protège contre les attaques temporelles (Timing Attacks).',
+        durationSeconds: 40
+      }
+    ]
+  }
+];
+
 // 2. COURSE & MODULE BUILDER TEMPLATES
 export const COURSE_TEMPLATES: CourseTemplate[] = [
   {
@@ -438,6 +748,62 @@ export const CENTER_TEMPLATES: CenterTemplate[] = [
 
 // 5. INITIAL POSTS FOR FACEBOOK FEED
 export const INITIAL_PROFILE_POSTS: ProfilePost[] = [
+  {
+    id: 'post-video-demo',
+    authorId: 'trainer-fatou-s',
+    authorName: 'Fatou Sow',
+    authorAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80',
+    authorRole: 'trainer',
+    content: '🎥 Démonstration vidéo exclusive : voici le résultat de notre capsule vidéo animée générée avec le Studio NLE d\'Academia ITECH ! Observez comment l\'avatar PiP commente le code en temps réel.',
+    type: 'project_showcase',
+    mediaType: 'video',
+    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    mediaName: 'demo-capsule-animaker-transformers.mp4',
+    mediaSize: '8.4 MB',
+    feeling: 'partage une vidéo 🎬',
+    timestamp: 'Il y a 35 minutes',
+    likes: 38,
+    isLiked: false,
+    comments: [
+      {
+        id: 'c-vid-1',
+        authorId: 'user-current',
+        authorName: 'Landry Kibakweto',
+        authorAvatar: 'https://images.unsplash.com/photo-1531891437562-4301cf092a9d?w=300&auto=format&fit=crop&q=80',
+        content: 'Incroyable la synchronisation entre la voix IA et les points d\'arrêt du quiz ! 🚀',
+        timestamp: 'Il y a 10 minutes',
+        likes: 5,
+      },
+    ],
+  },
+  {
+    id: 'post-image-fablab',
+    authorId: 'user-current',
+    authorName: 'Landry Kibakweto',
+    authorAvatar: 'https://images.unsplash.com/photo-1531891437562-4301cf092a9d?w=300&auto=format&fit=crop&q=80',
+    authorRole: 'learner',
+    content: '📸 Session de travail intense au Hub Numérique de Kinshasa : nous testons l\'intégration des terminaux Mobile Money avec nos microservices Docker ! Merci aux mentors pour l\'accompagnement.',
+    type: 'project_showcase',
+    mediaType: 'image',
+    mediaUrl: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=1200&auto=format&fit=crop&q=80',
+    mediaName: 'fablab-kinshasa-session.jpg',
+    mediaSize: '2.1 MB',
+    feeling: 'se sent motivé 🚀',
+    timestamp: 'Il y a 1 heure',
+    likes: 52,
+    isLiked: true,
+    comments: [
+      {
+        id: 'c-img-1',
+        authorId: 'trainer-malik',
+        authorName: 'Malik Konaté',
+        authorAvatar: 'https://images.unsplash.com/photo-1507152832244-10d45c7eda57?w=300&auto=format&fit=crop&q=80',
+        content: 'Très belle énergie d\'équipe, n\'oubliez pas de sécuriser vos webhooks avec une clé HMAC !',
+        timestamp: 'Il y a 40 minutes',
+        likes: 12,
+      },
+    ],
+  },
   {
     id: 'post-1',
     authorId: 'user-current',

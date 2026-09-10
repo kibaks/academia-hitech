@@ -199,6 +199,8 @@ export const INITIAL_COURSES: Course[] = [
     studentCount: 1820,
     durationHours: 24.5,
     price: 45, // In baseline USD, dynamically converted to CDF, FCFA, NGN, etc.
+    originalPrice: 85,
+    pricingType: 'paid',
     isFeatured: true,
     isNew: true,
     hasCertificate: true,
@@ -253,13 +255,17 @@ def attention(Q, K, V, d_k):
             resources: [
               { id: 'res-1', title: 'Guide d\'architecture Transformers & NLP Africain (PDF)', url: '#', type: 'pdf', size: '2.4 MB' },
               { id: 'res-2', title: 'Notebook Jupyter : Tokenisation Swahili & Lingala', url: '#', type: 'code', size: '28 KB' }
-            ]
+            ],
+            allowPreview: true,
           },
           {
             id: 'les-102',
             title: '1.2 Prompt Engineering Avancé : Few-Shot, CoT (Chain-of-Thought) et ReAct',
             durationMinutes: 22,
             type: 'interactive_code',
+            allowPreview: false,
+            requiresPayment: true,
+            prerequisites: ['les-101'],
             codeLanguage: 'python',
             codeStarter: `def build_cot_prompt(question: str, context: str) -> str:
     # TODO: Créez un prompt structuré en Chain-of-Thought
@@ -288,10 +294,52 @@ Le **Chain-of-Thought (CoT)** oblige le modèle à générer des étapes interm�
             title: '1.3 RAG (Retrieval-Augmented Generation) & Bases Vectorielles',
             durationMinutes: 25,
             type: 'article',
+            allowPreview: false,
+            requiresPayment: true,
+            prerequisites: ['les-102'],
+            quizId: 'quiz-llm-checkpoint',
+            requiredQuizScore: 80,
             content: `### Architecture RAG d'Entreprise en Afrique
 Le RAG combine un système de recherche sémantique avec la puissance générative du LLM pour interroger des bases documentaires locales sans avoir à ré-entraîner le modèle à coût prohibitif.`
           }
-        ]
+        ],
+        checkpointQuiz: {
+          id: 'quiz-llm-checkpoint',
+          title: 'Quiz de Validation Étape 1 : Attention & Prompting (Seuil : 80%)',
+          description: 'Validation impérative à 80% minimum pour débloquer la leçon 1.3 sur le RAG et les bases vectorielles.',
+          courseId: 'course-ia-llm',
+          passingScore: 80,
+          timeLimitMinutes: 10,
+          xpReward: 200,
+          questions: [
+            {
+              id: 'qc-1',
+              question: 'Quel est l\'impact fondamental du Chain-of-Thought (CoT) sur les modèles de langage ?',
+              options: [
+                'Il accélère le GPU en diminuant la mémoire',
+                'Il réduit drastiquement les hallucinations en forçant des étapes de déduction logique explicites',
+                'Il convertit le texte en binaire',
+                'Il interdit les requêtes en langues locales'
+              ],
+              correctIndex: 1,
+              explanation: 'Le CoT guide le modèle à travers des étapes intermédiaires de raisonnement, renforçant la fiabilité sur les calculs et la logique.',
+              points: 50
+            },
+            {
+              id: 'qc-2',
+              question: 'Pour adapter un tokenizer aux langues africaines (Swahili, Lingala), que faut-il optimiser en priorité ?',
+              options: [
+                'La mémoire RAM de l\'ordinateur client',
+                'Le vocabulaire de sous-mots (BPE / SentencePiece) pour éviter la sur-segmentation des affixes bantous',
+                'La résolution de l\'écran',
+                'Désactiver le protocole HTTPS'
+              ],
+              correctIndex: 1,
+              explanation: 'Un vocabulaire de tokens optimisé évite qu\'un mot commun comme "tokoloba" soit morcelé en 5 fragments inefficaces.',
+              points: 50
+            }
+          ]
+        }
       }
     ],
     finalQuiz: {
@@ -343,6 +391,8 @@ Le RAG combine un système de recherche sémantique avec la puissance générati
     studentCount: 1560,
     durationHours: 20.0,
     price: 35,
+    originalPrice: 60,
+    pricingType: 'paid',
     isFeatured: true,
     isNew: true,
     hasCertificate: true,
@@ -374,7 +424,22 @@ Le RAG combine un système de recherche sémantique avec la puissance générati
             title: '1.1 Architecture d\'une passerelle Mobile Money avec idempotence',
             durationMinutes: 24,
             type: 'video',
+            allowPreview: true,
             content: `Comprendre le rôle des clés d'idempotence pour éviter les doubles débits lors des coupures réseau temporaires.`
+          },
+          {
+            id: 'les-ft102',
+            title: '1.2 Intégration C2B / B2C M-Pesa & Wave avec Webhooks signés HMAC',
+            durationMinutes: 28,
+            type: 'interactive_code',
+            allowPreview: false,
+            requiresPayment: true,
+            prerequisites: ['les-ft101'],
+            quizId: 'quiz-fintech',
+            requiredQuizScore: 80,
+            codeLanguage: 'typescript',
+            codeStarter: `function verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {\n  // TODO: Implémentez la vérification cryptographique HMAC-SHA256\n  return false;\n}`,
+            content: `Sécurisez la réception des notifications de transfert Mobile Money (Wave, Orange, M-Pesa) pour éviter la falsification de paiements.`
           }
         ]
       }
@@ -415,6 +480,8 @@ Le RAG combine un système de recherche sémantique avec la puissance générati
     studentCount: 1420,
     durationHours: 21.0,
     price: 50,
+    pricingType: 'subscription',
+    subscriptionPlanRequired: 'all',
     isFeatured: true,
     isNew: false,
     hasCertificate: true,
@@ -482,6 +549,8 @@ Le RAG combine un système de recherche sémantique avec la puissance générati
     studentCount: 2680,
     durationHours: 26.0,
     price: 40,
+    originalPrice: 75,
+    pricingType: 'paid',
     isFeatured: true,
     isNew: false,
     hasCertificate: true,
@@ -533,6 +602,133 @@ Le RAG combine un système de recherche sémantique avec la puissance générati
           ],
           correctIndex: 0,
           explanation: 'L\'Offline-First garantit une expérience utilisateur fluide en écrivant d\'abord dans le stockage local avant de propager les mutations.',
+          points: 50
+        }
+      ]
+    }
+  },
+  {
+    id: 'course-python-libre',
+    title: 'Initiation à Python & Algorithmique Fondamentale (Programme Ouvert)',
+    slug: 'python-algorithmique-fondamentaux',
+    category: 'development',
+    level: 'Débutant',
+    rating: 4.92,
+    reviewCount: 680,
+    studentCount: 3450,
+    durationHours: 12.0,
+    price: 0,
+    pricingType: 'free',
+    isFeatured: false,
+    isNew: true,
+    hasCertificate: true,
+    authorId: 'trainer-landry-b',
+    authorName: 'Dr. Landry Bakweto',
+    authorAvatar: 'https://images.unsplash.com/photo-1531384441138-2736e62e0919?w=300&auto=format&fit=crop&q=80',
+    authorRole: 'Professeur Agrégé & Architecte Systèmes Distribués',
+    centerId: 'center-1',
+    centerName: 'Kinshasa Silicon River & Digital Campus',
+    thumbnail: 'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=800&auto=format&fit=crop&q=80',
+    bannerImage: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=1200&auto=format&fit=crop&q=80',
+    shortDescription: 'Apprenez les bases de la programmation avec Python : variables, boucles, structures de données, fonctions et premiers scripts automatisés.',
+    description: 'Une formation 100% gratuite accessible à tous pour débuter dans le numérique et préparer son entrée dans les filières IA ou Génie Logiciel.',
+    tags: ['Python', 'Débutant', 'Algorithmes', 'Code Libre', 'Gratuit'],
+    skillsGained: ['Syntaxe Python moderne', 'Structures de données', 'Pensée algorithmique', 'Résolution de problèmes'],
+    chapters: [
+      {
+        id: 'chap-py1',
+        title: 'Module 1 : Prise en main de Python et Logique de Code',
+        description: 'Variables, types de données et opérations',
+        lessons: [
+          {
+            id: 'les-py101',
+            title: '1.1 Premier programme Python et syntaxe propre',
+            durationMinutes: 15,
+            type: 'video',
+            content: 'Découvrir Python, l\'interpréteur et la fonction print.'
+          }
+        ]
+      }
+    ],
+    finalQuiz: {
+      id: 'quiz-python-open',
+      title: 'Test d\'Aptitude Python Fondations',
+      description: 'Validez votre certificat débutant gratuit.',
+      courseId: 'course-python-libre',
+      passingScore: 70,
+      timeLimitMinutes: 10,
+      xpReward: 200,
+      questions: [
+        {
+          id: 'qpy1',
+          question: 'Comment déclare-t-on une liste en Python ?',
+          options: ['[1, 2, 3]', '{1, 2, 3}', '(1, 2, 3)', '<1, 2, 3>'],
+          correctIndex: 0,
+          explanation: 'Les crochets [] définissent une liste ordonnée et modifiable en Python.',
+          points: 50
+        }
+      ]
+    }
+  },
+  {
+    id: 'course-devops-cloud',
+    title: 'DevOps Panafricain : Kubernetes, Terraform & CI/CD Multi-Cloud',
+    slug: 'devops-kubernetes-terraform-afrique',
+    category: 'cloud_devops',
+    level: 'Avancé',
+    rating: 4.97,
+    reviewCount: 198,
+    studentCount: 920,
+    durationHours: 28.0,
+    price: 65,
+    pricingType: 'subscription',
+    subscriptionPlanRequired: 'all',
+    isFeatured: true,
+    isNew: true,
+    hasCertificate: true,
+    authorId: 'trainer-landry-b',
+    authorName: 'Dr. Landry Bakweto',
+    authorAvatar: 'https://images.unsplash.com/photo-1531384441138-2736e62e0919?w=300&auto=format&fit=crop&q=80',
+    authorRole: 'Professeur Agrégé & Architecte Systèmes Distribués',
+    centerId: 'center-1',
+    centerName: 'Kinshasa Silicon River & Digital Campus',
+    thumbnail: 'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=800&auto=format&fit=crop&q=80',
+    bannerImage: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&auto=format&fit=crop&q=80',
+    shortDescription: 'Maîtrisez l\'orchestration de conteneurs avec Kubernetes, l\'Infrastructure as Code avec Terraform et les pipelines CI/CD résilients sur GCP & AWS.',
+    description: 'Une formation réservée aux membres avec abonnement Pass Mensuel ou Pass Annuel. Préparez les certifications CKA et devenez un pilier de l\'infrastructure cloud.',
+    tags: ['DevOps', 'Kubernetes', 'Docker', 'Terraform', 'CI/CD', 'Abonnement', 'Cloud'],
+    skillsGained: ['Déploiement de clusters Kubernetes', 'Pipelines GitOps automatisés', 'Monitoring Prometheus & Grafana', 'Infrastructure as Code'],
+    chapters: [
+      {
+        id: 'chap-k8s1',
+        title: 'Module 1 : Architecture Kubernetes en Production',
+        description: 'Pods, Deployments, Services et Ingress Controllers',
+        lessons: [
+          {
+            id: 'les-k8s101',
+            title: '1.1 Déployer un cluster résilient et auto-cicatrisant',
+            durationMinutes: 30,
+            type: 'video',
+            content: 'Découvrir le Control Plane Kubernetes, etiket les workers et configurer les probes.'
+          }
+        ]
+      }
+    ],
+    finalQuiz: {
+      id: 'quiz-devops-cert',
+      title: 'Quiz de Certification DevOps & Kubernetes',
+      description: 'Validez votre compétence Cloud Master.',
+      courseId: 'course-devops-cloud',
+      passingScore: 80,
+      timeLimitMinutes: 15,
+      xpReward: 400,
+      questions: [
+        {
+          id: 'qk8s1',
+          question: 'Quel composant du Control Plane Kubernetes stocke l\'état complet du cluster ?',
+          options: ['kube-proxy', 'etcd', 'kubelet', 'containerd'],
+          correctIndex: 1,
+          explanation: 'etcd est la base clé-valeur distribuée et hautement disponible stockant tout l\'état de Kubernetes.',
           points: 50
         }
       ]

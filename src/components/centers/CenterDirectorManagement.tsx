@@ -24,7 +24,9 @@ import {
   GraduationCap,
   Calendar,
   Check,
-  Coins
+  Coins,
+  ArrowLeft,
+  ArrowRight
 } from 'lucide-react';
 
 interface CenterDirectorManagementProps {
@@ -42,6 +44,7 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
   const [trainers, setTrainers] = useState<Trainer[]>(activeCenter.trainers || []);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [configStep, setConfigStep] = useState<1 | 2>(1);
 
   // Configuration Form State
   const [centerName, setCenterName] = useState(activeCenter.name);
@@ -251,116 +254,194 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
         {/* TAB 2: CONFIGURATION & BRANDING */}
         {activeTab === 'configuration' && (
           <form onSubmit={handleSaveConfig} className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Nom du Centre de Formation *
-                </label>
-                <input
-                  type="text"
-                  value={centerName}
-                  onChange={(e) => setCenterName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold"
-                  required
-                />
-              </div>
+            {/* Stepper Navigation */}
+            <div className="flex items-center justify-between p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setConfigStep(1)}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  configStep === 1
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                  configStep === 1 ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  1
+                </span>
+                <span>1. Identité & Contact</span>
+              </button>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Email de Contact Officiel *
-                </label>
-                <input
-                  type="email"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-                  required
-                />
-              </div>
+              <div className="w-4 h-0.5 bg-slate-300 mx-1 shrink-0" />
 
-              <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Description & Vision Pédagogique
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Sous-domaine Académique
-                </label>
-                <div className="flex items-center">
-                  <input
-                    type="text"
-                    value={subdomain}
-                    onChange={(e) => setSubdomain(e.target.value)}
-                    className="flex-1 px-3.5 py-2.5 rounded-l-xl border border-r-0 border-slate-300 text-sm"
-                  />
-                  <span className="px-3 py-2.5 bg-slate-100 border border-slate-300 rounded-r-xl text-xs text-slate-500 font-mono">
-                    .academia-itech.com
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Domaine Personnalisé (Optionnel)
-                </label>
-                <input
-                  type="text"
-                  value={customDomain}
-                  onChange={(e) => setCustomDomain(e.target.value)}
-                  placeholder="campus.mon-institut.com"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Couleur Principale du Thème (Hex)
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="w-10 h-10 rounded-xl cursor-pointer border border-slate-300"
-                  />
-                  <input
-                    type="text"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Quota Maximum d'Étudiants
-                </label>
-                <input
-                  type="number"
-                  value={maxStudents}
-                  onChange={(e) => setMaxStudents(Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"
-                />
-              </div>
+              <button
+                type="button"
+                onClick={() => setConfigStep(2)}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  configStep === 2
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                  configStep === 2 ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  2
+                </span>
+                <span>2. Domaines & Marque Blanche</span>
+              </button>
             </div>
 
-            <div className="flex justify-end pt-4 border-t border-slate-200">
-              <button
-                type="submit"
-                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                <span>Enregistrer la Configuration</span>
-              </button>
+            {/* Step 1: Identité & Contact */}
+            {configStep === 1 && (
+              <div className="space-y-4 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Nom du Centre de Formation *
+                    </label>
+                    <input
+                      type="text"
+                      value={centerName}
+                      onChange={(e) => setCenterName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Email de Contact Officiel *
+                    </label>
+                    <input
+                      type="email"
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Description & Vision Pédagogique
+                    </label>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={3}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Domaines, Branding et Quotas */}
+            {configStep === 2 && (
+              <div className="space-y-4 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Sous-domaine Académique
+                    </label>
+                    <div className="flex items-center">
+                      <input
+                        type="text"
+                        value={subdomain}
+                        onChange={(e) => setSubdomain(e.target.value)}
+                        className="flex-1 px-3.5 py-2.5 rounded-l-xl border border-r-0 border-slate-300 text-sm"
+                      />
+                      <span className="px-3 py-2.5 bg-slate-100 border border-slate-300 rounded-r-xl text-xs text-slate-500 font-mono">
+                        .academia-itech.com
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Domaine Personnalisé (Optionnel)
+                    </label>
+                    <input
+                      type="text"
+                      value={customDomain}
+                      onChange={(e) => setCustomDomain(e.target.value)}
+                      placeholder="campus.mon-institut.com"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Couleur Principale du Thème (Hex)
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        className="w-10 h-10 rounded-xl cursor-pointer border border-slate-300"
+                      />
+                      <input
+                        type="text"
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Quota Maximum d'Étudiants
+                    </label>
+                    <input
+                      type="number"
+                      value={maxStudents}
+                      onChange={(e) => setMaxStudents(Number(e.target.value))}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Stepper Footer Controls */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+              {configStep === 2 ? (
+                <button
+                  type="button"
+                  onClick={() => setConfigStep(1)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center gap-2 transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Précédent : Identité</span>
+                </button>
+              ) : (
+                <div />
+              )}
+
+              <div className="flex items-center gap-3">
+                {configStep === 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setConfigStep(2)}
+                    className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+                  >
+                    <span>Étape suivante : Marque Blanche</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md flex items-center gap-2 cursor-pointer"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Enregistrer la Configuration</span>
+                  </button>
+                )}
+              </div>
             </div>
           </form>
         )}

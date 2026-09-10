@@ -41,7 +41,7 @@ interface MobileDrawerProps {
   centers: Center[];
   activeCenter: Center;
   onSelectCenter: (center: Center) => void;
-  onSelectRole: (role: UserRole) => void;
+  onSelectRole?: (role: UserRole) => void;
   activeTab: string;
   onNavigate: (tab: string) => void;
   onOpenCertVerifier: () => void;
@@ -59,7 +59,6 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   centers,
   activeCenter,
   onSelectCenter,
-  onSelectRole,
   activeTab,
   onNavigate,
   onOpenCertVerifier,
@@ -68,7 +67,6 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   searchQuery,
   onSearchChange,
 }) => {
-  const [showRoleSelector, setShowRoleSelector] = useState(false);
   const [showCenterSelector, setShowCenterSelector] = useState(false);
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
 
@@ -77,7 +75,6 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   if (!isOpen) return null;
 
   const isVisitor = !isAuthenticated || currentUser.role === 'visitor';
-  const rolesOrder: UserRole[] = ['visitor', 'learner', 'trainer', 'center_admin', 'super_admin'];
 
   const handleLinkClick = (tabId: string) => {
     onNavigate(tabId);
@@ -150,17 +147,16 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
               {/* Gamification Stats for Learner */}
               {currentUser.role === 'learner' && (
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-sky-100/80">
-                  <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-white/80 border border-sky-100 text-xs font-bold text-slate-800">
-                    <Flame className="w-4 h-4 text-orange-500 fill-orange-500 shrink-0" />
-                    <span className="truncate">{currentUser.streakDays || 0}j conséc.</span>
-                  </div>
+                <div className="pt-2 border-t border-sky-100/80">
                   <div
                     onClick={() => handleLinkClick('gamification')}
-                    className="flex items-center gap-1.5 p-1.5 rounded-xl bg-white/80 border border-sky-100 text-xs font-extrabold text-sky-700 cursor-pointer"
+                    className="flex items-center justify-between p-2 rounded-xl bg-white/80 border border-sky-100 text-xs font-extrabold text-sky-700 cursor-pointer"
                   >
-                    <Zap className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
-                    <span className="truncate">{currentUser.xp || 0} XP (Nv.{currentUser.level || 1})</span>
+                    <div className="flex items-center gap-1.5">
+                      <Zap className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
+                      <span>{currentUser.xp || 0} XP</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-slate-500">Niveau {currentUser.level || 1}</span>
                   </div>
                 </div>
               )}
@@ -221,65 +217,8 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             )}
           </div>
 
-          {/* 3. SWITCH RÔLE & CAMPUS (ACCORDIONS) */}
+          {/* 3. CAMPUS (ACCORDION) */}
           <div className="space-y-2">
-            {/* Role Switcher */}
-            <div className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/50">
-              <button
-                type="button"
-                onClick={() => setShowRoleSelector(!showRoleSelector)}
-                className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-slate-800 hover:bg-slate-100/80 transition-colors"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <ShieldCheck className="w-4 h-4 text-sky-600 shrink-0" />
-                  <span className="truncate">Profil & Rôle ({ROLE_DETAILS[currentUser.role]?.title || currentUser.role})</span>
-                </div>
-                <ChevronDown
-                  className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${
-                    showRoleSelector ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {showRoleSelector && (
-                <div className="p-2 border-t border-slate-200 space-y-1 bg-white">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
-                    Changer de rôle (Démo) :
-                  </div>
-                  {rolesOrder.map((r) => {
-                    const info = ROLE_DETAILS[r];
-                    const isCurrent = currentUser.role === r;
-                    return (
-                      <button
-                        key={r}
-                        onClick={() => {
-                          onSelectRole(r);
-                          setShowRoleSelector(false);
-                        }}
-                        className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-colors ${
-                          isCurrent
-                            ? 'bg-sky-50 text-sky-900 font-bold border border-sky-200'
-                            : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <span
-                            className={`w-2 h-2 rounded-full shrink-0 ${
-                              isCurrent ? 'bg-sky-600' : 'bg-slate-300'
-                            }`}
-                          />
-                          <span className="truncate">{info.title}</span>
-                        </div>
-                        {isCurrent && (
-                          <span className="text-[10px] font-bold text-sky-600 shrink-0 ml-1">Actif</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
             {/* Campus Selector */}
             <div className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/50">
               <button
@@ -289,7 +228,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               >
                 <div className="flex items-center gap-2 truncate">
                   <MapPin className="w-4 h-4 text-sky-500 shrink-0" />
-                  <span className="truncate">Campus : {activeCenter.name}</span>
+                  <span className="truncate">Campus : {activeCenter?.name || 'Academia ITECH'}</span>
                 </div>
                 <ChevronDown
                   className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${
@@ -304,7 +243,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                     Sélectionner un campus :
                   </div>
                   {centers.map((c) => {
-                    const isSelected = activeCenter.id === c.id;
+                    const isSelected = activeCenter?.id === c.id;
                     return (
                       <button
                         key={c.id}
@@ -341,7 +280,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               >
                 <div className="flex items-center gap-2 truncate">
                   <Coins className="w-4 h-4 text-sky-500 shrink-0" />
-                  <span className="truncate">Devise : {currencyInfo.flag} {currencyInfo.name} ({currencyInfo.code})</span>
+                  <span className="truncate">Devise : {currencyInfo?.flag || '💵'} {currencyInfo?.name || 'Devise'} ({currencyInfo?.code || 'USD'})</span>
                 </div>
                 <ChevronDown
                   className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${
@@ -454,85 +393,92 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             </button>
           </div>
 
-          {/* 5. PEDAGOGICAL & PRO TOOLS (ROLE GUARDED) */}
-          <div className="space-y-1 pt-2 border-t border-slate-100">
-            <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-2">
-              Outils Pédagogiques & IA
+          {/* 5. PEDAGOGICAL & PRO TOOLS (ROLE GUARDED - Trainers & Directors only) */}
+          {(hasPermission(currentUser.role, 'create_and_publish_course') ||
+            hasPermission(currentUser.role, 'access_ai_studio') ||
+            hasPermission(currentUser.role, 'view_center_analytics') ||
+            hasPermission(currentUser.role, 'manage_trainers')) && (
+            <div className="space-y-1 pt-2 border-t border-slate-100">
+              <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-2">
+                Espace Formateur & Administration
+              </div>
+
+              {hasPermission(currentUser.role, 'create_and_publish_course') && (
+                <button
+                  onClick={() => handleLinkClick('course-builder')}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
+                    activeTab === 'course-builder'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Layers className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span className="truncate">Plan & Création de Cours</span>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-black shrink-0">
+                    Mind Map
+                  </span>
+                </button>
+              )}
+
+              {hasPermission(currentUser.role, 'access_ai_studio') && (
+                <button
+                  onClick={() => handleLinkClick('studio')}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
+                    activeTab === 'studio'
+                      ? 'bg-sky-500 text-white shadow-xs'
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Sparkles className="w-4 h-4 text-sky-500 shrink-0" />
+                    <span className="truncate">Studio IA Pédagogique (Gemini)</span>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 font-bold shrink-0">
+                    IA
+                  </span>
+                </button>
+              )}
+
+              {hasPermission(currentUser.role, 'view_center_analytics') && (
+                <button
+                  onClick={() => handleLinkClick('progress-tracker')}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
+                    activeTab === 'progress-tracker'
+                      ? 'bg-sky-500 text-white shadow-xs'
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Users className="w-4 h-4 text-teal-600 shrink-0" />
+                    <span className="truncate">Suivi & Notes des Apprenants</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 opacity-50 shrink-0" />
+                </button>
+              )}
+
+              {hasPermission(currentUser.role, 'manage_trainers') && (
+                <button
+                  onClick={() => handleLinkClick('center-management')}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
+                    activeTab === 'center-management'
+                      ? 'bg-sky-500 text-white shadow-xs'
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span className="truncate">Direction & Gestion du Campus</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 opacity-50 shrink-0" />
+                </button>
+              )}
             </div>
+          )}
 
-            {hasPermission(currentUser.role, 'create_and_publish_course') && (
-              <button
-                onClick={() => handleLinkClick('course-builder')}
-                className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
-                  activeTab === 'course-builder'
-                    ? 'bg-sky-500 text-white shadow-xs'
-                    : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Layers className="w-4 h-4 text-purple-600 shrink-0" />
-                  <span className="truncate">Créateur MasterStudy & Elementor</span>
-                </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-black shrink-0">
-                  LMS
-                </span>
-              </button>
-            )}
-
-            {hasPermission(currentUser.role, 'access_ai_studio') && (
-              <button
-                onClick={() => handleLinkClick('studio')}
-                className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
-                  activeTab === 'studio'
-                    ? 'bg-sky-500 text-white shadow-xs'
-                    : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Sparkles className="w-4 h-4 text-sky-500 shrink-0" />
-                  <span className="truncate">Studio IA Pédagogique (Gemini)</span>
-                </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 font-bold shrink-0">
-                  IA
-                </span>
-              </button>
-            )}
-
-            {hasPermission(currentUser.role, 'view_center_analytics') && (
-              <button
-                onClick={() => handleLinkClick('progress-tracker')}
-                className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
-                  activeTab === 'progress-tracker'
-                    ? 'bg-sky-500 text-white shadow-xs'
-                    : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Users className="w-4 h-4 text-teal-600 shrink-0" />
-                  <span className="truncate">Suivi & Notes des Apprenants</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 opacity-50 shrink-0" />
-              </button>
-            )}
-
-            {hasPermission(currentUser.role, 'manage_trainers') && (
-              <button
-                onClick={() => handleLinkClick('center-management')}
-                className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
-                  activeTab === 'center-management'
-                    ? 'bg-sky-500 text-white shadow-xs'
-                    : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span className="truncate">Direction & Gestion du Campus</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 opacity-50 shrink-0" />
-              </button>
-            )}
-
-            {(currentUser.role === 'super_admin' || currentUser.role === 'center_admin') && (
+          {(currentUser.role === 'super_admin' || currentUser.role === 'center_admin') && (
+            <div className="space-y-1 pt-2 border-t border-slate-100">
               <button
                 onClick={() => handleLinkClick('centers')}
                 className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-colors ${
@@ -547,8 +493,8 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 opacity-50 shrink-0" />
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* 6. PERSONAL SPACE & CERTIFICATION */}
           <div className="space-y-1 pt-2 border-t border-slate-100">
@@ -653,7 +599,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               className="w-full py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center justify-center gap-2 border border-rose-200 transition-colors shadow-2xs"
             >
               <LogOut className="w-4 h-4 shrink-0" />
-              <span className="truncate">Se Déconnecter ({currentUser.name})</span>
+              <span className="truncate">Se Déconnecter ({currentUser?.name || ''})</span>
             </button>
           ) : (
             <button

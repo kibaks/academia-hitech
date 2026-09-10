@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile } from '../../types';
 import { PROFILE_TEMPLATES } from '../../data/templatesData';
 import {
@@ -16,7 +16,10 @@ import {
   GraduationCap,
   Briefcase,
   Layers,
-  Wand2
+  Wand2,
+  Upload,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface ProfileSettingsTabProps {
@@ -30,6 +33,9 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
 }) => {
   const [activeSection, setActiveSection] = useState<'general' | 'experience' | 'privacy' | 'templates'>('general');
   const [savedNotification, setSavedNotification] = useState(false);
+
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Form states initialized with currentUser data
   const [name, setName] = useState(currentUser.name);
@@ -54,6 +60,58 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
   const [showPhone, setShowPhone] = useState(currentUser.privacySettings?.showPhone ?? false);
   const [emailNotifications, setEmailNotifications] = useState(currentUser.privacySettings?.emailNotifications ?? true);
   const [whatsappAlerts, setWhatsappAlerts] = useState(currentUser.privacySettings?.whatsappAlerts ?? true);
+
+  // Synchronize when currentUser changes (e.g. from Firebase or role switch)
+  useEffect(() => {
+    setName(currentUser.name);
+    setHeadline(currentUser.headline || 'Étudiant Passionné en IA & Ingénierie Web');
+    setBio(currentUser.bio || '');
+    setEmail(currentUser.email);
+    setPhone(currentUser.phone || '+33 6 12 34 56 78');
+    setCity(currentUser.city || 'Paris');
+    setCountry(currentUser.country || 'France');
+    setSkillsStr((currentUser.skills || ['React', 'TypeScript', 'Intelligence Artificielle', 'Python', 'Docker']).join(', '));
+    setLanguagesStr((currentUser.languages || ['Français (Natif)', 'Anglais (B2)']).join(', '));
+    setGithub(currentUser.socialLinks?.github || 'https://github.com');
+    setLinkedin(currentUser.socialLinks?.linkedin || 'https://linkedin.com');
+    setPortfolio(currentUser.socialLinks?.portfolio || '');
+    setWhatsapp(currentUser.socialLinks?.whatsapp || '');
+    setVisibility(currentUser.privacySettings?.profileVisibility || 'public');
+    setShowEmail(currentUser.privacySettings?.showEmail ?? true);
+    setShowPhone(currentUser.privacySettings?.showPhone ?? false);
+    setEmailNotifications(currentUser.privacySettings?.emailNotifications ?? true);
+    setWhatsappAlerts(currentUser.privacySettings?.whatsappAlerts ?? true);
+  }, [currentUser]);
+
+  const handleAvatarFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target?.result) {
+          onUpdateProfile({ avatar: ev.target.result as string });
+          setSavedNotification(true);
+          setTimeout(() => setSavedNotification(false), 3000);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCoverFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target?.result) {
+          onUpdateProfile({ coverPhoto: ev.target.result as string });
+          setSavedNotification(true);
+          setTimeout(() => setSavedNotification(false), 3000);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSaveGeneral = (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,55 +171,31 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-      {/* Settings Navigation Bar */}
-      <div className="flex border-b border-slate-200 bg-slate-50/70 overflow-x-auto">
-        <button
-          onClick={() => setActiveSection('general')}
-          className={`flex items-center gap-2 px-5 py-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-            activeSection === 'general'
-              ? 'border-sky-500 text-sky-700 bg-white'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <User className="w-4 h-4" />
-          <span>Informations Générales</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSection('experience')}
-          className={`flex items-center gap-2 px-5 py-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-            activeSection === 'experience'
-              ? 'border-sky-500 text-sky-700 bg-white'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Briefcase className="w-4 h-4" />
-          <span>Carrière & Éducation</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSection('privacy')}
-          className={`flex items-center gap-2 px-5 py-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-            activeSection === 'privacy'
-              ? 'border-sky-500 text-sky-700 bg-white'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Shield className="w-4 h-4" />
-          <span>Confidentialité & Notifications</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSection('templates')}
-          className={`flex items-center gap-2 px-5 py-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-            activeSection === 'templates'
-              ? 'border-sky-500 text-sky-700 bg-white'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Wand2 className="w-4 h-4 text-amber-500" />
-          <span>Modèles de Profils Prédéfinis</span>
-        </button>
+      {/* Settings Navigation Bar - Responsive segmented pills with zero overflow */}
+      <div className="flex items-center gap-1.5 p-2 bg-slate-50 border-b border-slate-200 overflow-x-auto no-scrollbar scroll-smooth">
+        {[
+          { id: 'general', label: 'Informations Générales', icon: User },
+          { id: 'experience', label: 'Carrière & Éducation', icon: Briefcase },
+          { id: 'privacy', label: 'Confidentialité & Alertes', icon: Shield },
+          { id: 'templates', label: 'Modèles de Profils', icon: Wand2, isAmber: true },
+        ].map((sec) => {
+          const Icon = sec.icon;
+          const isActive = activeSection === sec.id;
+          return (
+            <button
+              key={sec.id}
+              onClick={() => setActiveSection(sec.id as any)}
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
+                isActive
+                  ? 'bg-white text-sky-700 shadow-xs border border-slate-200/90 ring-1 ring-sky-500/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 border border-transparent'
+              }`}
+            >
+              <Icon className={`w-4 h-4 ${isActive ? (sec.isAmber ? 'text-amber-500' : 'text-sky-600') : 'text-slate-400'}`} />
+              <span>{sec.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {savedNotification && (
@@ -174,30 +208,91 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
       {/* SECTION 1: GENERAL INFORMATIONS */}
       {activeSection === 'general' && (
         <form onSubmit={handleSaveGeneral} className="p-6 space-y-6">
+          {/* Photos Upload Cards from Local Device */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+            {/* Avatar upload */}
+            <input
+              type="file"
+              ref={avatarInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarFile}
+            />
+            <div className="flex items-center gap-3.5">
+              <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-white shadow-md bg-slate-200 shrink-0">
+                <img
+                  src={currentUser.avatar}
+                  alt={currentUser.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs font-bold text-slate-800">Photo de Profil</div>
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Charger depuis mon PC</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Cover upload */}
+            <input
+              type="file"
+              ref={coverInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleCoverFile}
+            />
+            <div className="flex items-center gap-3.5">
+              <div className="relative w-20 h-14 rounded-xl overflow-hidden border-2 border-white shadow-md bg-slate-800 shrink-0">
+                <img
+                  src={currentUser.coverPhoto || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=1200&auto=format&fit=crop&q=80'}
+                  alt="Couverture"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs font-bold text-slate-800">Photo de Couverture</div>
+                <button
+                  type="button"
+                  onClick={() => coverInputRef.current?.click()}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Charger une couverture</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Nom Complet
+              <label className="block text-xs font-black text-slate-900 uppercase tracking-wider mb-1.5">
+                Nom & Prénom Complet
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-950 font-bold text-sm sm:text-base focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Titre / Headline
+              <label className="block text-xs font-black text-slate-900 uppercase tracking-wider mb-1.5">
+                Titre Professionnel / Headline
               </label>
               <input
                 type="text"
                 value={headline}
                 onChange={(e) => setHeadline(e.target.value)}
                 placeholder="Ex: Développeur Full-Stack IA | Étudiant Certifié"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 font-medium text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white"
               />
             </div>
 

@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
-import { Lesson, ElementorBlock, ElementorBlockType, NanoBananaLesson, LessonResource } from '../../types';
+import {
+  Lesson,
+  ElementorBlock,
+  ElementorBlockType,
+  NanoBananaLesson,
+  LessonResource,
+  PresentationSlide
+} from '../../types';
 import { NANO_BANANA_TEMPLATES } from '../../data/templatesData';
 import { NanoBananaPlayer } from './NanoBananaPlayer';
+import { PresentationPlayer } from './PresentationPlayer';
+import { MediaAssetPickerModal } from './MediaAssetPickerModal';
 import {
   Sparkles,
   Heading,
@@ -36,7 +45,14 @@ import {
   List,
   Layers,
   Sliders,
-  Maximize2
+  Maximize2,
+  Presentation,
+  UploadCloud,
+  ImagePlus,
+  FileUp,
+  Download,
+  ExternalLink,
+  ZoomIn
 } from 'lucide-react';
 
 interface ElementorLessonBuilderProps {
@@ -112,6 +128,38 @@ export const ElementorLessonBuilder: React.FC<ElementorLessonBuilderProps> = ({
       });
     }
 
+    if (lesson.type === 'presentation') {
+      initial.push({
+        id: `blk-pres-${Date.now() + 2}`,
+        type: 'presentation',
+        title: 'Diaporama & Support de Présentation (PowerPoint)',
+        content: 'Support officiel de la séance avec diapositives interactives et téléchargement.',
+        presentationData: {
+          fileName: 'Support_Presentation_Module.pptx',
+          fileSize: '4.8 MB',
+          format: 'pptx',
+          slideCount: 3,
+          slides: [
+            {
+              title: '1. Objectifs & Cadre Méthodologique',
+              content: '• Contextualisation du problème en entreprise\n• Objectifs pédagogiques opérationnels\n• Livrables et critères de succès de la session',
+              speakerNotes: 'Bien insister sur l\'importance de la modélisation avant toute phase de code.',
+            },
+            {
+              title: '2. Architecture Technique & Schéma des Flux',
+              content: '• Découpage modulaire du système\n• Traitement des requêtes en flux continu\n• Bonnes pratiques de scalabilité et de sécurité',
+              speakerNotes: 'Détailler chaque composant en précisant son contrat d\'interface.',
+            },
+            {
+              title: '3. Synthèse des Acquis & Atelier Pratique',
+              content: '• Points clés à retenir impérativement\n• Pièges courants rencontrés sur le terrain\n• Passage immédiat à l\'atelier pratique guidé',
+              speakerNotes: 'Laisser 5 minutes pour les questions avant de lancer l\'atelier.',
+            },
+          ],
+        },
+      });
+    }
+
     // Callout tip
     initial.push({
       id: `blk-call-${Date.now() + 5}`,
@@ -140,6 +188,17 @@ export const ElementorLessonBuilder: React.FC<ElementorLessonBuilderProps> = ({
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [saveToast, setSaveToast] = useState(false);
 
+  // Modal for Media/Presentation upload & presets
+  const [mediaPickerConfig, setMediaPickerConfig] = useState<{
+    isOpen: boolean;
+    blockId: string;
+    mode: 'image' | 'presentation';
+    title: string;
+  } | null>(null);
+
+  // Lightbox Zoom Image Modal
+  const [zoomedImage, setZoomedImage] = useState<{ url: string; caption?: string } | null>(null);
+
   const selectedBlock = blocks.find((b) => b.id === selectedBlockId);
 
   // WIDGET PALETTE DEFINITIONS
@@ -166,6 +225,22 @@ export const ElementorLessonBuilder: React.FC<ElementorLessonBuilderProps> = ({
       category: 'base',
     },
     {
+      type: 'presentation',
+      label: 'PowerPoint & Diaporama',
+      description: 'Présentations PPTX, PPT, PDF & Slides',
+      icon: Presentation,
+      category: 'media',
+      badge: 'PPTX / PDF',
+    },
+    {
+      type: 'image',
+      label: 'Image & Schéma',
+      description: 'Diagrammes, captures et infographies',
+      icon: ImageIcon,
+      category: 'media',
+      badge: 'Upload & Galerie',
+    },
+    {
       type: 'video',
       label: 'Lecteur Vidéo',
       description: 'YouTube, Vimeo ou flux MP4',
@@ -177,13 +252,6 @@ export const ElementorLessonBuilder: React.FC<ElementorLessonBuilderProps> = ({
       label: 'Lecteur Audio / Podcast',
       description: 'Explications sonores & transcriptions',
       icon: Music,
-      category: 'media',
-    },
-    {
-      type: 'image',
-      label: 'Image & Schéma',
-      description: 'Diagrammes, captures et infographies',
-      icon: ImageIcon,
       category: 'media',
     },
     {
@@ -248,6 +316,40 @@ export const ElementorLessonBuilder: React.FC<ElementorLessonBuilderProps> = ({
       case 'text':
         newBlock.content = 'Rédigez ici les explications théoriques, les études de cas et les consignes pédagogiques.';
         break;
+      case 'presentation':
+        newBlock.title = 'Support de Présentation PowerPoint (PPTX)';
+        newBlock.content = 'Diaporama pédagogique officiel du module avec support de cours.';
+        newBlock.presentationData = {
+          fileName: 'Support_Presentation_Module.pptx',
+          fileSize: '4.8 MB',
+          format: 'pptx',
+          slideCount: 3,
+          slides: [
+            {
+              title: '1. Objectifs & Cadre Méthodologique',
+              content: '• Contexte technologique et méthodologique\n• Objectifs de la session d\'apprentissage\n• Prérequis et livrables attendus',
+              speakerNotes: 'Bien insister sur l\'alignement entre théorie et cas concret.',
+            },
+            {
+              title: '2. Architecture Conceptuelle & Flux de Données',
+              content: '• Découpage modulaire du système\n• Flux de données asynchrones\n• Bonnes pratiques de conception logicielle',
+              speakerNotes: 'Présenter chaque composant en détaillant son contrat d\'interface.',
+            },
+            {
+              title: '3. Synthèse, Bonnes Pratiques & Exercice',
+              content: '• Étude de cas sur projet de référence\n• Points de vigilance et pièges courants\n• Métriques d\'évaluation de la performance',
+              speakerNotes: 'Laisser 5 minutes aux apprenants pour poser des questions avant le TP.',
+            },
+          ],
+        };
+        break;
+      case 'image':
+        newBlock.title = 'Schéma d\'Architecture & Illustration Pédagogique';
+        newBlock.imageUrl = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&auto=format&fit=crop&q=80';
+        newBlock.imageCaption = 'Figure 1.1 : Vue d\'ensemble de l\'architecture et du flux logique';
+        newBlock.imageSize = 'full';
+        newBlock.imageAlign = 'center';
+        break;
       case 'video':
         newBlock.title = 'Vidéo de Démonstration';
         newBlock.videoUrl = 'https://www.youtube.com/embed/dQw4w9WgXcQ';
@@ -255,11 +357,6 @@ export const ElementorLessonBuilder: React.FC<ElementorLessonBuilderProps> = ({
       case 'audio':
         newBlock.title = 'Synthèse Audio du Formateur';
         newBlock.audioUrl = 'https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg';
-        break;
-      case 'image':
-        newBlock.title = 'Architecture & Schéma Technique';
-        newBlock.imageUrl = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80';
-        newBlock.imageCaption = 'Figure 1.1 : Vue d\'ensemble du flux de traitement';
         break;
       case 'code':
         newBlock.title = 'Exercice de Programmation';
@@ -474,6 +571,73 @@ export const ElementorLessonBuilder: React.FC<ElementorLessonBuilderProps> = ({
               onClose={() => setPreviewNanoBanana(null)}
               onComplete={() => setPreviewNanoBanana(null)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* MEDIA ASSET PICKER MODAL (IMAGES & POWERPOINT PPTX/PDF) */}
+      {mediaPickerConfig && (
+        <MediaAssetPickerModal
+          isOpen={mediaPickerConfig.isOpen}
+          mode={mediaPickerConfig.mode}
+          title={mediaPickerConfig.title}
+          onClose={() => setMediaPickerConfig(null)}
+          onSelectMedia={(media) => {
+            const targetBlock = blocks.find((b) => b.id === mediaPickerConfig.blockId);
+            if (media.type === 'image') {
+              handleUpdateBlock(mediaPickerConfig.blockId, {
+                imageUrl: media.url,
+                title: targetBlock?.title || media.title || 'Schéma Illustratif',
+                imageCaption: media.caption || targetBlock?.imageCaption || media.title,
+              });
+            } else if (media.type === 'presentation') {
+              handleUpdateBlock(mediaPickerConfig.blockId, {
+                title: media.title || targetBlock?.title || 'Support PowerPoint',
+                content: media.caption || targetBlock?.content,
+                presentationData: {
+                  fileName: media.fileName || 'Diaporama.pptx',
+                  fileSize: media.fileSize || '4.5 MB',
+                  format: (media.format as any) || 'pptx',
+                  fileUrl: media.url,
+                  embedUrl: media.embedUrl,
+                  slideCount: media.slides ? media.slides.length : (targetBlock?.presentationData?.slides?.length || 3),
+                  slides: media.slides || targetBlock?.presentationData?.slides || [],
+                },
+              });
+            }
+            setMediaPickerConfig(null);
+          }}
+        />
+      )}
+
+      {/* LIGHTBOX IMAGE ZOOM MODAL */}
+      {zoomedImage && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md p-4 flex items-center justify-center animate-fadeIn cursor-zoom-out"
+          onClick={() => setZoomedImage(null)}
+        >
+          <div
+            className="max-w-4xl max-h-[90vh] bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl p-4 flex flex-col items-center gap-3 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex items-center justify-between pb-2 border-b border-slate-800 text-xs">
+              <span className="font-bold text-white truncate">{zoomedImage.caption || 'Aperçu Image'}</span>
+              <button
+                type="button"
+                onClick={() => setZoomedImage(null)}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold"
+              >
+                Fermer (✕)
+              </button>
+            </div>
+            <img
+              src={zoomedImage.url}
+              alt={zoomedImage.caption || 'Zoom'}
+              className="max-h-[75vh] w-auto max-w-full object-contain rounded-xl"
+            />
+            {zoomedImage.caption && (
+              <p className="text-xs text-slate-400 italic text-center px-4">{zoomedImage.caption}</p>
+            )}
           </div>
         </div>
       )}
@@ -947,6 +1111,363 @@ export const ElementorLessonBuilder: React.FC<ElementorLessonBuilderProps> = ({
                       </div>
                     )}
 
+                    {/* INSPECTOR: IMAGE BLOCK */}
+                    {selectedBlock.type === 'image' && (
+                      <div className="space-y-4">
+                        {/* Image Preview & Upload Triggers */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-400 mb-1.5">
+                            Image Actuelle
+                          </label>
+                          <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 group">
+                            {selectedBlock.imageUrl ? (
+                              <img
+                                src={selectedBlock.imageUrl}
+                                alt={selectedBlock.imageCaption || 'Aperçu'}
+                                className="w-full h-36 object-cover"
+                              />
+                            ) : (
+                              <div className="h-32 flex flex-col items-center justify-center text-slate-500 gap-1.5">
+                                <ImageIcon className="w-8 h-8 text-slate-600" />
+                                <span className="text-[11px]">Aucune image sélectionnée</span>
+                              </div>
+                            )}
+                            <div className="p-2.5 bg-slate-900/95 border-t border-slate-800 flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setMediaPickerConfig({
+                                    isOpen: true,
+                                    blockId: selectedBlock.id,
+                                    mode: 'image',
+                                    title: 'Importer ou Sélectionner une Image',
+                                  })
+                                }
+                                className="flex-1 py-1.5 px-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                              >
+                                <UploadCloud className="w-3.5 h-3.5" />
+                                <span>Importer / Galerie ITECH</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Quick Direct Upload Input */}
+                        <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Téléverser depuis votre appareil :
+                          </span>
+                          <label className="w-full py-2 px-3 rounded-xl border border-dashed border-indigo-500/40 bg-indigo-950/20 hover:bg-indigo-950/40 text-indigo-300 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors">
+                            <ImagePlus className="w-4 h-4 text-indigo-400" />
+                            <span>Choisir un fichier (.png, .jpg, .webp)</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  const file = e.target.files[0];
+                                  const reader = new FileReader();
+                                  reader.onload = () => {
+                                    handleUpdateBlock(selectedBlock.id, {
+                                      imageUrl: reader.result as string,
+                                      imageCaption: selectedBlock.imageCaption || file.name,
+                                    });
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+
+                        {/* Image URL Input */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                            Ou URL de l'Image
+                          </label>
+                          <input
+                            type="url"
+                            value={selectedBlock.imageUrl || ''}
+                            onChange={(e) => handleUpdateBlock(selectedBlock.id, { imageUrl: e.target.value })}
+                            placeholder="https://..."
+                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Caption & Title */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                            Titre / Description du Schéma
+                          </label>
+                          <input
+                            type="text"
+                            value={selectedBlock.title || ''}
+                            onChange={(e) => handleUpdateBlock(selectedBlock.id, { title: e.target.value })}
+                            placeholder="Titre de la figure..."
+                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                            Légende Détaillée (affichée sous l'image)
+                          </label>
+                          <input
+                            type="text"
+                            value={selectedBlock.imageCaption || ''}
+                            onChange={(e) => handleUpdateBlock(selectedBlock.id, { imageCaption: e.target.value })}
+                            placeholder="Figure 1.1 : Schéma d'architecture..."
+                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Image Size & Alignment Controls */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-400 mb-1">Taille</label>
+                            <select
+                              value={selectedBlock.imageSize || 'full'}
+                              onChange={(e) => handleUpdateBlock(selectedBlock.id, { imageSize: e.target.value as any })}
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white"
+                            >
+                              <option value="full">Pleine largeur (100%)</option>
+                              <option value="medium">Format Moyen (75%)</option>
+                              <option value="small">Format Compact (50%)</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-400 mb-1">Alignement</label>
+                            <select
+                              value={selectedBlock.imageAlign || 'center'}
+                              onChange={(e) => handleUpdateBlock(selectedBlock.id, { imageAlign: e.target.value as any })}
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white"
+                            >
+                              <option value="center">Centré</option>
+                              <option value="left">Gauche</option>
+                              <option value="right">Droite</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* INSPECTOR: PRESENTATION & POWERPOINT BLOCK */}
+                    {selectedBlock.type === 'presentation' && (
+                      <div className="space-y-4">
+                        {/* Summary Header */}
+                        <div className="p-3 rounded-2xl bg-amber-950/30 border border-amber-800/60 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+                              <Presentation className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-bold text-white block">
+                                {selectedBlock.presentationData?.fileName || 'Diaporama.pptx'}
+                              </span>
+                              <span className="text-[10px] text-amber-300">
+                                {selectedBlock.presentationData?.fileSize || '4.8 MB'} • {selectedBlock.presentationData?.slides?.length || 3} Diapositives
+                              </span>
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                            {selectedBlock.presentationData?.format?.toUpperCase() || 'PPTX'}
+                          </span>
+                        </div>
+
+                        {/* Import / Upload Trigger */}
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setMediaPickerConfig({
+                                isOpen: true,
+                                blockId: selectedBlock.id,
+                                mode: 'presentation',
+                                title: 'Importer une Présentation PowerPoint (.pptx) ou PDF',
+                              })
+                            }
+                            className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                          >
+                            <FileUp className="w-4 h-4 text-slate-950" />
+                            <span>Importer Fichier PowerPoint (.pptx, .ppt, .pdf)</span>
+                          </button>
+
+                          <label className="w-full py-2 px-3 rounded-xl border border-dashed border-amber-500/40 bg-slate-950 hover:bg-amber-950/20 text-amber-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors">
+                            <UploadCloud className="w-4 h-4 text-amber-400" />
+                            <span>Téléverser depuis le disque local</span>
+                            <input
+                              type="file"
+                              accept=".pptx,.ppt,.pdf"
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  const file = e.target.files[0];
+                                  const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+                                  const ext = file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'pptx';
+                                  const reader = new FileReader();
+                                  reader.onload = () => {
+                                    handleUpdateBlock(selectedBlock.id, {
+                                      presentationData: {
+                                        ...(selectedBlock.presentationData || {}),
+                                        fileName: file.name,
+                                        fileSize: `${sizeMb} MB`,
+                                        format: ext as any,
+                                        fileUrl: reader.result as string,
+                                        slides: selectedBlock.presentationData?.slides || [],
+                                      },
+                                    });
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+
+                        {/* Embed URL (Office 365 / OneDrive / Google Slides) */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                            Lien d'Intégration Web (Google Slides / Office 365)
+                          </label>
+                          <input
+                            type="url"
+                            value={selectedBlock.presentationData?.embedUrl || ''}
+                            onChange={(e) =>
+                              handleUpdateBlock(selectedBlock.id, {
+                                presentationData: {
+                                  ...(selectedBlock.presentationData || {}),
+                                  embedUrl: e.target.value,
+                                },
+                              })
+                            }
+                            placeholder="https://docs.google.com/presentation/d/.../embed"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-amber-500 focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Slide Deck Content Editor */}
+                        <div className="space-y-2.5 pt-2 border-t border-slate-800">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-black text-white uppercase tracking-wider">
+                              Diapositives Interactives ({selectedBlock.presentationData?.slides?.length || 0})
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentSlides = selectedBlock.presentationData?.slides || [];
+                                const newSlideIndex = currentSlides.length + 1;
+                                const updated = [
+                                  ...currentSlides,
+                                  {
+                                    title: `${newSlideIndex}. Nouvelle Diapositive`,
+                                    content: '• Point clé 1\n• Point clé 2\n• Point clé 3',
+                                    speakerNotes: 'Notes d\'animation du formateur...',
+                                  },
+                                ];
+                                handleUpdateBlock(selectedBlock.id, {
+                                  presentationData: {
+                                    ...(selectedBlock.presentationData || {}),
+                                    slides: updated,
+                                    slideCount: updated.length,
+                                  },
+                                });
+                              }}
+                              className="px-2 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold flex items-center gap-1"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>+ Diapo</span>
+                            </button>
+                          </div>
+
+                          <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+                            {(selectedBlock.presentationData?.slides || []).map((slide, sIdx) => (
+                              <div
+                                key={sIdx}
+                                className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-amber-300 text-[11px]">
+                                    Diapositive {sIdx + 1}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = (selectedBlock.presentationData?.slides || []).filter(
+                                        (_, idx) => idx !== sIdx
+                                      );
+                                      handleUpdateBlock(selectedBlock.id, {
+                                        presentationData: {
+                                          ...(selectedBlock.presentationData || {}),
+                                          slides: updated,
+                                          slideCount: updated.length,
+                                        },
+                                      });
+                                    }}
+                                    className="p-1 rounded text-slate-500 hover:text-rose-400"
+                                    title="Supprimer cette diapositive"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+
+                                <input
+                                  type="text"
+                                  value={slide.title}
+                                  onChange={(e) => {
+                                    const updated = [...(selectedBlock.presentationData?.slides || [])];
+                                    updated[sIdx] = { ...updated[sIdx], title: e.target.value };
+                                    handleUpdateBlock(selectedBlock.id, {
+                                      presentationData: {
+                                        ...(selectedBlock.presentationData || {}),
+                                        slides: updated,
+                                      },
+                                    });
+                                  }}
+                                  placeholder="Titre de la diapositive..."
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-white"
+                                />
+
+                                <textarea
+                                  rows={2}
+                                  value={slide.content}
+                                  onChange={(e) => {
+                                    const updated = [...(selectedBlock.presentationData?.slides || [])];
+                                    updated[sIdx] = { ...updated[sIdx], content: e.target.value };
+                                    handleUpdateBlock(selectedBlock.id, {
+                                      presentationData: {
+                                        ...(selectedBlock.presentationData || {}),
+                                        slides: updated,
+                                      },
+                                    });
+                                  }}
+                                  placeholder="Points clés (à puces)..."
+                                  className="w-full p-2 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200"
+                                />
+
+                                <input
+                                  type="text"
+                                  value={slide.speakerNotes || ''}
+                                  onChange={(e) => {
+                                    const updated = [...(selectedBlock.presentationData?.slides || [])];
+                                    updated[sIdx] = { ...updated[sIdx], speakerNotes: e.target.value };
+                                    handleUpdateBlock(selectedBlock.id, {
+                                      presentationData: {
+                                        ...(selectedBlock.presentationData || {}),
+                                        slides: updated,
+                                      },
+                                    });
+                                  }}
+                                  placeholder="Notes orales d'explication..."
+                                  className="w-full px-2 py-1 rounded-lg bg-slate-900/60 border border-slate-800 text-[11px] text-amber-200/80"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {selectedBlock.type === 'quiz' && selectedBlock.quizQuestion && (
                       <div className="space-y-3">
                         <div>
@@ -1249,6 +1770,124 @@ export const ElementorLessonBuilder: React.FC<ElementorLessonBuilderProps> = ({
                           </div>
                         )}
 
+                        {/* BLOCK TYPE: IMAGE */}
+                        {block.type === 'image' && (
+                          <div
+                            className={`space-y-2.5 ${
+                              block.imageAlign === 'center'
+                                ? 'text-center mx-auto'
+                                : block.imageAlign === 'right'
+                                ? 'text-right ml-auto'
+                                : 'text-left mr-auto'
+                            } ${
+                              block.imageSize === 'small'
+                                ? 'max-w-sm'
+                                : block.imageSize === 'medium'
+                                ? 'max-w-xl'
+                                : 'w-full'
+                            }`}
+                          >
+                            {block.title && (
+                              <h4 className="text-sm sm:text-base font-bold text-white tracking-tight">
+                                {block.title}
+                              </h4>
+                            )}
+
+                            {block.imageUrl ? (
+                              <div className="relative rounded-2xl overflow-hidden border border-slate-800 group/img bg-slate-950 shadow-md inline-block w-full">
+                                <img
+                                  src={block.imageUrl}
+                                  alt={block.imageCaption || block.title || 'Schéma'}
+                                  className="w-full h-auto max-h-[500px] object-cover transition-transform duration-300 group-hover/img:scale-[1.01]"
+                                />
+                                {!isPreviewMode && (
+                                  <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setZoomedImage({
+                                          url: block.imageUrl!,
+                                          caption: block.imageCaption || block.title,
+                                        });
+                                      }}
+                                      className="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg backdrop-blur-sm"
+                                    >
+                                      <ZoomIn className="w-4 h-4 text-indigo-400" />
+                                      <span>Agrandir</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setMediaPickerConfig({
+                                          isOpen: true,
+                                          blockId: block.id,
+                                          mode: 'image',
+                                          title: 'Remplacer l\'image du cours',
+                                        });
+                                      }}
+                                      className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg"
+                                    >
+                                      <UploadCloud className="w-4 h-4" />
+                                      <span>Changer</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              /* Placeholder with click to upload */
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMediaPickerConfig({
+                                    isOpen: true,
+                                    blockId: block.id,
+                                    mode: 'image',
+                                    title: 'Placer une image ou un schéma',
+                                  });
+                                }}
+                                className="border-2 border-dashed border-slate-800 hover:border-indigo-500/70 rounded-2xl p-8 bg-slate-950/50 text-center cursor-pointer transition-all group/drop"
+                              >
+                                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto mb-2.5 group-hover/drop:scale-110 transition-transform">
+                                  <ImageIcon className="w-6 h-6" />
+                                </div>
+                                <h5 className="text-xs font-bold text-white mb-1">
+                                  Cliquez pour placer une image ou un schéma
+                                </h5>
+                                <p className="text-[11px] text-slate-400">
+                                  Téléversez un fichier depuis votre appareil ou sélectionnez dans la galerie ITECH
+                                </p>
+                              </div>
+                            )}
+
+                            {block.imageCaption && (
+                              <p className="text-xs text-slate-400 italic px-1 leading-relaxed">
+                                {block.imageCaption}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* BLOCK TYPE: PRESENTATION (POWERPOINT & SLIDES) */}
+                        {block.type === 'presentation' && (
+                          <div className="space-y-3">
+                            <PresentationPlayer
+                              title={block.title || 'Support de Présentation PowerPoint'}
+                              presentationData={block.presentationData}
+                              isEditable={!isPreviewMode}
+                              onEditSlideDeck={() => {
+                                setMediaPickerConfig({
+                                  isOpen: true,
+                                  blockId: block.id,
+                                  mode: 'presentation',
+                                  title: 'Modifier ou Remplacer la Présentation PowerPoint',
+                                });
+                              }}
+                            />
+                          </div>
+                        )}
+
                         {/* BLOCK TYPE: CODE */}
                         {block.type === 'code' && (
                           <div className="rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-inner">
@@ -1416,6 +2055,20 @@ export const ElementorLessonBuilder: React.FC<ElementorLessonBuilderProps> = ({
                   Ajouter un nouvel élément à la leçon
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    onClick={() => handleAddBlock('image')}
+                    className="px-3 py-1.5 rounded-xl bg-indigo-900/60 hover:bg-indigo-800/80 text-indigo-200 border border-indigo-500/40 font-bold text-xs flex items-center gap-1.5"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>+ Image / Schéma</span>
+                  </button>
+                  <button
+                    onClick={() => handleAddBlock('presentation')}
+                    className="px-3 py-1.5 rounded-xl bg-amber-900/60 hover:bg-amber-800/80 text-amber-200 border border-amber-500/40 font-bold text-xs flex items-center gap-1.5"
+                  >
+                    <Presentation className="w-3.5 h-3.5 text-amber-400" />
+                    <span>+ PowerPoint (PPTX)</span>
+                  </button>
                   <button
                     onClick={() => handleAddBlock('heading')}
                     className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5"

@@ -1,38 +1,28 @@
 import React, { useState } from 'react';
 import { Logo } from './Logo';
 import { UserRole, Center, UserProfile } from '../../types';
-import { ROLE_DETAILS, hasPermission } from '../../lib/permissions';
+import { ROLE_DETAILS } from '../../lib/permissions';
 import { useCurrency } from '../../context/CurrencyContext';
 import {
   Search,
-  Flame,
   Zap,
   Bell,
   Sparkles,
   BookOpen,
-  Wand2,
   Bot,
   Trophy,
-  LayoutDashboard,
-  ShieldCheck,
-  Building2,
-  GraduationCap,
   ChevronDown,
   Menu,
-  X,
   Award,
-  Globe2,
   LogIn,
-  UserPlus,
   LogOut,
   User,
-  Sliders,
-  CheckCircle2,
-  PlayCircle,
-  Layers,
-  Users,
+  GraduationCap,
+  Building2,
   Coins,
-  Settings
+  Settings,
+  ShieldCheck,
+  Layers,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -59,7 +49,6 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
   badgeColor?: string;
-  requiredPermission?: Parameters<typeof hasPermission>[1];
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -78,7 +67,6 @@ export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   onSearchChange,
 }) => {
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
@@ -86,70 +74,29 @@ export const Header: React.FC<HeaderProps> = ({
   const { currencyCode, currencyInfo, setCurrencyCode, availableCurrencies } = useCurrency();
 
   const isVisitor = !isAuthenticated || currentUser.role === 'visitor';
-  const rolesOrder: UserRole[] = ['visitor', 'learner', 'trainer', 'center_admin', 'super_admin'];
 
-  // STRICT ROLE-BASED NAVIGATION ITEMS DEFINITION (Fitted to container)
-  const getNavItemsForRole = (role: UserRole): NavItem[] => {
-    switch (role) {
-      case 'visitor':
-        return [
-          { id: 'home', label: 'Accueil', shortLabel: 'Accueil', icon: Globe2 },
-          { id: 'catalog', label: 'Formations & Catalogue', shortLabel: 'Catalogue', icon: BookOpen },
-        ];
-
-      case 'learner':
-        // Core learner actions in navbar: Catalogue, Tuteur IA, Profil & Mes Formations
-        // (Mes Formations and Mon cours are seamlessly hosted inside the Learner Profile view)
-        return [
-          { id: 'catalog', label: 'Catalogue de Cours', shortLabel: 'Catalogue', icon: BookOpen },
-          { id: 'tuteur', label: 'Tuteur AIDA', shortLabel: 'Tuteur IA', icon: Bot, badge: 'WhatsApp', badgeColor: 'bg-emerald-100 text-emerald-800' },
-          { id: 'profile', label: 'Mon Profil & Mes Formations', shortLabel: 'Mon Profil', icon: GraduationCap, badge: `Nv.${currentUser.level || 1}`, badgeColor: 'bg-sky-100 text-sky-800' },
-        ];
-
-      case 'trainer':
-        // Core trainer actions in navbar: Créer Cours, Suivi Apprenants, Studio IA, Catalogue
-        // (Profil, Tuteur, Analytiques, Permissions are in Profile dropdown)
-        return [
-          { id: 'course-builder', label: 'Plan & Création de Cours', shortLabel: 'Créer Cours', icon: Layers, badge: 'Nano Banana', badgeColor: 'bg-amber-100 text-amber-900' },
-          { id: 'progress-tracker', label: 'Suivi des Apprenants', shortLabel: 'Suivi Apprenants', icon: Users, badge: 'Temps Réel', badgeColor: 'bg-emerald-100 text-emerald-800' },
-          { id: 'studio', label: 'Studio IA Pédagogique', shortLabel: 'Studio IA', icon: Sparkles },
-          { id: 'catalog', label: 'Catalogue', shortLabel: 'Catalogue', icon: BookOpen },
-        ];
-
-      case 'center_admin':
-        // Core center admin actions in navbar: Mon Centre, Suivi Apprenants, Créer Cours, Catalogue
-        // (Profil, Studio IA, Multi-Campus, Matrice RBAC are in Profile dropdown)
-        return [
-          { id: 'center-management', label: 'Gestion du Centre', shortLabel: 'Mon Centre', icon: Building2, badge: 'Directeur', badgeColor: 'bg-blue-100 text-blue-800' },
-          { id: 'progress-tracker', label: 'Suivi des Apprenants', shortLabel: 'Suivi Apprenants', icon: Users },
-          { id: 'course-builder', label: 'Création de Cours', shortLabel: 'Créer Cours', icon: Layers },
-          { id: 'catalog', label: 'Catalogue', shortLabel: 'Catalogue', icon: BookOpen },
-        ];
-
-      case 'super_admin':
-        // Core super admin actions in navbar: Direction, Réseau Multi-Campus, Suivi, Créer Cours
-        // (Profil, Matrice RBAC, Studio, Catalogue are in Profile dropdown)
-        return [
-          { id: 'center-management', label: 'Direction Campus', shortLabel: 'Direction', icon: Building2, badge: 'Admin', badgeColor: 'bg-amber-100 text-amber-800' },
-          { id: 'centers', label: 'Réseau Multi-Campus', shortLabel: 'Multi-Campus', icon: Building2 },
-          { id: 'progress-tracker', label: 'Suivi Global', shortLabel: 'Suivi Global', icon: Users },
-          { id: 'course-builder', label: 'Créateur de Cours', shortLabel: 'Créer Cours', icon: Layers },
-        ];
-
-      default:
-        return [
-          { id: 'home', label: 'Accueil', icon: Globe2 },
-          { id: 'catalog', label: 'Catalogue', icon: BookOpen },
-        ];
-    }
-  };
-
-  const navItems = getNavItemsForRole(currentUser.role);
+  // Navigation épurée : Uniquement Catalogue et Tuteur IA pour TOUS les profils
+  const navItems: NavItem[] = [
+    {
+      id: 'catalog',
+      label: 'Catalogue',
+      shortLabel: 'Catalogue',
+      icon: BookOpen,
+    },
+    {
+      id: 'tuteur',
+      label: 'Tuteur IA',
+      shortLabel: 'Tuteur IA',
+      icon: Bot,
+      badge: 'AIDA',
+      badgeColor: 'bg-emerald-100 text-emerald-800',
+    },
+  ];
 
   const closeAllMenus = () => {
-    setShowRoleMenu(false);
     setShowUserMenu(false);
     setShowNotifications(false);
+    setShowCurrencyMenu(false);
   };
 
   return (
@@ -162,16 +109,16 @@ export const Header: React.FC<HeaderProps> = ({
           {/* 1. Left: Logo & Campus */}
           <div
             onClick={() => {
-              onNavigate(isVisitor ? 'home' : currentUser.role === 'trainer' ? 'studio' : currentUser.role === 'center_admin' ? 'centers' : 'catalog');
+              onNavigate(isVisitor ? 'home' : 'catalog');
               closeAllMenus();
             }}
-            className="flex-shrink-0 cursor-pointer min-w-0 max-w-[210px] sm:max-w-none"
+            className="flex-shrink-0 cursor-pointer min-w-0 max-w-[220px] sm:max-w-none"
           >
             <Logo size="sm" showTagline={false} centerName={currentUser.role !== 'visitor' ? activeCenter.name : undefined} />
           </div>
 
-          {/* 2. Center: STRICT PROFILE-BASED NAVIGATION TABS (Desktop - Fitted to container) */}
-          <nav className="hidden md:flex items-center gap-1 xl:gap-1.5 flex-shrink-0 whitespace-nowrap">
+          {/* 2. Center: STRICT NAVIGATION TABS (Only Catalogue & Tuteur IA across ALL profiles) */}
+          <nav className="hidden sm:flex items-center gap-1.5 md:gap-2 flex-shrink-0 whitespace-nowrap">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isCurrent = activeTab === item.id;
@@ -184,17 +131,17 @@ export const Header: React.FC<HeaderProps> = ({
                     onNavigate(item.id);
                     closeAllMenus();
                   }}
-                  className={`flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shrink-0 ${
                     isCurrent
                       ? 'bg-sky-500 text-white shadow-xs'
                       : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isCurrent ? 'text-white' : 'text-slate-500'}`} />
+                  <Icon className={`w-4 h-4 ${isCurrent ? 'text-white' : 'text-sky-600'}`} />
                   <span>{item.shortLabel || item.label}</span>
-                  {item.badge && item.badge !== '' && (
+                  {item.badge && (
                     <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold uppercase ${
+                      className={`text-[10px] px-1.5 py-0.5 rounded-md font-extrabold uppercase ${
                         isCurrent
                           ? 'bg-white/25 text-white'
                           : item.badgeColor || 'bg-slate-100 text-slate-700'
@@ -208,15 +155,15 @@ export const Header: React.FC<HeaderProps> = ({
             })}
           </nav>
 
-          {/* 3. Search Bar (Fitted to container) */}
-          <div className="hidden lg:flex items-center w-32 xl:w-48 relative shrink">
+          {/* 3. Search Bar */}
+          <div className="hidden lg:flex items-center w-36 xl:w-52 relative shrink">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               id="search-header-input"
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Rechercher..."
+              placeholder="Rechercher formations..."
               className="w-full pl-7 pr-3 py-1.5 text-xs bg-slate-100/90 text-slate-800 placeholder-slate-400 rounded-xl border border-slate-200/80 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all"
             />
             {searchQuery && (
@@ -229,7 +176,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* 4. Right: Profile Controls, Role Switcher, Notifications & Auth */}
+          {/* 4. Right: Currency, Notifications & User Menu (No Profile Switcher) */}
           <div className="flex items-center gap-2">
             {/* Configurable Multi-Currency Switcher */}
             <div className="relative">
@@ -237,7 +184,6 @@ export const Header: React.FC<HeaderProps> = ({
                 id="currency-switcher-toggle"
                 onClick={() => {
                   setShowCurrencyMenu(!showCurrencyMenu);
-                  setShowRoleMenu(false);
                   setShowUserMenu(false);
                   setShowNotifications(false);
                 }}
@@ -328,7 +274,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
                 <button
                   onClick={() => onOpenAuth('login')}
-                  className="px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-sky-600 hover:bg-sky-50 border border-slate-200 transition-all flex items-center gap-1 whitespace-nowrap"
+                  className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-sky-600 hover:bg-sky-50 border border-slate-200 transition-all flex items-center gap-1 whitespace-nowrap"
                 >
                   <LogIn className="w-3.5 h-3.5 text-sky-500 shrink-0" />
                   <span className="hidden xs:inline">Connexion</span>
@@ -344,17 +290,9 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               /* AUTHENTICATED USER WIDGETS */
               <>
-                {/* Learner Streak & XP (Only for learners) */}
+                {/* Learner XP (Only for learners) */}
                 {currentUser.role === 'learner' && (
                   <div className="hidden sm:flex items-center gap-1.5">
-                    <div
-                      title={`${currentUser.streakDays} jours consécutifs d'apprentissage !`}
-                      className="flex items-center gap-1 px-2 py-1 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 text-xs font-bold"
-                    >
-                      <Flame className="w-3.5 h-3.5 text-orange-500 fill-orange-500" />
-                      <span>{currentUser.streakDays}j</span>
-                    </div>
-
                     <div
                       onClick={() => onNavigate('gamification')}
                       title={`Niveau ${currentUser.level} - Cliquez pour voir les récompenses`}
@@ -366,77 +304,12 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 )}
 
-                {/* Role Switcher Pill (Quick Demo switcher) */}
-                <div className="relative hidden md:block">
-                  <button
-                    id="role-switcher-toggle"
-                    onClick={() => {
-                      setShowRoleMenu(!showRoleMenu);
-                      setShowUserMenu(false);
-                      setShowNotifications(false);
-                    }}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border transition-all ${
-                      ROLE_DETAILS[currentUser.role]?.badgeStyle || 'bg-slate-50 text-slate-700 border-slate-200'
-                    }`}
-                  >
-                    <span>{ROLE_DETAILS[currentUser.role]?.badgeLabel || currentUser.role}</span>
-                    <ChevronDown className="w-3 h-3 opacity-60" />
-                  </button>
-
-                  {/* Role Dropdown */}
-                  {showRoleMenu && (
-                    <div
-                      id="role-switcher-dropdown"
-                      className="absolute right-0 mt-2 w-72 rounded-2xl bg-white border border-slate-200 shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150"
-                    >
-                      <div className="px-3 py-1.5 border-b border-slate-100 text-[11px] text-slate-500 font-bold uppercase tracking-wider flex items-center justify-between">
-                        <span>Changer de profil (Démo) :</span>
-                        <ShieldCheck className="w-3.5 h-3.5 text-sky-600" />
-                      </div>
-                      <div className="mt-1 space-y-1">
-                        {rolesOrder.map((r) => {
-                          const info = ROLE_DETAILS[r];
-                          const isCurrent = currentUser.role === r;
-                          return (
-                            <button
-                              key={r}
-                              id={`role-option-${r}`}
-                              onClick={() => {
-                                onSelectRole(r);
-                                setShowRoleMenu(false);
-                              }}
-                              className={`w-full flex items-start gap-2.5 p-2 rounded-xl text-left transition-all ${
-                                isCurrent
-                                  ? 'bg-sky-50 text-sky-950 font-bold border border-sky-200'
-                                  : 'text-slate-600 hover:bg-slate-50'
-                              }`}
-                            >
-                              <div className="flex-1">
-                                <div className="text-xs font-bold flex items-center justify-between text-slate-900">
-                                  <span>{info.title}</span>
-                                  {isCurrent && (
-                                    <span className="text-[10px] text-sky-600 font-extrabold">Actif</span>
-                                  )}
-                                </div>
-                                <div className="text-[11px] text-slate-500 font-normal mt-0.5 leading-tight line-clamp-1">
-                                  {info.description}
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 {/* Notifications Bell */}
                 <div className="relative hidden md:block">
                   <button
                     id="notifications-toggle"
                     onClick={() => {
                       setShowNotifications(!showNotifications);
-                      setShowRoleMenu(false);
                       setShowUserMenu(false);
                     }}
                     className="p-1.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors relative"
@@ -460,7 +333,7 @@ export const Header: React.FC<HeaderProps> = ({
                             <Sparkles className="w-3 h-3 text-sky-600" />
                             Session Prête
                           </div>
-                          <p className="text-slate-600 text-[11px]">Votre module d'IA Générative est disponible.</p>
+                          <p className="text-slate-600 text-[11px]">Votre module interactif est disponible.</p>
                         </div>
                       </div>
                     </div>
@@ -470,48 +343,59 @@ export const Header: React.FC<HeaderProps> = ({
                 {/* User Avatar Menu */}
                 <div className="relative hidden md:block">
                   <button
+                    id="header-user-menu-button"
                     onClick={() => {
                       setShowUserMenu(!showUserMenu);
-                      setShowRoleMenu(false);
                       setShowNotifications(false);
                     }}
-                    className="flex items-center gap-1.5 p-0.5 rounded-xl hover:bg-slate-100 transition-colors"
+                    className="flex items-center gap-2 p-1.5 pl-2 rounded-xl bg-slate-50 hover:bg-sky-50/60 border border-slate-200/90 hover:border-sky-300 transition-all cursor-pointer shadow-2xs group shrink-0"
+                    title={`Connecté en tant que ${currentUser.name}`}
                   >
                     <img
                       src={currentUser.avatar}
                       alt={currentUser.name}
-                      className="w-7 h-7 rounded-xl object-cover border border-slate-200"
+                      referrerPolicy="no-referrer"
+                      className="w-8 h-8 rounded-lg object-cover border border-slate-200 shadow-2xs shrink-0"
                     />
-                    <ChevronDown className="w-3 h-3 text-slate-500 hidden sm:block" />
+                    <div className="text-left hidden lg:block min-w-0 pr-1 max-w-[130px] xl:max-w-[160px]">
+                      <div className="text-xs font-black text-slate-900 leading-tight truncate">
+                        {currentUser.name}
+                      </div>
+                      <div className="text-[10px] text-sky-700 font-bold leading-tight truncate">
+                        {ROLE_DETAILS[currentUser.role]?.badgeLabel || currentUser.role}
+                      </div>
+                    </div>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-transform shrink-0" />
                   </button>
 
                   {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-white border border-slate-200/90 shadow-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 divide-y divide-slate-100 max-h-[85vh] overflow-y-auto">
+                    <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-white border border-slate-200/90 shadow-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 divide-y divide-slate-100 max-h-[85vh] overflow-y-auto">
                       {/* 1. User Identity Header */}
-                      <div className="p-2 pb-3">
-                        <div className="flex items-center gap-2.5">
+                      <div className="p-3 bg-gradient-to-br from-sky-50 to-slate-50 border border-sky-100/70 rounded-xl">
+                        <div className="flex items-center gap-3">
                           <img
                             src={currentUser.avatar}
                             alt={currentUser.name}
-                            className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
+                            referrerPolicy="no-referrer"
+                            className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-md shrink-0"
                           />
                           <div className="min-w-0 flex-1">
-                            <div className="text-xs font-bold text-slate-900 truncate">{currentUser.name}</div>
-                            <div className="text-[11px] text-slate-500 truncate">{currentUser.email}</div>
-                            <div className="text-[10px] text-sky-600 font-semibold mt-0.5 flex items-center gap-1 truncate">
-                              <Building2 className="w-3 h-3 shrink-0" />
-                              <span className="truncate">{currentUser.centerName}</span>
+                            <div className="text-sm font-black text-slate-950 truncate tracking-tight">{currentUser.name}</div>
+                            <div className="text-xs text-slate-600 truncate font-semibold">{currentUser.email}</div>
+                            <div className="text-[11px] text-sky-800 font-bold mt-0.5 flex items-center gap-1 truncate">
+                              <Building2 className="w-3.5 h-3.5 shrink-0 text-sky-600" />
+                              <span className="truncate">{currentUser.centerName || 'Campus Central ITECH'}</span>
                             </div>
                           </div>
                         </div>
 
-                        {/* Quick Stats Pill */}
-                        <div className="mt-2.5 flex items-center gap-1.5 p-1.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px]">
-                          <span className="px-1.5 py-0.5 rounded-md bg-white font-bold text-slate-700 shadow-2xs border border-slate-200/60">
+                        {/* Role & XP Badge */}
+                        <div className="mt-2.5 flex items-center gap-1.5 p-1.5 rounded-xl bg-white border border-slate-200/80 text-[11px] shadow-2xs">
+                          <span className="px-2 py-0.5 rounded-md bg-sky-50 font-extrabold text-sky-800 border border-sky-200/80">
                             {ROLE_DETAILS[currentUser.role]?.title || 'Utilisateur'}
                           </span>
                           {currentUser.role === 'learner' && (
-                            <span className="text-amber-700 font-bold ml-auto flex items-center gap-0.5">
+                            <span className="text-amber-800 font-bold ml-auto flex items-center gap-0.5">
                               <Zap className="w-3 h-3 fill-amber-500 text-amber-500" />
                               {currentUser.xp || 0} XP (Nv.{currentUser.level || 1})
                             </span>
@@ -519,170 +403,119 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                       </div>
 
-                      {/* 2. Section: Mon Espace & Profil (Moved items for Learner) */}
-                      <div className="py-2 space-y-0.5 text-xs">
-                        <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          Mon Espace & Apprentissage
-                        </div>
-
+                      {/* 2. User Links */}
+                      <div className="py-2 space-y-1 text-xs">
                         <button
                           onClick={() => {
                             onNavigate('profile');
                             setShowUserMenu(false);
                           }}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-slate-700 hover:bg-sky-50 hover:text-sky-900 text-left font-semibold group transition-colors"
                         >
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
-                              <User className="w-3.5 h-3.5" />
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+                              <User className="w-4 h-4" />
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Mon Profil Apprenant</div>
-                              <div className="text-[10px] text-slate-400">Mur, progression & paramètres</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-50 text-sky-600">PROFIL</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            onNavigate('profile');
-                            setShowUserMenu(false);
-                          }}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
-                              <BookOpen className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Mes Formations & Cours</div>
-                              <div className="text-[10px] text-slate-400">Reprendre ma leçon en cours</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-500 text-white">Actif</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            onNavigate('learner-journey');
-                            setShowUserMenu(false);
-                          }}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
-                              <GraduationCap className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Mon Parcours Pédagogique</div>
-                              <div className="text-[10px] text-slate-400">Jalons, Nano Banana & modules</div>
+                              <div className="font-bold text-slate-900 group-hover:text-sky-700">Mon Profil</div>
+                              <div className="text-[10px] text-slate-500">Mur, couverture, photo et paramètres</div>
                             </div>
                           </div>
                         </button>
 
-                        <button
-                          onClick={() => {
-                            onNavigate('gamification');
-                            setShowUserMenu(false);
-                          }}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                              <Trophy className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Badges & Gamification</div>
-                              <div className="text-[10px] text-slate-400">{(currentUser.unlockedBadgeIds?.length || 0)} badges débloqués</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">
-                            {currentUser.xp || 0} XP
-                          </span>
-                        </button>
-                      </div>
-
-                      {/* 3. Section: Outils Pédagogiques & IA (Role Guarded) */}
-                      <div className="py-2 space-y-0.5 text-xs">
-                        <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          Outils & Pédagogie
-                        </div>
-
-                        {hasPermission(currentUser.role, 'access_ai_studio') && (
+                        {/* Direct Role View Shortcuts */}
+                        {currentUser.role === 'learner' && (
                           <button
                             onClick={() => {
-                              onNavigate('studio');
+                              onNavigate('learner-journey');
                               setShowUserMenu(false);
                             }}
-                            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-50 text-left font-medium group transition-colors"
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
                           >
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center shrink-0">
-                                <Sparkles className="w-3.5 h-3.5" />
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                                <GraduationCap className="w-4 h-4" />
                               </div>
                               <div>
-                                <div className="font-semibold text-slate-800 group-hover:text-sky-600">Studio IA Pédagogique</div>
-                                <div className="text-[10px] text-slate-400">Générateur de cours Gemini</div>
+                                <div className="font-bold text-slate-800 group-hover:text-sky-600">Parcours Apprenant</div>
+                                <div className="text-[10px] text-slate-400">Progression, XP et jalons</div>
                               </div>
                             </div>
                           </button>
                         )}
 
-                        {hasPermission(currentUser.role, 'create_and_publish_course') && (
+                        {currentUser.role === 'trainer' && (
                           <button
                             onClick={() => {
                               onNavigate('course-builder');
                               setShowUserMenu(false);
                             }}
-                            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-50 text-left font-medium group transition-colors"
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
                           >
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                                <Layers className="w-3.5 h-3.5" />
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                                <Layers className="w-4 h-4" />
                               </div>
                               <div>
-                                <div className="font-semibold text-slate-800 group-hover:text-sky-600">Créateur de Cours</div>
-                                <div className="text-[10px] text-slate-400">Plan & Nano Banana</div>
+                                <div className="font-bold text-slate-800 group-hover:text-sky-600">Studio Formateur</div>
+                                <div className="text-[10px] text-slate-400">Création et publication de cours</div>
                               </div>
                             </div>
                           </button>
                         )}
 
-                        {hasPermission(currentUser.role, 'view_center_analytics') && (
+                        {(currentUser.role === 'center_admin' || currentUser.role === 'super_admin') && (
                           <button
                             onClick={() => {
-                              onNavigate('progress-tracker');
+                              onNavigate('center-management');
                               setShowUserMenu(false);
                             }}
-                            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-50 text-left font-medium group transition-colors"
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
                           >
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
-                                <Users className="w-3.5 h-3.5" />
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
+                                <Building2 className="w-4 h-4" />
                               </div>
                               <div>
-                                <div className="font-semibold text-slate-800 group-hover:text-sky-600">Suivi des Apprenants</div>
-                                <div className="text-[10px] text-slate-400">Progression & Notes</div>
+                                <div className="font-bold text-slate-800 group-hover:text-sky-600">Direction de Centre</div>
+                                <div className="text-[10px] text-slate-400">Administration et formateurs</div>
                               </div>
                             </div>
                           </button>
                         )}
+
+                        <button
+                          onClick={() => {
+                            onNavigate('catalog');
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+                              <BookOpen className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="font-bold text-slate-800 group-hover:text-sky-600">Catalogue des Cours</div>
+                              <div className="text-[10px] text-slate-400">Explorer toutes les formations</div>
+                            </div>
+                          </div>
+                        </button>
 
                         <button
                           onClick={() => {
                             onNavigate('tuteur');
                             setShowUserMenu(false);
                           }}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-50 text-left font-medium group transition-colors"
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
                         >
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
-                              <Bot className="w-3.5 h-3.5" />
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                              <Bot className="w-4 h-4" />
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Tuteur IA AIDA</div>
-                              <div className="text-[10px] text-slate-400">Assistance 24/7 & WhatsApp</div>
+                              <div className="font-bold text-slate-800 group-hover:text-sky-600">Tuteur IA AIDA</div>
+                              <div className="text-[10px] text-slate-400">Assistance pédagogique 24/7</div>
                             </div>
                           </div>
                         </button>
@@ -692,66 +525,21 @@ export const Header: React.FC<HeaderProps> = ({
                             onOpenCertVerifier();
                             setShowUserMenu(false);
                           }}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-50 text-left font-medium group transition-colors"
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
                         >
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
-                              <Award className="w-3.5 h-3.5" />
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                              <Award className="w-4 h-4" />
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Vérificateur de Diplômes</div>
-                              <div className="text-[10px] text-slate-400">Contrôle QR & Blockchain</div>
+                              <div className="font-bold text-slate-800 group-hover:text-sky-600">Vérificateur de Diplômes</div>
+                              <div className="text-[10px] text-slate-400">Authentification QR & Blockchain</div>
                             </div>
                           </div>
                         </button>
                       </div>
 
-                      {/* 4. Section: Administration & Sécurité */}
-                      <div className="py-2 space-y-0.5 text-xs">
-                        <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          Administration & Sécurité
-                        </div>
-
-                        {(currentUser.role === 'center_admin' || currentUser.role === 'super_admin') && (
-                          <button
-                            onClick={() => {
-                              onNavigate('centers');
-                              setShowUserMenu(false);
-                            }}
-                            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-50 text-left font-medium group transition-colors"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shrink-0">
-                                <Building2 className="w-3.5 h-3.5" />
-                              </div>
-                              <div>
-                                <div className="font-semibold text-slate-800 group-hover:text-sky-600">Réseau Multi-Campus</div>
-                                <div className="text-[10px] text-slate-400">Vue globale des centres</div>
-                              </div>
-                            </div>
-                          </button>
-                        )}
-
-                        <button
-                          onClick={() => {
-                            onNavigate('permissions');
-                            setShowUserMenu(false);
-                          }}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-50 text-left font-medium group transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                              <div className="font-semibold text-slate-800 group-hover:text-sky-600">Matrice des Permissions</div>
-                              <div className="text-[10px] text-slate-400">Audit des rôles RBAC</div>
-                            </div>
-                          </div>
-                        </button>
-                      </div>
-
-                      {/* 5. Section: Déconnexion */}
+                      {/* 3. Section: Déconnexion */}
                       <div className="pt-2">
                         <button
                           onClick={() => {
@@ -770,7 +558,7 @@ export const Header: React.FC<HeaderProps> = ({
               </>
             )}
 
-            {/* Mobile Menu Hamburger / Drawer Trigger - Icon Only */}
+            {/* Mobile Menu Hamburger / Drawer Trigger */}
             <button
               id="mobile-menu-toggle"
               onClick={() => {

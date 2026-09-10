@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   INITIAL_COURSES,
   INITIAL_CENTERS,
@@ -20,6 +20,16 @@ import {
   UserRole,
 } from './types';
 import { hasPermission, ROLE_DETAILS } from './lib/permissions';
+import {
+  fetchUserProfileFromFirestore,
+  saveUserProfileToFirestore,
+  subscribeToUserProfile,
+  getStoredUserProfile,
+  setStoredUserProfileLocally,
+  getStoredActiveUserId,
+  setStoredActiveUserId,
+  getEffectiveProfile,
+} from './lib/firebase';
 
 // Components
 import { Preloader } from './components/common/Preloader';
@@ -73,16 +83,79 @@ export default function App() {
   const [rewards, setRewards] = useState<RewardItem[]>(INITIAL_REWARDS);
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>(INITIAL_LEADERBOARD);
 
-  // User Profile & Enrolments
-  const [currentUser, setCurrentUser] = useState<UserProfile>(INITIAL_USER_PROFILE);
+  // User Profile & Enrolments with seamless persistence
+  const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
+    try {
+      const activeId = getStoredActiveUserId();
+      if (activeId) {
+        const stored = getStoredUserProfile(activeId);
+        if (stored) return stored;
+        const matchingDemo = DEMO_PROFILES.find((p) => p.id === activeId);
+        if (matchingDemo) return getEffectiveProfile(matchingDemo);
+      }
+      const initialStored = getStoredUserProfile(INITIAL_USER_PROFILE.id);
+      if (initialStored) return initialStored;
+    } catch {
+      // ignore
+    }
+    return INITIAL_USER_PROFILE;
+  });
+
+  // Track if current profile update originated from Firestore to avoid loops
+  const isSyncingFromFirestore = useRef(false);
+
+  // Load and subscribe to active user profile in Firestore
+  useEffect(() => {
+    if (!currentUser.id || currentUser.role === 'visitor') return;
+
+    let isMounted = true;
+
+    // 1. Initial fetch from Firestore
+    fetchUserProfileFromFirestore(currentUser.id)
+      .then((remoteProfile) => {
+        if (isMounted && remoteProfile) {
+          isSyncingFromFirestore.current = true;
+          setCurrentUser((prev) => ({
+            ...prev,
+            ...remoteProfile,
+          }));
+          setTimeout(() => {
+            isSyncingFromFirestore.current = false;
+          }, 100);
+        }
+      })
+      .catch((err) => {
+        console.warn('Initial Firestore fetch note:', err);
+      });
+
+    // 2. Real-time Firestore subscription
+    const unsubscribe = subscribeToUserProfile(currentUser.id, (remoteProfile) => {
+      if (isMounted && remoteProfile) {
+        isSyncingFromFirestore.current = true;
+        setCurrentUser((prev) => ({
+          ...prev,
+          ...remoteProfile,
+        }));
+        setTimeout(() => {
+          isSyncingFromFirestore.current = false;
+        }, 100);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [currentUser.id]);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([
-    INITIAL_COURSES[0].id,
-    INITIAL_COURSES[1].id,
+    INITIAL_COURSES[4].id, // Cours gratuit 'Introduction au Numérique' pré-inscrit
   ]);
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([
-    INITIAL_COURSES[0].chapters[0].lessons[0].id,
-    INITIAL_COURSES[0].chapters[0].lessons[1].id,
+    INITIAL_COURSES[4].chapters[0].lessons[0].id,
   ]);
+  const [quizScores, setQuizScores] = useState<Record<string, number>>({
+    'quiz-python-open': 85,
+  });
 
   // Active Entities for Modals & Players
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -108,22 +181,25 @@ export default function App() {
   };
 
   const handleLoginSuccess = (user: UserProfile) => {
-    setCurrentUser(user);
-    setIsAuthenticated(user.role !== 'visitor');
+    const effective = getEffectiveProfile(user);
+    setStoredActiveUserId(effective.id);
+    setStoredUserProfileLocally(effective);
+    setCurrentUser(effective);
+    setIsAuthenticated(effective.role !== 'visitor');
     
     // Target tab based on strict role
     let nextTab = 'catalog';
-    if (user.role === 'trainer') {
+    if (effective.role === 'trainer') {
       nextTab = 'studio';
-    } else if (user.role === 'center_admin') {
+    } else if (effective.role === 'center_admin') {
       nextTab = 'centers';
-    } else if (user.role === 'visitor') {
+    } else if (effective.role === 'visitor') {
       nextTab = 'home';
     } else {
       nextTab = 'catalog';
     }
 
-    triggerPreloader(`Connexion en tant que ${user.name} (${ROLE_DETAILS[user.role]?.title || user.role})...`, () => {
+    triggerPreloader(`Connexion en tant que ${effective.name} (${ROLE_DETAILS[effective.role]?.title || effective.role})...`, () => {
       setActiveTab(nextTab);
     });
   };
@@ -131,6 +207,7 @@ export default function App() {
   const handleLogout = () => {
     triggerPreloader('Déconnexion de la session...', () => {
       setIsAuthenticated(false);
+      setStoredActiveUserId(null);
       setCurrentUser({
         ...INITIAL_USER_PROFILE,
         role: 'visitor',
@@ -148,7 +225,10 @@ export default function App() {
     }
 
     const matchingProfile = DEMO_PROFILES.find((p) => p.role === newRole);
-    const updated = matchingProfile || { ...currentUser, role: newRole };
+    const base = matchingProfile || { ...currentUser, role: newRole };
+    const updated = getEffectiveProfile(base);
+    setStoredActiveUserId(updated.id);
+    setStoredUserProfileLocally(updated);
 
     let targetTab = 'catalog';
     if (newRole === 'learner') {
@@ -176,13 +256,21 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleEnrollCourse = (courseId: string) => {
-    if (!isAuthenticated || currentUser.role === 'visitor') {
+  const handleEnrollCourse = (courseId: string, forcePaid = false) => {
+    if (!forcePaid && (!isAuthenticated || currentUser.role === 'visitor')) {
       handleOpenAuth('register', 'learner');
       return;
     }
     if (!enrolledCourseIds.includes(courseId)) {
       setEnrolledCourseIds((prev) => [...prev, courseId]);
+    }
+    // If visitor or guest who just paid, ensure their role is learner and course is unlocked
+    if (forcePaid && currentUser.role === 'visitor') {
+      setCurrentUser((prev) => ({
+        ...prev,
+        role: 'learner',
+        enrolledCourses: Array.from(new Set([...(prev.enrolledCourses || []), courseId])),
+      }));
     }
   };
 
@@ -213,6 +301,48 @@ export default function App() {
       handleOpenAuth('login');
       return;
     }
+
+    if (quizId) {
+      // 1. Check in selectedCourse finalQuiz
+      if (selectedCourse?.finalQuiz?.id === quizId) {
+        setActiveQuiz(selectedCourse.finalQuiz);
+        return;
+      }
+      // 2. Check in selectedCourse chapters checkpointQuiz
+      for (const ch of selectedCourse?.chapters || []) {
+        if (ch.checkpointQuiz?.id === quizId) {
+          setActiveQuiz(ch.checkpointQuiz);
+          return;
+        }
+        for (const les of ch.lessons) {
+          if (les.checkpointQuiz?.id === quizId) {
+            setActiveQuiz(les.checkpointQuiz);
+            return;
+          }
+        }
+      }
+      // 3. Search across all courses
+      for (const c of courses) {
+        if (c.finalQuiz?.id === quizId) {
+          setActiveQuiz(c.finalQuiz);
+          return;
+        }
+        for (const ch of c.chapters) {
+          if (ch.checkpointQuiz?.id === quizId) {
+            setActiveQuiz(ch.checkpointQuiz);
+            return;
+          }
+          for (const les of ch.lessons) {
+            if (les.checkpointQuiz?.id === quizId) {
+              setActiveQuiz(les.checkpointQuiz);
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    // Default fallback to course final quiz
     if (selectedCourse?.finalQuiz) {
       setActiveQuiz(selectedCourse.finalQuiz);
     } else if (courses[0]?.finalQuiz) {
@@ -226,6 +356,15 @@ export default function App() {
 
     let updatedCerts = currentUser.earnedCertificates;
     let updatedBadgeIds = [...currentUser.unlockedBadgeIds];
+
+    // Record quiz score for conditional access and passing percentage verification
+    if (activeQuiz) {
+      setQuizScores((prev) => ({
+        ...prev,
+        [activeQuiz.id]: scorePercentage,
+        [activeQuiz.courseId]: Math.max(prev[activeQuiz.courseId] || 0, scorePercentage),
+      }));
+    }
 
     // Unlock Quiz perfection badge if 100%
     if (scorePercentage === 100 && !updatedBadgeIds.includes('badge-3')) {
@@ -242,6 +381,15 @@ export default function App() {
       level: Math.max(prev.level, newLevel),
       earnedCertificates: updatedCerts,
       unlockedBadgeIds: updatedBadgeIds,
+      quizScores: {
+        ...(prev.quizScores || {}),
+        ...(activeQuiz
+          ? {
+              [activeQuiz.id]: scorePercentage,
+              [activeQuiz.courseId]: Math.max(prev.quizScores?.[activeQuiz.courseId] || 0, scorePercentage),
+            }
+          : {}),
+      },
     }));
 
     setLeaderboard((prev) =>
@@ -281,10 +429,27 @@ export default function App() {
   };
 
   const handleUpdateProfile = (updatedProfile: Partial<UserProfile>) => {
-    setCurrentUser((prev) => ({
-      ...prev,
-      ...updatedProfile,
-    }));
+    setCurrentUser((prev) => {
+      const merged: UserProfile = {
+        ...prev,
+        ...updatedProfile,
+      };
+
+      // Always persist immediately locally
+      setStoredUserProfileLocally(merged);
+      if (merged.id && merged.role !== 'visitor') {
+        setStoredActiveUserId(merged.id);
+      }
+
+      // Persist to Firestore
+      if (merged.id && merged.role !== 'visitor' && !isSyncingFromFirestore.current) {
+        saveUserProfileToFirestore(merged).catch((err) => {
+          console.warn('[Firebase] Erreur enregistrement profil Firestore:', err);
+        });
+      }
+
+      return merged;
+    });
   };
 
   const enrolledCoursesList = courses.filter((c) => enrolledCourseIds.includes(c.id));
@@ -321,7 +486,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-sky-500 selection:text-white">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-sky-500 selection:text-white">
       {/* Animated Tech Logo Preloader on startup & role transitions */}
       {isLoading && (
         <Preloader
@@ -360,7 +525,7 @@ export default function App() {
       />
 
       {/* Main App Stage */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-24 md:pb-12">
+      <main className="flex-1 max-w-7xl w-full min-w-0 overflow-x-hidden mx-auto px-2.5 sm:px-6 lg:px-8 pt-4 sm:pt-5 pb-24 md:pb-12">
         {/* VIEW 0: Visitor Homepage */}
         {activeTab === 'home' && (
           <VisitorHome
@@ -375,6 +540,7 @@ export default function App() {
               }
             }}
             onViewPermissions={() => setActiveTab('permissions')}
+            onOpenStudio={hasPermission(currentUser.role, 'access_ai_studio') ? () => setActiveTab('studio') : () => handleOpenAuth('demo', 'trainer')}
           />
         )}
 
@@ -387,7 +553,7 @@ export default function App() {
             searchQuery={searchQuery}
             onSelectCourse={handleSelectCourse}
             onEnrollCourse={handleEnrollCourse}
-            onOpenStudio={() => setActiveTab('studio')}
+            onOpenStudio={hasPermission(currentUser.role, 'access_ai_studio') ? () => setActiveTab('studio') : undefined}
             onEditCourse={(course) => {
               setEditingCourse(course);
               setActiveTab('course-builder');
@@ -402,14 +568,18 @@ export default function App() {
           <CoursePlayer
             course={selectedCourse || courses[0]}
             completedLessonIds={completedLessonIds}
+            enrolledCourseIds={enrolledCourseIds}
+            quizScores={quizScores}
+            currentUser={currentUser}
             onCompleteLesson={handleCompleteLesson}
             onStartQuiz={handleStartQuiz}
             onBackToCatalog={() => setActiveTab('catalog')}
             onOpenAIAssistantWithContext={handleOpenAIAssistantWithContext}
+            onEnrollCourse={handleEnrollCourse}
           />
         )}
 
-        {/* VIEW 3: AI Content Studio (Guarded by Permission: Formateur / Admin only) */}
+        {/* VIEW 3: AI Content Studio & Animaker Studio (Guarded by Permission: Formateur / Enseignant uniquement) */}
         {activeTab === 'studio' && (
           hasPermission(currentUser.role, 'access_ai_studio') ? (
             <AIContentStudio
@@ -419,7 +589,7 @@ export default function App() {
               onOpenCourse={handleSelectCourse}
             />
           ) : (
-            renderAccessRestricted('trainer', 'Formateur')
+            renderAccessRestricted('trainer', 'Formateur / Enseignant')
           )
         )}
 
@@ -481,7 +651,7 @@ export default function App() {
               const target = courses.find((c) => c.id === cId);
               if (target) handleSelectCourse(target);
             }}
-            onOpenStudio={() => setActiveTab('course-builder')}
+            onOpenStudio={hasPermission(currentUser.role, 'access_ai_studio') ? () => setActiveTab('course-builder') : undefined}
           />
         )}
 

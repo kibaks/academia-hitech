@@ -44,10 +44,11 @@ export interface EarnedCertificate {
 export interface LessonResource {
   id: string;
   title: string;
-  type: 'pdf' | 'github' | 'link' | 'dataset' | 'slides' | 'code';
+  type: 'pdf' | 'github' | 'link' | 'dataset' | 'slides' | 'code' | 'pptx' | 'image';
   url: string;
   fileSize?: string;
   size?: string;
+  description?: string;
 }
 
 export interface Trainer {
@@ -109,6 +110,7 @@ export interface UserProfile {
   lastActiveDate: string;
   completedLessonIds: string[];
   enrolledCourseIds: string[];
+  quizScores?: Record<string, number>; // quizId or courseId -> score percentage
   unlockedBadgeIds: string[];
   earnedCertificates: EarnedCertificate[];
   workplaces?: { id: string; role: string; company: string; period: string; current: boolean }[];
@@ -145,6 +147,10 @@ export interface ProfilePost {
   content: string;
   type: 'status' | 'project_showcase' | 'certificate_earned' | 'code_snippet' | 'course_announcement';
   mediaUrl?: string;
+  mediaType?: 'image' | 'video' | 'document' | 'link';
+  mediaName?: string;
+  mediaSize?: string;
+  feeling?: string;
   codeLanguage?: string;
   codeContent?: string;
   certificateRef?: { courseTitle: string; distinction: string; certificateNumber: string };
@@ -165,6 +171,29 @@ export interface NetworkConnection {
   mutualCount: number;
   isFriend: boolean;
   isOnline?: boolean;
+  courseId?: string;
+  courseTitle?: string;
+  relationshipType?: 'teacher' | 'peer_learner' | 'enrolled_student' | 'co_trainer';
+}
+
+export interface CourseChatMessage {
+  id: string;
+  courseId: string;
+  courseTitle: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string;
+  senderRole: UserRole;
+  recipientId?: string;
+  recipientName?: string;
+  message: string;
+  timestamp: string;
+  isDirectToTeacher: boolean;
+  isPinned?: boolean;
+  codeSnippet?: string;
+  attachmentName?: string;
+  likes?: number;
+  isLiked?: boolean;
 }
 
 export interface NanoBananaScene {
@@ -200,6 +229,245 @@ export interface NanoBananaLesson {
   scenes: NanoBananaScene[];
 }
 
+export type AnimakerCharacterPose =
+  | 'explaining'
+  | 'pointing'
+  | 'thinking'
+  | 'waving'
+  | 'coding'
+  | 'celebrating'
+  | 'warning'
+  | 'presenting'
+  | 'alert_danger'
+  | 'hands_open'
+  | 'thumbs_up'
+  | 'cross_arms';
+
+export type AnimakerSceneBackground =
+  | 'factory_floor'
+  | 'warehouse'
+  | 'construction_site'
+  | 'industrial_lab'
+  | 'tech_classroom'
+  | 'ai_lab'
+  | 'modern_office'
+  | 'cloud_datacenter'
+  | 'hacker_terminal'
+  | 'startup_hub'
+  | 'whiteboard_studio';
+
+export interface AnimakerBoardCard {
+  icon?: string;
+  iconName?: string;
+  title: string;
+  subtitle?: string;
+  category?: string;
+  color?: string;
+}
+
+export interface AnimakerGridItem {
+  icon?: string;
+  iconName?: string;
+  image?: string;
+  title: string;
+  desc: string;
+  badge?: string;
+}
+
+export interface AnimakerNumberedStep {
+  stepNumber: number;
+  title: string;
+  desc: string;
+  icon?: string;
+  image?: string;
+}
+
+export interface AnimakerBoardContent {
+  type:
+    | 'bullet_points'
+    | 'code'
+    | 'diagram'
+    | 'quote'
+    | 'stat_card'
+    | 'three_cards'
+    | 'four_grid'
+    | 'correct_incorrect'
+    | 'numbered_steps'
+    | 'danger_alert'
+    | 'title_intro';
+  title: string;
+  items?: string[];
+  codeSnippet?: string;
+  codeLanguage?: string;
+  highlightText?: string;
+  // Specialized cards & video layouts as in industrial training & Animaker videos
+  cards?: AnimakerBoardCard[];
+  gridItems?: AnimakerGridItem[];
+  steps?: AnimakerNumberedStep[];
+  // Correct vs Incorrect comparison
+  correctTitle?: string;
+  correctDesc?: string;
+  correctItems?: string[];
+  correctPoints?: string[];
+  correctImage?: string;
+  incorrectTitle?: string;
+  incorrectDesc?: string;
+  incorrectItems?: string[];
+  incorrectPoints?: string[];
+  incorrectImage?: string;
+  // Danger / Safety Alert
+  alertTitle?: string;
+  alertMessage?: string;
+  dangerBannerText?: string;
+  requiredActions?: string[];
+  prohibitedActions?: string[];
+  rules?: { text: string; isCorrect: boolean }[];
+  warningLevel?: 'critical' | 'warning' | 'mandatory';
+  // Title Intro
+  badgeText?: string;
+  companyName?: string;
+  subtitle?: string;
+}
+
+export interface AnimakerScene {
+  id: string;
+  title: string;
+  characterId: string;
+  characterName: string;
+  characterAvatar: string;
+  pose: AnimakerCharacterPose;
+  dialogueText: string;
+  background: AnimakerSceneBackground;
+  characterLayout?: 'left' | 'center' | 'right' | 'split' | 'fullscreen_avatar' | 'fullscreen_board' | 'corner_pip';
+  cameraShot?: 'wide' | 'medium' | 'close_up' | 'pan_right' | 'pan_left';
+  boardContent?: AnimakerBoardContent;
+  keyTakeaway?: string;
+  miniQuiz?: {
+    question: string;
+    options: string[];
+    correctIndex: number;
+    explanation: string;
+  };
+  durationSeconds: number;
+}
+
+export interface AnimakerLesson {
+  id: string;
+  title: string;
+  topic: string;
+  targetAudience?: string;
+  leadCharacterName: string;
+  leadCharacterAvatar: string;
+  totalDurationSeconds: number;
+  scenes: AnimakerScene[];
+}
+
+// -------------------------------------------------------------
+// LOGICIEL DE MONTAGE VIDÉO & MULTIMÉDIA PÉDAGOGIQUE (NLE TIMELINE)
+// -------------------------------------------------------------
+export type VideoTrackType = 'video' | 'avatar' | 'overlay_text' | 'audio' | 'voiceover' | 'interactive';
+
+export interface TimelineClipTransform {
+  x: number; // percentage (-50 to 50 or 0 to 100)
+  y: number;
+  scale: number; // 0.2 to 2.0 (1 = 100%)
+  opacity: number; // 0 to 1
+  rotation?: number; // degrees
+  pipPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center' | 'fullscreen';
+  chromaKey?: boolean;
+}
+
+export interface TimelineClip {
+  id: string;
+  trackId: string;
+  title: string;
+  type:
+    | 'video'
+    | 'b_roll'
+    | 'screen_recording'
+    | 'avatar'
+    | 'title_text'
+    | 'lower_third'
+    | 'code_snippet'
+    | 'voiceover'
+    | 'music'
+    | 'sound_effect'
+    | 'interactive_quiz';
+  startSeconds: number;
+  durationSeconds: number;
+  sourceUrl?: string;
+  thumbnail?: string;
+  color?: string;
+  volume?: number; // 0 - 100
+  fadeIn?: number; // in seconds
+  fadeOut?: number; // in seconds
+  playbackRate?: number;
+  transform?: TimelineClipTransform;
+  textContent?: string;
+  textSubtitle?: string;
+  textStyle?: {
+    fontSize?: 'small' | 'medium' | 'large' | 'title';
+    textColor?: string;
+    bgColor?: string;
+    animation?: 'fade' | 'slide-up' | 'pop' | 'typewriter';
+    position?: 'lower-third' | 'center-title' | 'top-banner' | 'side-callout';
+  };
+  codeContent?: {
+    code: string;
+    language: string;
+    highlightLines?: number[];
+  };
+  voiceoverData?: {
+    characterId: string;
+    characterName: string;
+    characterAvatar: string;
+    speechText: string;
+    voiceTone?: string;
+  };
+  quizData?: {
+    question: string;
+    options: string[];
+    correctIndex: number;
+    explanation: string;
+  };
+  transition?: {
+    type: 'cut' | 'crossfade' | 'slide-left' | 'slide-right' | 'fade-to-black' | 'zoom-in';
+    durationSeconds: number;
+  };
+}
+
+export interface TimelineTrack {
+  id: string;
+  name: string;
+  type: VideoTrackType;
+  label: string;
+  color: string;
+  isMuted?: boolean;
+  isLocked?: boolean;
+  isHidden?: boolean;
+  height?: number;
+}
+
+export interface CourseVideoProject {
+  id: string;
+  title: string;
+  topic: string;
+  description?: string;
+  targetAudience?: string;
+  aspectRatio: '16:9' | '9:16' | '1:1';
+  resolution: '1080p' | '720p' | '4k';
+  fps: 30 | 60;
+  totalDurationSeconds: number;
+  tracks: TimelineTrack[];
+  clips: TimelineClip[];
+  markers?: { id: string; timeSeconds: number; label: string; color?: string }[];
+  thumbnailUrl?: string;
+  leadCharacterName?: string;
+  leadCharacterAvatar?: string;
+  authorName?: string;
+  authorAvatar?: string;
+}
+
 export type ElementorBlockType =
   | 'heading'
   | 'text'
@@ -209,10 +477,30 @@ export type ElementorBlockType =
   | 'callout'
   | 'accordion'
   | 'image'
+  | 'presentation'
   | 'nano_banana'
+  | 'animaker_lesson'
+  | 'video_timeline'
   | 'quiz'
   | 'resources'
   | 'divider';
+
+export interface PresentationSlide {
+  title: string;
+  content: string;
+  imageUrl?: string;
+  speakerNotes?: string;
+}
+
+export interface PresentationData {
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: string;
+  format?: 'pptx' | 'ppt' | 'pdf' | 'embed';
+  embedUrl?: string;
+  slideCount?: number;
+  slides?: PresentationSlide[];
+}
 
 export interface ElementorBlock {
   id: string;
@@ -224,6 +512,9 @@ export interface ElementorBlock {
   audioUrl?: string;
   imageUrl?: string;
   imageCaption?: string;
+  imageSize?: 'small' | 'medium' | 'full';
+  imageAlign?: 'left' | 'center' | 'right';
+  presentationData?: PresentationData;
   codeLanguage?: string;
   codeContent?: string;
   calloutType?: 'info' | 'tip' | 'warning' | 'success';
@@ -236,6 +527,8 @@ export interface ElementorBlock {
   };
   resources?: LessonResource[];
   nanoBananaData?: NanoBananaLesson;
+  animakerData?: AnimakerLesson;
+  videoProjectData?: CourseVideoProject;
   customStyles?: {
     textAlign?: 'left' | 'center' | 'right';
     bgColor?: string;
@@ -247,7 +540,7 @@ export interface Lesson {
   id: string;
   title: string;
   durationMinutes: number;
-  type: 'video' | 'article' | 'interactive_code' | 'exercise' | 'animated_nano_banana';
+  type: 'video' | 'article' | 'interactive_code' | 'exercise' | 'animated_nano_banana' | 'animaker_animated' | 'video_project' | 'presentation';
   videoUrl?: string;
   content: string; // Markdown or rich text
   codeStarter?: string;
@@ -256,10 +549,16 @@ export interface Lesson {
   resources?: LessonResource[];
   quizId?: string;
   nanoBananaData?: NanoBananaLesson;
+  animakerData?: AnimakerLesson;
+  videoProjectData?: CourseVideoProject;
+  presentationData?: PresentationData;
   blocks?: ElementorBlock[];
   summary?: string;
   prerequisites?: string[];
   allowPreview?: boolean;
+  requiredQuizScore?: number; // Passing score percentage required on checkpoint quiz (e.g. 75 or 80)
+  requiresPayment?: boolean; // Strictly requires course fee payment
+  checkpointQuiz?: Quiz;
 }
 
 export interface LearnerCourseProgress {
@@ -285,6 +584,7 @@ export interface Chapter {
   title: string;
   description?: string;
   lessons: Lesson[];
+  checkpointQuiz?: Quiz;
 }
 
 export interface QuizQuestion {
@@ -328,6 +628,9 @@ export interface Course {
   reviewCount: number;
   studentCount: number;
   price: number;
+  originalPrice?: number;
+  pricingType?: 'free' | 'paid' | 'subscription';
+  subscriptionPlanRequired?: 'starter' | 'pro' | 'enterprise' | 'all';
   isFeatured?: boolean;
   isNew?: boolean;
   hasCertificate: boolean;
@@ -335,6 +638,7 @@ export interface Course {
   chapters: Chapter[];
   finalQuiz?: Quiz;
   skillsGained: string[];
+  courseMaterials?: LessonResource[];
 }
 
 export interface Badge {
@@ -440,3 +744,68 @@ export interface CallLogItem {
   text: string;
   timestamp: string;
 }
+
+// Payment Aggregator & Subscription Types
+export type PaymentGatewayId =
+  | 'mpesa'
+  | 'airtel_money'
+  | 'afrimoney'
+  | 'orange_money'
+  | 'stripe'
+  | 'maxicash'
+  | 'cinetpay'
+  | 'wave'
+  | 'mtn_momo'
+  | 'paypal'
+  | 'paystack'
+  | 'flutterwave';
+
+export interface PaymentGatewayConfig {
+  id: PaymentGatewayId;
+  name: string;
+  providerType: 'card' | 'mobile_money' | 'wallet' | 'aggregator';
+  isEnabled: boolean;
+  isTestMode: boolean;
+  publicKey: string;
+  secretKey: string;
+  webhookSecret?: string;
+  merchantId?: string;
+  supportedCurrencies: string[];
+  icon: string;
+  description: string;
+  regions: string[];
+  additionalSettings?: Record<string, string>;
+}
+
+export interface CourseOrder {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  courseId: string;
+  courseTitle: string;
+  amountUSD: number;
+  paidAmount: number;
+  paidCurrency: string;
+  gateway: PaymentGatewayId;
+  paymentType: 'one_time' | 'subscription';
+  subscriptionPlanId?: string;
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  transactionReference: string;
+  createdAt: string;
+  receiptNumber: string;
+  payerPhoneOrAccount?: string;
+}
+
+export interface PaymentSubscriptionPlan {
+  id: string;
+  name: string;
+  code: 'monthly_pass' | 'annual_pass' | 'enterprise_pass';
+  priceUSD: number;
+  billingPeriod: 'month' | 'year';
+  description: string;
+  features: string[];
+  isPopular?: boolean;
+  activeSubscribersCount: number;
+}
+

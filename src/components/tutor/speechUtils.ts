@@ -282,3 +282,12 @@ export function playTutorSpeech({
   window.speechSynthesis.speak(utterance);
   return utterance;
 }
+
+/**
+ * Stop any ongoing speech synthesis immediately
+ */
+export function stopTutorSpeech(): void {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+}

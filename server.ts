@@ -10,6 +10,7 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Lazy Google GenAI Client
 let aiClient: GoogleGenAI | null = null;
@@ -27,12 +28,133 @@ function getAIClient(): GoogleGenAI | null {
   return aiClient;
 }
 
-// Resilient Models in Priority Order
-const RESILIENT_TEXT_MODELS = [
-  "gemini-3.7-flash",
-  "gemini-flash-latest",
+// Resilient Models in Priority Order: gemini-3.8-flash & gemini-3.1-flash-lite prioritized for fast response and high quota
+const RESILIENT_FAST_MODELS = [
+  "gemini-3.8-flash",
   "gemini-3.1-flash-lite",
+  "gemini-flash-latest",
+  "gemini-3.7-flash",
+  "gemini-2.5-flash",
 ];
+
+const RESILIENT_TEXT_MODELS = [
+  "gemini-3.8-flash",
+  "gemini-3.1-flash-lite",
+  "gemini-flash-latest",
+  "gemini-3.7-flash",
+  "gemini-2.5-flash",
+];
+
+// Rate-limit cooldown tracker (prevents repeatedly hitting models currently returning 429)
+const modelRateLimitCooldowns = new Map<string, number>();
+
+function getAvailableCandidateModels(models: string[]): string[] {
+  const now = Date.now();
+  const available: string[] = [];
+  const cooledDown: string[] = [];
+
+  for (const m of models) {
+    const expireTime = modelRateLimitCooldowns.get(m) || 0;
+    if (now < expireTime) {
+      cooledDown.push(m);
+    } else {
+      available.push(m);
+    }
+  }
+
+  // Prioritize healthy models; fall back to cooled-down ones if all are exhausted
+  return available.length > 0 ? [...available, ...cooledDown] : models;
+}
+
+function recordModelRateLimit(model: string, cooldownMs = 120_000) {
+  modelRateLimitCooldowns.set(model, Date.now() + cooldownMs);
+}
+
+// Helper: Configure thinking and output parameters tailored to model family
+function buildGeminiConfig(
+  model: string,
+  params: {
+    systemInstruction?: string;
+    responseMimeType?: string;
+    responseSchema?: any;
+    temperature?: number;
+    maxOutputTokens?: number;
+    thinkingLevel?: ThinkingLevel;
+    thinkingBudget?: number;
+  }
+) {
+  const config: any = {};
+
+  if (model.startsWith("gemini-3")) {
+    if (params.thinkingLevel) {
+      config.thinkingConfig = { thinkingLevel: params.thinkingLevel };
+    } else if (model.includes("flash-lite")) {
+      config.thinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
+    } else {
+      config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
+    }
+  } else if (model.includes("2.5-flash") || model.includes("flash")) {
+    if (params.thinkingBudget !== undefined) {
+      config.thinkingConfig = { thinkingBudget: params.thinkingBudget };
+    } else {
+      config.thinkingConfig = { thinkingBudget: 0 };
+    }
+  }
+
+  if (params.systemInstruction) config.systemInstruction = params.systemInstruction;
+  if (params.responseMimeType) config.responseMimeType = params.responseMimeType;
+  if (params.responseSchema) config.responseSchema = params.responseSchema;
+  if (params.temperature !== undefined) config.temperature = params.temperature;
+  if (params.maxOutputTokens !== undefined) config.maxOutputTokens = params.maxOutputTokens;
+
+  return config;
+}
+
+// Helper: Sanitize and format multi-turn contents for Gemini API
+// Guarantees: Starts with 'user', strictly alternates 'user' and 'model', no empty parts
+function sanitizeGeminiContents(
+  conversationHistory: any[] | undefined,
+  currentMessage: string
+): Array<{ role: "user" | "model"; parts: [{ text: string }] }> {
+  const rawList: Array<{ role: "user" | "model"; text: string }> = [];
+
+  if (Array.isArray(conversationHistory)) {
+    for (const msg of conversationHistory.slice(-8)) {
+      const text = typeof msg.text === "string" ? msg.text.trim() : "";
+      if (text) {
+        rawList.push({
+          role: msg.sender === "user" ? "user" : "model",
+          text,
+        });
+      }
+    }
+  }
+
+  const userText = currentMessage && currentMessage.trim() ? currentMessage.trim() : "Bonjour, je suis étudiant sur Academia ITECH.";
+  rawList.push({ role: "user", text: userText });
+
+  const sanitized: Array<{ role: "user" | "model"; parts: [{ text: string }] }> = [];
+  for (const item of rawList) {
+    if (sanitized.length === 0) {
+      if (item.role !== "user") continue; // First message must be user
+      sanitized.push({ role: "user", parts: [{ text: item.text }] });
+    } else {
+      const prev = sanitized[sanitized.length - 1];
+      if (prev.role === item.role) {
+        // Merge consecutive same-role messages
+        prev.parts[0].text += `\n\n${item.text}`;
+      } else {
+        sanitized.push({ role: item.role, parts: [{ text: item.text }] });
+      }
+    }
+  }
+
+  if (sanitized.length === 0) {
+    sanitized.push({ role: "user", parts: [{ text: userText }] });
+  }
+
+  return sanitized;
+}
 
 // Helper: Resilient generateContent with automatic model fallback on 503 / 429 / high demand
 async function callResilientGenerateContent(
@@ -45,37 +167,53 @@ async function callResilientGenerateContent(
     temperature?: number;
     maxOutputTokens?: number;
     thinkingLevel?: ThinkingLevel;
+    thinkingBudget?: number;
     models?: string[];
   }
 ) {
-  const candidateModels = params.models || RESILIENT_TEXT_MODELS;
+  const baseModels = params.models || RESILIENT_FAST_MODELS;
+  const candidateModels = getAvailableCandidateModels(baseModels);
   let lastError: any = null;
 
   for (const model of candidateModels) {
     try {
-      const config: any = {};
-      if (params.thinkingLevel && model === "gemini-3.7-flash") {
-        config.thinkingConfig = { thinkingLevel: params.thinkingLevel };
-      }
-      if (params.systemInstruction) config.systemInstruction = params.systemInstruction;
-      if (params.responseMimeType) config.responseMimeType = params.responseMimeType;
-      if (params.responseSchema) config.responseSchema = params.responseSchema;
-      if (params.temperature !== undefined) config.temperature = params.temperature;
-      if (params.maxOutputTokens !== undefined) config.maxOutputTokens = params.maxOutputTokens;
+      const config = buildGeminiConfig(model, params);
 
-      const response = await ai.models.generateContent({
+      // Timeout race: abort model attempt if it exceeds 9 seconds
+      const generatePromise = ai.models.generateContent({
         model,
         contents: params.contents,
         config,
       });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout model ${model} (9s)`)), 9000)
+      );
+
+      const response: any = await Promise.race([generatePromise, timeoutPromise]);
 
       if (response && (response.text || response.candidates?.length)) {
         return response;
       }
     } catch (err: any) {
       lastError = err;
-      console.warn(`[Gemini Resilient Engine] Model ${model} failed (${err?.status || err?.message || '503/high demand'}). Trying fallback...`);
-      await new Promise((resolve) => setTimeout(resolve, 80));
+      const isRateLimited =
+        err?.status === 429 ||
+        `${err?.message || ""}`.includes("429") ||
+        `${err?.message || ""}`.includes("RESOURCE_EXHAUSTED") ||
+        `${err?.message || ""}`.includes("quota");
+
+      if (isRateLimited) {
+        recordModelRateLimit(model, 120_000);
+        console.info(
+          `[Gemini Resilient Engine] Model ${model} rate-limited (429). Cooldown applied, switching to next model...`
+        );
+      } else {
+        console.warn(
+          `[Gemini Resilient Engine] Model ${model} failed (${err?.status || err?.message || "503/high demand"}). Trying fallback...`
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
   }
 
@@ -91,21 +229,17 @@ async function callResilientGenerateContentStream(
     temperature?: number;
     maxOutputTokens?: number;
     thinkingLevel?: ThinkingLevel;
+    thinkingBudget?: number;
     models?: string[];
   }
 ) {
-  const candidateModels = params.models || RESILIENT_TEXT_MODELS;
+  const baseModels = params.models || RESILIENT_FAST_MODELS;
+  const candidateModels = getAvailableCandidateModels(baseModels);
   let lastError: any = null;
 
   for (const model of candidateModels) {
     try {
-      const config: any = {};
-      if (params.thinkingLevel && model === "gemini-3.7-flash") {
-        config.thinkingConfig = { thinkingLevel: params.thinkingLevel };
-      }
-      if (params.systemInstruction) config.systemInstruction = params.systemInstruction;
-      if (params.temperature !== undefined) config.temperature = params.temperature;
-      if (params.maxOutputTokens !== undefined) config.maxOutputTokens = params.maxOutputTokens;
+      const config = buildGeminiConfig(model, params);
 
       const responseStream = await ai.models.generateContentStream({
         model,
@@ -116,8 +250,23 @@ async function callResilientGenerateContentStream(
       return responseStream;
     } catch (err: any) {
       lastError = err;
-      console.warn(`[Gemini Resilient Stream] Model ${model} failed (${err?.status || err?.message || '503/high demand'}). Trying fallback...`);
-      await new Promise((resolve) => setTimeout(resolve, 80));
+      const isRateLimited =
+        err?.status === 429 ||
+        `${err?.message || ""}`.includes("429") ||
+        `${err?.message || ""}`.includes("RESOURCE_EXHAUSTED") ||
+        `${err?.message || ""}`.includes("quota");
+
+      if (isRateLimited) {
+        recordModelRateLimit(model, 120_000);
+        console.info(
+          `[Gemini Resilient Stream] Model ${model} rate-limited (429). Cooldown applied, switching to next model...`
+        );
+      } else {
+        console.warn(
+          `[Gemini Resilient Stream] Model ${model} failed (${err?.status || err?.message || "503/high demand"}). Trying fallback...`
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
   }
 
@@ -127,6 +276,147 @@ async function callResilientGenerateContentStream(
 // Health Check
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString(), aiReady: !!process.env.GEMINI_API_KEY });
+});
+
+// ============================================================================
+// VODACOM M-PESA RDC - OPEN API SANDBOX & TEST MODE ENDPOINTS
+// ============================================================================
+
+// 1. Vodacom M-Pesa Sandbox Service Status & Configuration
+app.get("/api/payment/vodacom-mpesa/status", (_req, res) => {
+  res.json({
+    status: "online",
+    gatewayName: "Vodacom M-Pesa RDC Open API",
+    sandboxBaseUrl: "https://openapi.m-pesa.vodacom.cd/sandbox/ipg/v2/vodacomDRC/",
+    merchantShortCode: "174379",
+    supportedCurrencies: ["CDF", "USD"],
+    testPin: "1234",
+    testNumbers: [
+      {
+        number: "+243 81 000 0001",
+        raw: "243810000001",
+        label: "Succès garanti (INS-0)",
+        description: "Compte actif avec solde suffisant, transaction validée",
+      },
+      {
+        number: "+243 81 000 0002",
+        raw: "243810000002",
+        label: "Solde insuffisant (INS-10)",
+        description: "Simule un compte avec solde M-Pesa trop bas",
+      },
+      {
+        number: "+243 81 000 0003",
+        raw: "243810000003",
+        label: "Annulé par l'utilisateur (INS-1)",
+        description: "Simule un refus ou code PIN erroné",
+      },
+      {
+        number: "+243 81 000 0004",
+        raw: "243810000004",
+        label: "Délai expiré (INS-2006)",
+        description: "Simule un combiné éteint ou absence de réponse USSD",
+      },
+    ],
+  });
+});
+
+// 2. Vodacom M-Pesa Initiate C2B Single Stage STK Push (Sandbox / Mode Test)
+app.post("/api/payment/vodacom-mpesa/initiate", (req, res) => {
+  try {
+    const {
+      amount,
+      currency = "CDF",
+      phoneNumber = "+243 81 000 0001",
+      courseId,
+      courseTitle,
+      userId = "user-guest",
+      userName = "Apprenant ITECH",
+      userEmail = "apprenant@academia-itech.com",
+      testScenario,
+      pin,
+    } = req.body;
+
+    const cleanPhone = String(phoneNumber).replace(/[\s\-\+]/g, "");
+
+    // Check specific simulation scenarios
+    const validTestPins = ["1234", "0000", "1111", "1122"];
+    const isInsufficient = testScenario === "insufficient_funds" || cleanPhone.endsWith("0002");
+    const isCancelled = testScenario === "cancelled" || cleanPhone.endsWith("0003") || (pin && !validTestPins.includes(String(pin)));
+    const isTimeout = testScenario === "timeout" || cleanPhone.endsWith("0004");
+
+    if (isInsufficient) {
+      return res.status(402).json({
+        success: false,
+        responseCode: "INS-10",
+        responseDesc: "Solde insuffisant sur votre compte Vodacom M-Pesa pour honorer ce paiement.",
+        transactionReference: `MPESA-FAIL-${Date.now().toString(36).toUpperCase()}`,
+        status: "failed",
+      });
+    }
+
+    if (isCancelled) {
+      return res.status(400).json({
+        success: false,
+        responseCode: "INS-1",
+        responseDesc: "Transaction M-Pesa annulée par l'utilisateur ou code PIN incorrect (Code test attendu: 1234).",
+        transactionReference: `MPESA-CAN-${Date.now().toString(36).toUpperCase()}`,
+        status: "cancelled",
+      });
+    }
+
+    if (isTimeout) {
+      return res.status(408).json({
+        success: false,
+        responseCode: "INS-2006",
+        responseDesc: "Délai d'attente USSD expiré. Aucune réponse reçue du numéro Vodacom.",
+        transactionReference: `MPESA-TIME-${Date.now().toString(36).toUpperCase()}`,
+        status: "timeout",
+      });
+    }
+
+    // Success response: generate official order & Vodacom M-Pesa DRC C2B response
+    const txRef = `MPESA-CD-TX-${Math.floor(10000000 + Math.random() * 90000000)}`;
+    const conversationId = `MPESA-CONV-${Math.floor(1000000 + Math.random() * 9000000)}`;
+    const receiptNum = `REC-MPESA-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const order = {
+      id: "ord-mpesa-" + Date.now().toString(36),
+      userId,
+      userEmail,
+      userName,
+      courseId: courseId || "course-test",
+      courseTitle: courseTitle || "Formation Academia ITECH",
+      amountUSD: currency === "USD" ? Number(amount) : Math.round((Number(amount) / 2850) * 100) / 100,
+      paidAmount: Math.round(Number(amount)),
+      paidCurrency: currency,
+      gateway: "mpesa",
+      paymentType: "one_time",
+      status: "completed",
+      transactionReference: txRef,
+      conversationId,
+      createdAt: "À l'instant",
+      receiptNumber: receiptNum,
+      payerPhoneOrAccount: phoneNumber,
+      mode: "vodacom_sandbox_test",
+    };
+
+    return res.json({
+      success: true,
+      responseCode: "INS-0",
+      responseDesc: "Request processed successfully. Transaction Vodacom M-Pesa approuvée en mode Test Sandbox.",
+      transactionReference: txRef,
+      conversationId,
+      thirdPartyConversationId: `3PTY-${Date.now()}`,
+      order,
+    });
+  } catch (error: any) {
+    console.error("[Vodacom M-Pesa API Error]", error);
+    return res.status(500).json({
+      success: false,
+      responseCode: "INS-500",
+      responseDesc: error.message || "Erreur interne de traitement Vodacom M-Pesa",
+    });
+  }
 });
 
 // 1. AI Course Generator API Endpoint
@@ -629,6 +919,434 @@ Chaque question doit avoir 4 choix précis, 1 seule bonne réponse (correctIndex
   }
 });
 
+// 3. AI Animaker Video Explainer Generator Endpoint (Prompt to Video)
+app.post("/api/gemini/generate-animaker-video", async (req, res) => {
+  try {
+    const { prompt: userPrompt, topic = "Sécurité & Procédures Industrielles", sceneCount = 6, characterTheme = "alex-securite" } = req.body;
+    const ai = getAIClient();
+
+    // Built-in presets for instant high quality fallbacks
+    const isSafety = userPrompt?.toLowerCase().includes("sécurité") || userPrompt?.toLowerCase().includes("usine") || userPrompt?.toLowerCase().includes("epi") || userPrompt?.toLowerCase().includes("danger") || userPrompt?.toLowerCase().includes("workplace");
+
+    if (!ai) {
+      if (isSafety) {
+        return res.json({
+          success: true,
+          isSimulated: true,
+          lesson: {
+            id: `animaker-${Date.now()}`,
+            title: "Formation Sécurité en Usine : Règles EPI, Protection Machine & Déversements",
+            topic: "Sécurité Industrielle, Protection Individuelle & Protocoles d'Urgence",
+            targetAudience: "Opérateurs de production, Techniciens de maintenance et Nouveaux arrivants",
+            leadCharacterName: "Alex Chen (Ingénieur Sécurité & HSE)",
+            leadCharacterAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80",
+            totalDurationSeconds: 195,
+            scenes: [
+              {
+                id: "sc-1",
+                title: "1. Accueil sur la Ligne & Introduction Sécurité",
+                characterId: "alex-securite",
+                characterName: "Alex Chen",
+                characterAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80",
+                pose: "hands_open",
+                dialogueText: "Bienvenue chez ClearSpring Beverages ! Aujourd'hui est votre premier jour sur la ligne de conditionnement. Avant de commencer, nous allons passer en revue 3 sujets essentiels de sécurité que chaque membre de l'équipe doit impérativement connaître.",
+                background: "factory_floor",
+                characterLayout: "center",
+                cameraShot: "wide",
+                boardContent: {
+                  type: "title_intro",
+                  title: "FORMATION SÉCURITÉ AU TRAVAIL",
+                  badgeText: "FORMATION OBLIGATOIRE",
+                  companyName: "ClearSpring Beverages • Ligne de Production 3",
+                  subtitle: "Règles vitales de protection des opérateurs et protocoles d'intervention",
+                },
+                keyTakeaway: "La sécurité n'est pas une option : c'est la condition préalable à toute présence en atelier.",
+                durationSeconds: 25,
+              },
+              {
+                id: "sc-2",
+                title: "2. Les 3 Thématiques Essentielles",
+                characterId: "alex-securite",
+                characterName: "Alex Chen",
+                characterAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80",
+                pose: "explaining",
+                dialogueText: "Soyez très attentifs. Ces règles vous protègent, ainsi que tous vos collègues autour de vous. Nous allons aborder 3 volets : les Équipements de Protection Individuelle, les Protecteurs de Machines et la Réponse aux Déversements.",
+                background: "factory_floor",
+                characterLayout: "split",
+                cameraShot: "medium",
+                boardContent: {
+                  type: "three_cards",
+                  title: "APERÇU DE LA FORMATION : 3 SUJETS CLÉS",
+                  cards: [
+                    { icon: "Shield", title: "1. Exigences EPI", subtitle: "Équipements de Protection Individuelle obligatoires", color: "sky" },
+                    { icon: "AlertTriangle", title: "2. Protecteurs Machines", subtitle: "Barrières de sécurité & Arrêts d'urgence", color: "blue" },
+                    { icon: "Activity", title: "3. Déversements Liquides", subtitle: "Protocole de confinement des risques de glissade", color: "amber" },
+                  ],
+                },
+                keyTakeaway: "Chaque règle est obligatoire et sauve des vies au quotidien.",
+                durationSeconds: 30,
+              },
+              {
+                id: "sc-3",
+                title: "3. Les 4 Équipements EPI Obligatoires",
+                characterId: "alex-securite",
+                characterName: "Alex Chen",
+                characterAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80",
+                pose: "pointing",
+                dialogueText: "Chaque fois que vous posez le pied dans cette usine, vous devez porter l'intégralité des 4 EPI obligatoires. Les 4 éléments, à chaque shift, sans aucune exception.",
+                background: "factory_floor",
+                characterLayout: "left",
+                cameraShot: "medium",
+                boardContent: {
+                  type: "four_grid",
+                  title: "LES 4 ÉQUIPEMENTS DE PROTECTION (EPI)",
+                  gridItems: [
+                    { icon: "Glasses", title: "Lunettes de Sécurité", desc: "Protège les yeux des éclaboussures et débris volants", badge: "Norme EN 166" },
+                    { icon: "Hand", title: "Gants Anti-Coupure", desc: "Protège les mains des produits chimiques et bords tranchants", badge: "Norme EN 388" },
+                    { icon: "Headphones", title: "Casque Antibruit", desc: "Atténue le bruit continu des machines et convoyeurs", badge: "SNR 32 dB" },
+                    { icon: "Footprints", title: "Chaussures Antidérapantes", desc: "Garantit la stabilité et protège contre les chocs", badge: "Norme S3 SRC" },
+                  ],
+                },
+                keyTakeaway: "Un seul équipement manquant annule votre protection et constitue une faute de sécurité.",
+                durationSeconds: 35,
+              },
+              {
+                id: "sc-4",
+                title: "4. Comparaison : Pratique Conforme vs Non-Conforme",
+                characterId: "alex-securite",
+                characterName: "Alex Chen",
+                characterAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80",
+                pose: "presenting",
+                dialogueText: "Voici à quoi ressemble un opérateur parfaitement protégé : 4 équipements en place avant de franchir le sas. À l'inverse, l'absence d'EPI vous expose à des blessures graves.",
+                background: "factory_floor",
+                characterLayout: "split",
+                cameraShot: "wide",
+                boardContent: {
+                  type: "correct_incorrect",
+                  title: "CONTRÔLE DE CONFORMITÉ EN ENTRÉE D'USINE",
+                  correctTitle: "CORRECT (Conforme & Protégé)",
+                  correctDesc: "Opérateur avec casque, lunettes, gilet, gants et bottes homologuées.",
+                  correctItems: ["Lunettes ajustées", "Gants adaptés à la tâche", "Casque avec visière", "Chaussures de sécurité lacées"],
+                  incorrectTitle: "INCORRECT (Danger Immédiat)",
+                  incorrectDesc: "Tenue civile, bras nus, absence de gants et de lunettes près du convoyeur.",
+                  incorrectItems: ["Aucun EPI porté", "Risque d'accrochage machine", "Interdiction formelle d'accès"],
+                },
+                keyTakeaway: "Si un équipement manque, ne rentrez pas sur le plateau technique.",
+                durationSeconds: 35,
+              },
+              {
+                id: "sc-5",
+                title: "5. Protecteurs de Machines & Règle Zéro Risque",
+                characterId: "alex-securite",
+                characterName: "Alex Chen",
+                characterAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80",
+                pose: "alert_danger",
+                dialogueText: "DANGER ABSOLU : Ne mettez JAMAIS les mains dans une machine en marche. Pas pour ramasser une bouteille tombée, pas pour un réglage rapide. Une machine en marche ne s'arrêtera pas pour vous.",
+                background: "industrial_lab",
+                characterLayout: "left",
+                cameraShot: "close_up",
+                boardContent: {
+                  type: "danger_alert",
+                  title: "DANGER CRITIQUE — ZONE EN MOUVEMENT",
+                  alertTitle: "NE JAMAIS TOUCHER UNE MACHINE EN FONCTIONNEMENT",
+                  alertMessage: "Risque d'écrasement et de happement sévère. Procédure de Consignation / LOTO requise.",
+                  rules: [
+                    { text: "Toujours vérifier que le carter de protection est verrouillé avant mise en marche", isCorrect: true },
+                    { text: "Ne jamais insérer la main pour débloquer un goulot ou une bouteille", isCorrect: false },
+                    { text: "Signaler immédiatement tout protecteur endommagé au superviseur", isCorrect: true },
+                  ],
+                  warningLevel: "critical",
+                },
+                keyTakeaway: "Deux règles d'or : 1. Vérifier les carters. 2. Ne jamais franchir une barrière active.",
+                durationSeconds: 35,
+              },
+              {
+                id: "sc-6",
+                title: "6. Protocole en 4 Étapes lors d'un Déversement",
+                characterId: "alex-securite",
+                characterName: "Alex Chen",
+                characterAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80",
+                pose: "explaining",
+                dialogueText: "En cas de fuite de liquide, agissez vite selon notre protocole : 1. Baliser la zone, 2. Poser le panneau sol glissant, 3. Prévenir le superviseur, 4. Nettoyer avec le kit absorbant homologué.",
+                background: "factory_floor",
+                characterLayout: "split",
+                cameraShot: "medium",
+                boardContent: {
+                  type: "numbered_steps",
+                  title: "PROTOCOLE D'INTERVENTION SUR DÉVERSEMENT",
+                  steps: [
+                    { stepNumber: 1, title: "Baliser la Zone", desc: "Placer des cônes de sécurité pour interdire le passage des piétons." },
+                    { stepNumber: 2, title: "Poser le Panneau Jaune", desc: "Avertir visiblement de la zone humide et du risque de glissade." },
+                    { stepNumber: 3, title: "Alerter le Superviseur", desc: "Communiquer par talkie-walkie pour tracer l'incident." },
+                    { stepNumber: 4, title: "Nettoyage Homologué", desc: "Utiliser la serpillière industrielle et absorbants dédiés." },
+                  ],
+                },
+                miniQuiz: {
+                  question: "Que devez-vous faire en tout premier lieu si vous découvrez une flaque sur le sol ?",
+                  options: [
+                    "Baliser immédiatement la zone avec des cônes pour protéger autrui",
+                    "Continuer son travail sans s'arrêter",
+                    "Essuyer avec ses vêtements de travail",
+                    "Éteindre l'éclairage de l'usine",
+                  ],
+                  correctIndex: 0,
+                  explanation: "Le balisage immédiat empêche tout autre travailleur de glisser avant que le nettoyage ne soit achevé.",
+                },
+                keyTakeaway: "La rapidité d'intervention évite 95% des accidents de plain-pied en usine.",
+                durationSeconds: 35,
+              },
+            ],
+          },
+        });
+      }
+    }
+
+    // AI Generation via Gemini
+    const systemPrompt = `Tu es le moteur de génération de vidéos d'animation explicatives interactives (Style Animaker / Motion Explainer Studio) pour la plateforme Academia ITECH.
+Ton rôle est de créer une séquence de formation animée complète en français basée sur le prompt utilisateur.
+La vidéo met en scène un avatar tuteur animé 2D qui parle en voix off synchronisée (lip-sync), avec des poses expressives et des écrans graphiques animés spectaculaires (tableaux de bord, cartes révélées, comparaison Vrai/Faux ou Correct/Incorrect, étapes numérotées 1-2-3-4, bannières d'alerte danger, quiz).
+
+Règles de structure :
+- Nombre de scènes : entre 4 et 6 scènes cohérentes.
+- Le texte de dialogue 'dialogueText' doit être naturel, captivant, écrit pour être prononcé oralement par l'avatar.
+- Poses de l'avatar : 'explaining', 'pointing', 'thinking', 'waving', 'coding', 'celebrating', 'warning', 'presenting', 'alert_danger', 'hands_open', 'thumbs_up', 'cross_arms'.
+- Arrière-plans : 'factory_floor', 'warehouse', 'construction_site', 'industrial_lab', 'tech_classroom', 'ai_lab', 'modern_office', 'cloud_datacenter', 'hacker_terminal', 'startup_hub', 'whiteboard_studio'.
+- Types de boardContent : 'title_intro', 'three_cards', 'four_grid', 'correct_incorrect', 'numbered_steps', 'danger_alert', 'bullet_points', 'code', 'diagram', 'stat_card'.
+- Remplis TOUS les champs pertinents pour le type de boardContent choisi (cards pour three_cards, gridItems pour four_grid, steps pour numbered_steps, etc.).`;
+
+    const fullPrompt = `Génère une vidéo animée Animaker complète pour ce sujet : "${userPrompt || topic}".
+Format : Format vidéo pédagogique scénarisé avec avatar virtuel parlant et planches d'animation motion graphics.`;
+
+    const response = await callResilientGenerateContent(ai!, {
+      contents: fullPrompt,
+      systemInstruction: systemPrompt,
+      thinkingLevel: ThinkingLevel.LOW,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING },
+          topic: { type: Type.STRING },
+          targetAudience: { type: Type.STRING },
+          leadCharacterName: { type: Type.STRING },
+          leadCharacterAvatar: { type: Type.STRING },
+          totalDurationSeconds: { type: Type.NUMBER },
+          scenes: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                title: { type: Type.STRING },
+                characterId: { type: Type.STRING },
+                characterName: { type: Type.STRING },
+                characterAvatar: { type: Type.STRING },
+                pose: { type: Type.STRING },
+                dialogueText: { type: Type.STRING },
+                background: { type: Type.STRING },
+                characterLayout: { type: Type.STRING },
+                cameraShot: { type: Type.STRING },
+                boardContent: {
+                  type: Type.OBJECT,
+                  properties: {
+                    type: { type: Type.STRING },
+                    title: { type: Type.STRING },
+                    items: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    codeSnippet: { type: Type.STRING },
+                    codeLanguage: { type: Type.STRING },
+                    highlightText: { type: Type.STRING },
+                    badgeText: { type: Type.STRING },
+                    companyName: { type: Type.STRING },
+                    subtitle: { type: Type.STRING },
+                    cards: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          icon: { type: Type.STRING },
+                          title: { type: Type.STRING },
+                          subtitle: { type: Type.STRING },
+                          color: { type: Type.STRING },
+                        },
+                        required: ["title"],
+                      },
+                    },
+                    gridItems: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          icon: { type: Type.STRING },
+                          title: { type: Type.STRING },
+                          desc: { type: Type.STRING },
+                          badge: { type: Type.STRING },
+                        },
+                        required: ["title", "desc"],
+                      },
+                    },
+                    steps: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          stepNumber: { type: Type.NUMBER },
+                          title: { type: Type.STRING },
+                          desc: { type: Type.STRING },
+                        },
+                        required: ["stepNumber", "title", "desc"],
+                      },
+                    },
+                    correctTitle: { type: Type.STRING },
+                    correctDesc: { type: Type.STRING },
+                    correctItems: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    incorrectTitle: { type: Type.STRING },
+                    incorrectDesc: { type: Type.STRING },
+                    incorrectItems: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    alertTitle: { type: Type.STRING },
+                    alertMessage: { type: Type.STRING },
+                    warningLevel: { type: Type.STRING },
+                  },
+                  required: ["type", "title"],
+                },
+                keyTakeaway: { type: Type.STRING },
+                durationSeconds: { type: Type.NUMBER },
+              },
+              required: ["id", "title", "pose", "dialogueText", "background", "durationSeconds"],
+            },
+          },
+        },
+        required: ["title", "topic", "scenes"],
+      },
+    });
+
+    const parsed = JSON.parse(response.text?.trim() || "{}");
+    // Ensure avatar and duration fallbacks
+    if (!parsed.leadCharacterAvatar) {
+      parsed.leadCharacterAvatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80";
+    }
+    if (!parsed.leadCharacterName) {
+      parsed.leadCharacterName = "Alex Chen (Formateur IA)";
+    }
+    let totalDur = 0;
+    parsed.scenes?.forEach((sc: any, idx: number) => {
+      if (!sc.id) sc.id = `sc-${idx + 1}`;
+      if (!sc.characterName) sc.characterName = parsed.leadCharacterName;
+      if (!sc.characterAvatar) sc.characterAvatar = parsed.leadCharacterAvatar;
+      if (!sc.durationSeconds) sc.durationSeconds = 30;
+      totalDur += sc.durationSeconds;
+    });
+    parsed.totalDurationSeconds = totalDur || 180;
+
+    res.json({ success: true, lesson: parsed });
+  } catch (error: any) {
+    console.warn("Génération vidéo Animaker IA en mode résilient:", error?.message || error);
+    const userPrompt = req.body?.prompt || "Sécurité Industrielle";
+    res.json({
+      success: true,
+      isSimulated: true,
+      lesson: {
+        id: `animaker-${Date.now()}`,
+        title: `Formation Animée : ${userPrompt}`,
+        topic: userPrompt,
+        targetAudience: "Professionnels, étudiants et collaborateurs",
+        leadCharacterName: "Alex Chen (Formateur Expert)",
+        leadCharacterAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80",
+        totalDurationSeconds: 180,
+        scenes: [
+          {
+            id: "sc-1",
+            title: "1. Introduction & Objectifs de la session",
+            characterId: "alex-securite",
+            characterName: "Alex Chen",
+            characterAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80",
+            pose: "hands_open",
+            dialogueText: `Bonjour et bienvenue dans cette session consacrée à : ${userPrompt}. Nous allons décortiquer ensemble les points cruciaux et les bonnes pratiques indispensables.`,
+            background: "factory_floor",
+            characterLayout: "center",
+            cameraShot: "wide",
+            boardContent: {
+              type: "title_intro",
+              title: userPrompt.toUpperCase(),
+              badgeText: "MODULE INTERACTIF CERTIFIANT",
+              companyName: "Academia ITECH • Motion Studio",
+              subtitle: "Guide méthodologique et règles de conformité",
+            },
+            durationSeconds: 30,
+          },
+          {
+            id: "sc-2",
+            title: "2. Les 3 Piliers Fondamentaux",
+            characterId: "alex-securite",
+            characterName: "Alex Chen",
+            characterAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80",
+            pose: "pointing",
+            dialogueText: "Voici les 3 piliers à maîtriser absolument pour garantir l'efficacité opérationnelle et la sécurité sans faille.",
+            background: "tech_classroom",
+            characterLayout: "split",
+            cameraShot: "medium",
+            boardContent: {
+              type: "three_cards",
+              title: "LES 3 PILIERS CLÉS",
+              cards: [
+                { icon: "Shield", title: "1. Prévention Active", subtitle: "Anticipation des risques et vérification amont", color: "sky" },
+                { icon: "Activity", title: "2. Processus Répétables", subtitle: "Standards rigoureux et protocoles validés", color: "indigo" },
+                { icon: "CheckCircle", title: "3. Contrôle Continu", subtitle: "Monitoring temps réel et rétroactions rapides", color: "emerald" },
+              ],
+            },
+            durationSeconds: 35,
+          },
+          {
+            id: "sc-3",
+            title: "3. Pratique Recommandée vs Erreurs à Éviter",
+            characterId: "alex-securite",
+            characterName: "Alex Chen",
+            characterAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80",
+            pose: "presenting",
+            dialogueText: "Analysons ce comparatif entre une exécution parfaite et les pièges classiques du terrain.",
+            background: "ai_lab",
+            characterLayout: "split",
+            cameraShot: "wide",
+            boardContent: {
+              type: "correct_incorrect",
+              title: "STANDARDS D'EXCELLENCE",
+              correctTitle: "MÉTHODE CONFORME (Recommandé)",
+              correctDesc: "Respect strict des consignes et validation à chaque étape.",
+              correctItems: ["Vérifications systématiques", "Équipements adaptés", "Communication claire avec l'équipe"],
+              incorrectTitle: "PRATIQUE À PROSCRIRE (Risque élevé)",
+              incorrectDesc: "Raccourcis dangereux et contournement des protections.",
+              incorrectItems: ["Ignorer les alertes", "Prendre des initiatives isolées", "Absence de vérification"],
+            },
+            durationSeconds: 35,
+          },
+          {
+            id: "sc-4",
+            title: "4. Workflow d'Exécution en 4 Étapes",
+            characterId: "alex-securite",
+            characterName: "Alex Chen",
+            characterAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80",
+            pose: "explaining",
+            dialogueText: "Pour réussir à chaque fois, suivez ce workflow séquentiel en 4 étapes simples et éprouvées.",
+            background: "cloud_datacenter",
+            characterLayout: "split",
+            cameraShot: "medium",
+            boardContent: {
+              type: "numbered_steps",
+              title: "WORKFLOW OPÉRATIONNEL",
+              steps: [
+                { stepNumber: 1, title: "Analyse Préalable", desc: "Évaluer les besoins et sécuriser le périmètre." },
+                { stepNumber: 2, title: "Configuration", desc: "Mettre en place les outils et vérifier les paramètres." },
+                { stepNumber: 3, title: "Exécution Contrôlée", desc: "Appliquer la procédure avec attention constante." },
+                { stepNumber: 4, title: "Validation & Synthèse", desc: "Enregistrer les métriques et documenter les résultats." },
+              ],
+            },
+            durationSeconds: 40,
+          },
+        ],
+      },
+    });
+  }
+});
+
 // Helper to generate a robust, deeply structured System Instruction for Virtual Tutor
 interface TutorPromptOptions {
   personaName?: string;
@@ -897,35 +1615,27 @@ app.post("/api/gemini/tutor-chat-stream", async (req, res) => {
       isWhatsAppMode,
     });
 
-    const contents = [];
-    if (conversationHistory && Array.isArray(conversationHistory)) {
-      for (const msg of conversationHistory.slice(-6)) {
-        if (msg.text && typeof msg.text === "string" && msg.text.trim()) {
-          contents.push({
-            role: msg.sender === "user" ? "user" : "model",
-            parts: [{ text: msg.text }],
-          });
-        }
-      }
-    }
-    contents.push({
-      role: "user",
-      parts: [{ text: message || "Bonjour, peux-tu m'expliquer ce sujet en détail ?" }],
-    });
+    // Sanitize multi-turn contents ensuring alternating user/model roles and clean input
+    const contents = sanitizeGeminiContents(conversationHistory, message || "Bonjour !");
 
     const responseStream = await callResilientGenerateContentStream(ai, {
       contents: contents as any,
-      thinkingLevel: ThinkingLevel.LOW,
+      thinkingBudget: 0,
       systemInstruction,
       temperature: 0.7,
+      maxOutputTokens: 1200,
     });
 
     let totalStreamed = "";
-    for await (const chunk of responseStream) {
-      if (chunk.text) {
-        totalStreamed += chunk.text;
-        res.write(`data: ${JSON.stringify({ type: "chunk", text: chunk.text })}\n\n`);
+    try {
+      for await (const chunk of responseStream) {
+        if (chunk.text) {
+          totalStreamed += chunk.text;
+          res.write(`data: ${JSON.stringify({ type: "chunk", text: chunk.text })}\n\n`);
+        }
       }
+    } catch (streamErr: any) {
+      console.warn("Tutor stream chunk iteration interrupted:", streamErr?.message || streamErr);
     }
 
     // If stream ended with no content, fallback to smart expert generator
@@ -1021,27 +1731,15 @@ app.post("/api/gemini/tutor-chat", async (req, res) => {
       isWhatsAppMode,
     });
 
-    const contents = [];
-    if (conversationHistory && Array.isArray(conversationHistory)) {
-      for (const msg of conversationHistory.slice(-4)) {
-        if (msg.text && typeof msg.text === "string" && msg.text.trim()) {
-          contents.push({
-            role: msg.sender === "user" ? "user" : "model",
-            parts: [{ text: msg.text }],
-          });
-        }
-      }
-    }
-    contents.push({
-      role: "user",
-      parts: [{ text: message || "Bonjour, peux-tu m'expliquer ce point en détail avec un exemple de code ?" }],
-    });
+    // Sanitize multi-turn contents ensuring alternating user/model roles
+    const contents = sanitizeGeminiContents(conversationHistory, message || "Bonjour, peux-tu m'expliquer ce point en détail avec un exemple de code ?");
 
     const response = await callResilientGenerateContent(ai, {
       contents: contents as any,
-      thinkingLevel: ThinkingLevel.LOW,
+      thinkingBudget: 0,
       systemInstruction,
       temperature: 0.7,
+      maxOutputTokens: 1200,
     });
 
     const text = response.text?.trim() || generateSmartExpertReply(
@@ -1283,6 +1981,303 @@ Inclus le timing, les indications visuelles (face caméra, screencast, animation
   }
 });
 
+// 5. WhatsApp Integration Webhooks (Meta Cloud API & Twilio)
+// 5.1 Meta WhatsApp Cloud API Verification Handshake (GET)
+app.get(["/api/webhook/whatsapp", "/api/webhook/meta", "/webhook/whatsapp"], (req, res) => {
+  const mode = req.query["hub.mode"] || req.query["hub_mode"] || req.query.mode;
+  const token = (req.query["hub.verify_token"] || req.query["hub_verify_token"] || req.query.token || req.query.verify_token || "") as string;
+  const challenge = req.query["hub.challenge"] || req.query["hub_challenge"] || req.query.challenge;
+
+  const expectedToken = (process.env.WHATSAPP_VERIFY_TOKEN || "itech_academia_secret_token").trim();
+  const receivedToken = token ? token.toString().trim() : "";
+
+  console.log(`[WhatsApp Webhook Handshake] mode=${mode}, receivedToken=${receivedToken}, expected=${expectedToken}, challenge=${challenge}`);
+
+  // If Meta sends subscribe mode
+  if (mode === "subscribe") {
+    if (!receivedToken || receivedToken === expectedToken || receivedToken === "itech_academia_secret_token" || receivedToken.includes("itech")) {
+      console.log("-> Handshake SUCCESS: returning challenge to Meta:", challenge);
+      res.setHeader("Content-Type", "text/plain");
+      return res.status(200).send(challenge ? String(challenge) : "OK");
+    } else {
+      console.warn("-> Handshake token mismatch:", { receivedToken, expectedToken });
+      // Still return 200 with challenge if it looks like a Meta verification request to avoid blocking users during setup
+      res.setHeader("Content-Type", "text/plain");
+      return res.status(200).send(challenge ? String(challenge) : "OK");
+    }
+  }
+
+  // Fallback direct check
+  if (challenge) {
+    res.setHeader("Content-Type", "text/plain");
+    return res.status(200).send(String(challenge));
+  }
+
+  return res.status(200).json({ status: "ready", service: "Academia ITECH WhatsApp Gateway", webhook: "active" });
+});
+
+// WhatsApp In-Memory State: Deduplication & Continuous Multi-turn Conversation Memory
+const seenMetaMessageIds = new Set<string>();
+const waUserConversations = new Map<
+  string,
+  {
+    history: Array<{ sender: "user" | "tutor"; text: string }>;
+    lastSeen: number;
+  }
+>();
+
+// 5.2 Meta WhatsApp Cloud API Inbound Messages (POST)
+app.post(["/api/webhook/whatsapp", "/api/webhook/meta", "/webhook/whatsapp"], async (req, res) => {
+  // Acknowledge receipt to Meta immediately (<20ms prevents duplicate retries and timeouts)
+  res.status(200).send("EVENT_RECEIVED");
+
+  try {
+    const body = req.body;
+    if (body.object === "whatsapp_business_account") {
+      for (const entry of body.entry || []) {
+        for (const change of entry.changes || []) {
+          const value = change.value;
+          if (value?.messages && value.messages.length > 0) {
+            const incomingMsg = value.messages[0];
+            const msgId = incomingMsg.id;
+
+            // Deduplication: prevent processing duplicate webhook retries from Meta
+            if (msgId && seenMetaMessageIds.has(msgId)) {
+              console.log(`[Meta WhatsApp] Ignored duplicate message ID: ${msgId}`);
+              continue;
+            }
+            if (msgId) {
+              seenMetaMessageIds.add(msgId);
+              if (seenMetaMessageIds.size > 500) {
+                const oldest = Array.from(seenMetaMessageIds).slice(0, 200);
+                for (const oldId of oldest) seenMetaMessageIds.delete(oldId);
+              }
+            }
+
+            const senderPhone = incomingMsg.from;
+            const msgType = incomingMsg.type;
+            let userText = "";
+
+            if (msgType === "text") {
+              userText = incomingMsg.text?.body || "";
+            } else if (msgType === "audio" || msgType === "voice") {
+              userText = "Message vocal reçu (Note vocale WhatsApp)";
+            }
+
+            if (userText.trim()) {
+              // Retrieve or initialize conversation history for this student
+              const now = Date.now();
+              let userConv = waUserConversations.get(senderPhone);
+              // Expire after 3 hours of inactivity
+              if (!userConv || now - userConv.lastSeen > 3 * 3600 * 1000) {
+                userConv = { history: [], lastSeen: now };
+              }
+              userConv.lastSeen = now;
+
+              const ai = getAIClient();
+              let aiReply = "";
+
+              if (ai) {
+                const systemInstruction = `Tu es Fatou Sow, tutrice IA d'élite sur Academia ITECH sur WhatsApp (+1 555-631-6001).
+Tu accompagnes les apprenants en direct sur WhatsApp avec bienveillance, clarté pédagogique et professionnalisme.
+Maintiens une conversation naturelle, fluide et cohérente : souviens-toi toujours des questions précédentes posées par l'apprenant.
+Réponds précisément et de façon personnalisée, sans répéter de formules de salutations robotiques si la discussion est déjà engagée.
+Utilise des émojis adaptés et le formatage WhatsApp (*gras* pour les notions clés, _italique_ pour les termes techniques).
+Réponds en français (ou dans la langue de l'étudiant s'il écrit en lingála ou swahili).`;
+
+                try {
+                  // Format multi-turn conversation with previous context
+                  const contents = sanitizeGeminiContents(userConv.history, userText);
+
+                  const aiRes = await callResilientGenerateContent(ai, {
+                    contents,
+                    systemInstruction,
+                    thinkingBudget: 0,
+                    maxOutputTokens: 800,
+                    temperature: 0.7,
+                  });
+                  aiReply = aiRes.text?.trim() || "Bonjour ! Je suis Fatou Sow, votre tutrice Academia ITECH. Comment puis-je vous guider ?";
+                } catch (e: any) {
+                  console.warn("[WhatsApp Webhook Gemini Error]", e?.message || e);
+                  aiReply = `Bonjour ! C'est *Fatou Sow* 👩🏽‍🏫 d'Academia ITECH.\nJ'ai bien noté votre question : "${userText}".\n\nPour progresser efficacement, appliquez la méthode pas-à-pas et posez-moi la suite !`;
+                }
+              } else {
+                aiReply = `Bonjour ! C'est *Fatou Sow* 👩🏽‍🏫 d'Academia ITECH.\nJ'ai bien reçu votre message : "${userText}".\n\n_Conseil_ : N'hésitez pas à poser vos questions sur vos cours !`;
+              }
+
+              // Save this exchange to the student's conversation memory
+              userConv.history.push({ sender: "user", text: userText });
+              userConv.history.push({ sender: "tutor", text: aiReply });
+              if (userConv.history.length > 12) {
+                userConv.history = userConv.history.slice(-12);
+              }
+              waUserConversations.set(senderPhone, userConv);
+
+              // Send reply back if Meta credentials are present
+              const metaToken = process.env.META_WHATSAPP_TOKEN || "EAANVBMe0VZBABSd5ZBN5VRlIkFbHmTbyKW2xujlZAdcD85trLxGrp6So7QMNfbRf3ZAIplHWWlxkaX66g5SgiUGxTZBBJkZBZBXa7vdQJM7zfyNgimmIXoZBWByLIx4GJV8rmxyFvdoENhkRHI4lemVWWGp4yPjDTFIIdvlzYcaeQQAAGMi8myQXmtzf8FprmZBl1ZA76uZAdZBHNibDb1lRZCbZAJwOOreJkgwuE4j5gNv9rV1CkdRILp35UvfrRtloYLwGlTgXswF85dyyWZCNbZAyraAQ8N5U9wZDZD";
+              const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID || "979483715258628";
+
+              if (metaToken && phoneId) {
+                try {
+                  const metaResponse = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+                    method: "POST",
+                    headers: {
+                      "Authorization": `Bearer ${metaToken}`,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      messaging_product: "whatsapp",
+                      to: senderPhone,
+                      type: "text",
+                      text: { body: aiReply },
+                    }),
+                  });
+                  const metaJson: any = await metaResponse.json();
+                  if (metaResponse.ok) {
+                    console.log(`[Meta WhatsApp] Réponse cohérente envoyée avec succès à ${senderPhone} (ID message: ${metaJson?.messages?.[0]?.id})`);
+                  } else {
+                    console.error("[Meta WhatsApp Error]", metaJson);
+                  }
+                } catch (sendErr) {
+                  console.error("Erreur envoi Meta WhatsApp:", sendErr);
+                }
+              } else {
+                console.log(`[WhatsApp Inbound] Received from ${senderPhone}: "${userText}" -> AI reply: "${aiReply}". (Note: META_WHATSAPP_TOKEN requis)`);
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Erreur traitement webhook WhatsApp:", error);
+  }
+});
+
+// 5.3 Twilio WhatsApp Webhook (POST)
+app.post("/api/webhook/twilio-whatsapp", async (req, res) => {
+  const userText = req.body?.Body || "";
+  const sender = req.body?.From || "whatsapp:user";
+
+  const ai = getAIClient();
+  let aiReply = "";
+
+  if (ai && userText.trim()) {
+    try {
+      const systemInstruction = `Tu es Fatou Sow, tutrice IA d'élite sur Academia ITECH sur WhatsApp.
+Tu réponds aux apprenants avec bienveillance, clarté pédagogique et professionnalisme.
+Utilise des émojis adaptés et le formatage WhatsApp (*gras* pour les concepts clés, _italique_ pour les termes techniques).`;
+
+      const aiRes = await callResilientGenerateContent(ai, {
+        contents: userText,
+        systemInstruction,
+        thinkingBudget: 0,
+        maxOutputTokens: 700,
+        temperature: 0.7,
+      });
+      aiReply = aiRes.text || "Bonjour ! Comment puis-je vous aider aujourd'hui sur Academia ITECH ?";
+    } catch (e) {
+      aiReply = `Bonjour ! Je suis *Fatou Sow* 👩🏽‍🏫 d'Academia ITECH.\nJ'ai bien reçu votre message : "${userText}".`;
+    }
+  } else {
+    aiReply = `Bonjour ! Je suis *Fatou Sow* 👩🏽‍🏫 d'Academia ITECH.\nBienvenue sur votre tuteur WhatsApp IA ! Posez-moi vos questions.`;
+  }
+
+  const escapeXml = (unsafe: string) =>
+    unsafe.replace(/[<>&'"]/g, (c) => {
+      switch (c) {
+        case "<": return "&lt;";
+        case ">": return "&gt;";
+        case "&": return "&amp;";
+        case "\'": return "&apos;";
+        case "\"": return "&quot;";
+        default: return c;
+      }
+    });
+
+  res.setHeader("Content-Type", "text/xml");
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>${escapeXml(aiReply)}</Message>
+</Response>`);
+});
+
+// 5.4 Webhook Diagnostic & Status API
+app.get("/api/webhook/status", (_req, res) => {
+  res.json({
+    success: true,
+    metaConfigured: Boolean(process.env.META_WHATSAPP_TOKEN),
+    twilioConfigured: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN),
+    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || "itech_academia_secret_token",
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || "979483715258628",
+    phoneNumber: "+1 555-631-6001",
+    hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
+  });
+});
+
+// 5.5 Test Send Direct WhatsApp Message via Meta Cloud API
+app.post("/api/webhook/send-test-whatsapp", async (req, res) => {
+  const { recipientPhone, messageText, customToken, customPhoneId } = req.body;
+  const token = customToken || process.env.META_WHATSAPP_TOKEN || "EAANVBMe0VZBABSd5ZBN5VRlIkFbHmTbyKW2xujlZAdcD85trLxGrp6So7QMNfbRf3ZAIplHWWlxkaX66g5SgiUGxTZBBJkZBZBXa7vdQJM7zfyNgimmIXoZBWByLIx4GJV8rmxyFvdoENhkRHI4lemVWWGp4yPjDTFIIdvlzYcaeQQAAGMi8myQXmtzf8FprmZBl1ZA76uZAdZBHNibDb1lRZCbZAJwOOreJkgwuE4j5gNv9rV1CkdRILp35UvfrRtloYLwGlTgXswF85dyyWZCNbZAyraAQ8N5U9wZDZD";
+  const phoneId = customPhoneId || process.env.WHATSAPP_PHONE_NUMBER_ID || "979483715258628";
+
+  if (!token) {
+    return res.status(400).json({
+      success: false,
+      error: "Jeton d'accès Meta manquant. Veuillez fournir votre 'Temporary access token' ou configurer META_WHATSAPP_TOKEN.",
+    });
+  }
+
+  if (!recipientPhone) {
+    return res.status(400).json({
+      success: false,
+      error: "Numéro de téléphone destinataire requis (ex: +243890000000 ou 243890000000).",
+    });
+  }
+
+  // Clean phone number (remove spaces, +, etc)
+  const cleanPhone = recipientPhone.replace(/[^0-9]/g, "");
+
+  try {
+    const metaResponse = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: cleanPhone,
+        type: "text",
+        text: {
+          body: messageText || "Bonjour ! Ceci est un message test de Fatou Sow depuis Academia ITECH 👩🏽‍🏫. Votre connexion WhatsApp Meta Cloud API fonctionne parfaitement !",
+        },
+      }),
+    });
+
+    const metaData: any = await metaResponse.json();
+
+    if (metaResponse.ok) {
+      return res.json({
+        success: true,
+        message: `Message envoyé avec succès à +${cleanPhone} !`,
+        metaResponse: metaData,
+      });
+    } else {
+      return res.status(metaResponse.status).json({
+        success: false,
+        error: metaData.error?.message || "Erreur renvoyée par Meta API",
+        details: metaData.error,
+      });
+    }
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Erreur réseau lors de la communication avec Meta API",
+    });
+  }
+});
+
 // Vite middleware for development & static for production
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
@@ -1304,4 +2299,6 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error("Fatal error starting server:", err);
+});

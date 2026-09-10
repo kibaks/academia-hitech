@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
-import { Course, Quiz, Center } from '../../types';
+import { Course, Quiz, Center, AnimakerLesson, CourseVideoProject } from '../../types';
+import { VideoEditingStudio } from './VideoEditingStudio';
+import {
+  INITIAL_COURSE_VIDEO_PROJECT,
+  HSE_COURSE_VIDEO_PROJECT,
+  ANIMAKER_PRESET_TEMPLATES,
+} from '../../data/videoProjectsData';
 import {
   Wand2,
   Sparkles,
@@ -15,7 +21,11 @@ import {
   RefreshCw,
   Copy,
   Layers,
-  Award
+  Award,
+  Film,
+  Sliders,
+  Maximize2,
+  Tv,
 } from 'lucide-react';
 
 interface AIContentStudioProps {
@@ -31,7 +41,7 @@ export const AIContentStudio: React.FC<AIContentStudioProps> = ({
   onPublishCourse,
   onOpenCourse,
 }) => {
-  const [activeTab, setActiveTab] = useState<'course_gen' | 'quiz_gen' | 'script_gen' | 'manual_editor'>('course_gen');
+  const [activeTab, setActiveTab] = useState<'video_editor' | 'course_gen' | 'quiz_gen' | 'script_gen' | 'manual_editor'>('video_editor');
 
   // Course Generator Form State
   const [courseTopic, setCourseTopic] = useState('Intelligence Artificielle pour la Finance & Détection de Fraude');
@@ -55,6 +65,11 @@ export const AIContentStudio: React.FC<AIContentStudioProps> = ({
   const [scriptDuration, setScriptDuration] = useState(5);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [generatedScript, setGeneratedScript] = useState<string | null>(null);
+
+  // Video Studio State
+  const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
+  const [selectedVideoTemplate, setSelectedVideoTemplate] = useState<CourseVideoProject>(INITIAL_COURSE_VIDEO_PROJECT);
+  const [videoPublishSuccess, setVideoPublishSuccess] = useState<string | null>(null);
 
   // Manual Editor State
   const [manualTitle, setManualTitle] = useState('');
@@ -210,6 +225,19 @@ export const AIContentStudio: React.FC<AIContentStudioProps> = ({
       {/* Navigation Sub-Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
         <button
+          id="studio-tab-video-editor"
+          onClick={() => setActiveTab('video_editor')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+            activeTab === 'video_editor'
+              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+          }`}
+        >
+          <Film className="w-4 h-4 text-amber-300" />
+          <span>Logiciel de Montage Vidéo (NLE Studio)</span>
+        </button>
+
+        <button
           id="studio-tab-course-gen"
           onClick={() => setActiveTab('course_gen')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
@@ -248,6 +276,188 @@ export const AIContentStudio: React.FC<AIContentStudioProps> = ({
           <span>Scripts Vidéo & Synthèses IA</span>
         </button>
       </div>
+
+      {/* TAB 0: VIDEO EDITING STUDIO (LOGICIEL DE MONTAGE NLE) */}
+      {activeTab === 'video_editor' && (
+        <div className="space-y-6">
+          {videoPublishSuccess && (
+            <div className="p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-sm font-bold flex items-center justify-between animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <span>{videoPublishSuccess}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVideoPublishSuccess(null)}
+                className="text-xs text-emerald-400 hover:underline"
+              >
+                Fermer
+              </button>
+            </div>
+          )}
+
+          {/* Hero Banner with Workflow clarification */}
+          <div className="p-6 md:p-8 rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 text-white shadow-xl space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2 max-w-2xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-black">
+                  <Film className="w-3.5 h-3.5" />
+                  <span>LOGICIEL DE MONTAGE NLE PROFESSIONNEL</span>
+                </div>
+                <h3 className="text-xl md:text-2xl font-black tracking-tight">
+                  Créez vos leçons vidéo multi-pistes & publiez la vidéo générée
+                </h3>
+                <p className="text-sm text-slate-300 leading-relaxed">
+                  Le studio de montage permet d'agencer plans B-roll, formateur PiP, bande-son, animations de code et quiz interactifs.{' '}
+                  <strong className="text-amber-300 font-semibold">Les apprenants ne voient pas le logiciel de montage</strong>, mais visualisent directement la vidéo finale générée dans leur lecteur de cours.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  id="open-grand-modal-studio"
+                  onClick={() => setIsStudioModalOpen(true)}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white font-black text-sm shadow-xl hover:shadow-2xl transition-all hover:scale-105 flex items-center justify-center gap-2.5"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                  <span>Ouvrir le Grand Modal du Studio</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Template presets */}
+            <div className="pt-4 border-t border-indigo-900/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Modèles Prédéfinis au Style Animaker ({ANIMAKER_PRESET_TEMPLATES.length}) :</span>
+                </p>
+                <span className="text-[11px] text-slate-400">Cliquez pour charger et personnaliser dans le Grand Modal</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                {ANIMAKER_PRESET_TEMPLATES.map((tmpl) => {
+                  const isSelected = selectedVideoTemplate.id === tmpl.id;
+                  const quizCount = tmpl.clips.filter((c) => c.type === 'interactive_quiz').length;
+                  return (
+                    <div
+                      key={tmpl.id}
+                      onClick={() => {
+                        setSelectedVideoTemplate(tmpl);
+                        setIsStudioModalOpen(true);
+                      }}
+                      className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between hover:scale-[1.01] ${
+                        isSelected
+                          ? 'bg-indigo-900/50 border-amber-400/80 shadow-lg shadow-indigo-950/50 ring-1 ring-amber-400/40'
+                          : 'bg-slate-900/70 border-slate-800 hover:border-slate-600 hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            {tmpl.leadCharacterAvatar && (
+                              <img
+                                src={tmpl.leadCharacterAvatar}
+                                alt={tmpl.leadCharacterName || 'Avatar'}
+                                className="w-8 h-8 rounded-full object-cover border border-indigo-500/40 shrink-0"
+                              />
+                            )}
+                            <div>
+                              <h4 className="text-xs sm:text-sm font-black text-white line-clamp-1">
+                                {tmpl.title}
+                              </h4>
+                              <p className="text-[11px] text-amber-300/90 font-semibold truncate max-w-[180px]">
+                                {tmpl.topic}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[10px] font-bold shrink-0">
+                            {tmpl.totalDurationSeconds}s
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-300 line-clamp-2 leading-relaxed">
+                          {tmpl.description}
+                        </p>
+                      </div>
+
+                      <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+                        <div className="flex items-center gap-2">
+                          <span>🎬 {tmpl.clips.length} clips</span>
+                          {quizCount > 0 && (
+                            <span className="text-pink-300 font-bold">❓ {quizCount} Quiz</span>
+                          )}
+                        </div>
+                        <span className="text-amber-400 font-bold hover:underline flex items-center gap-1">
+                          Ouvrir ➜
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Grand Modal Rendering when open */}
+          {isStudioModalOpen && (
+            <VideoEditingStudio
+              isModal={true}
+              initialVideoProject={selectedVideoTemplate}
+              courseTitle={selectedVideoTemplate.title}
+              onClose={() => setIsStudioModalOpen(false)}
+              onPublishToCourse={(animakerLesson, videoProject) => {
+                const newCourse: Course = {
+                  id: `course-video-${Date.now()}`,
+                  title: videoProject?.title || animakerLesson.title,
+                  slug: (videoProject?.title || animakerLesson.title).toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                  shortDescription: `Capsule vidéo montée en multi-pistes avec B-Roll, formateur PiP et quiz interactif sur ${videoProject?.topic || animakerLesson.topic}`,
+                  description: `Cette formation vidéo a été réalisée avec le logiciel de montage NLE Academia ITECH : timeline multi-piste, incrustation d'experts, code en direct et points d'arrêt interactifs.`,
+                  category: 'ia_data',
+                  level: 'Intermédiaire',
+                  durationHours: Math.max(1, Math.round((videoProject?.totalDurationSeconds || animakerLesson.totalDurationSeconds) / 60)),
+                  thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80',
+                  bannerImage: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&auto=format&fit=crop&q=80',
+                  authorId: 'trainer-video-studio',
+                  authorName: videoProject?.leadCharacterName || animakerLesson.leadCharacterName || 'Fatou Sow',
+                  authorAvatar: videoProject?.leadCharacterAvatar || animakerLesson.leadCharacterAvatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+                  authorRole: 'Formatrice Certifiée & Lead Pédagogique',
+                  centerId: activeCenter.id,
+                  centerName: activeCenter.name,
+                  rating: 5.0,
+                  reviewCount: 3,
+                  studentCount: 1,
+                  price: 0,
+                  isFeatured: true,
+                  isNew: true,
+                  hasCertificate: true,
+                  tags: ['Montage Vidéo', 'NLE Timeline', 'Cours Vidéo', 'IA'],
+                  skillsGained: ['Compréhension vidéo multi-pistes', 'Concepts fondamentaux', 'Pratique interactive'],
+                  chapters: [
+                    {
+                      id: `ch-video-1`,
+                      title: `Module Vidéo : ${videoProject?.title || animakerLesson.title}`,
+                      lessons: [
+                        {
+                          id: `les-video-${Date.now()}`,
+                          title: videoProject?.title || animakerLesson.title,
+                          durationMinutes: Math.max(3, Math.round((videoProject?.totalDurationSeconds || animakerLesson.totalDurationSeconds) / 60)),
+                          type: 'video_project',
+                          videoProjectData: videoProject,
+                          animakerData: animakerLesson,
+                          content: `# ${videoProject?.title || animakerLesson.title}\n\nCette leçon est dispensée sous format vidéo monté en multi-pistes avec plans B-roll, formateur PiP et arrêts quiz interactifs.`,
+                        },
+                      ],
+                    },
+                  ],
+                };
+                onPublishCourse(newCourse);
+                setIsStudioModalOpen(false);
+                setVideoPublishSuccess(`🎬 La vidéo générée "${newCourse.title}" a été publiée avec succès dans le catalogue de formations !`);
+              }}
+            />
+          )}
+        </div>
+      )}
 
       {/* TAB 1: Course Generator */}
       {activeTab === 'course_gen' && (

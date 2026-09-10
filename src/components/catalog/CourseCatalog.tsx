@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Course, Center, UserProfile } from '../../types';
 import { hasPermission } from '../../lib/permissions';
 import { useCurrency } from '../../context/CurrencyContext';
+import { PaymentCheckoutModal } from '../payment/PaymentCheckoutModal';
+import { SubscriptionPlansModal } from '../payment/SubscriptionPlansModal';
 import {
   Sparkles,
   Star,
@@ -28,7 +30,11 @@ import {
   Trophy,
   Zap,
   Edit2,
-  Coins
+  Coins,
+  Film,
+  Crown,
+  Tag,
+  Check
 } from 'lucide-react';
 
 interface CourseCatalogProps {
@@ -37,7 +43,7 @@ interface CourseCatalogProps {
   activeCenter: Center;
   searchQuery: string;
   onSelectCourse: (course: Course) => void;
-  onEnrollCourse: (courseId: string) => void;
+  onEnrollCourse: (courseId: string, force?: boolean) => void;
   onOpenStudio: () => void;
   onEditCourse?: (course: Course) => void;
   onNavigate?: (tabId: string) => void;
@@ -58,7 +64,10 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
+  const [selectedPricingType, setSelectedPricingType] = useState<'all' | 'free' | 'paid' | 'subscription'>('all');
   const [previewCourse, setPreviewCourse] = useState<Course | null>(null);
+  const [checkoutCourse, setCheckoutCourse] = useState<Course | null>(null);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState<boolean>(false);
 
   const { formatPrice, currencyInfo } = useCurrency();
 
@@ -86,9 +95,15 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
       const matchCat = selectedCategory === 'all' || c.category === selectedCategory;
       const matchLevel = selectedLevel === 'all' || c.level === selectedLevel;
 
-      return matchSearch && matchCat && matchLevel;
+      const matchPricing =
+        selectedPricingType === 'all' ||
+        (selectedPricingType === 'free' && (c.pricingType === 'free' || c.price === 0)) ||
+        (selectedPricingType === 'paid' && c.pricingType === 'paid') ||
+        (selectedPricingType === 'subscription' && c.pricingType === 'subscription');
+
+      return matchSearch && matchCat && matchLevel && matchPricing;
     });
-  }, [courses, searchQuery, selectedCategory, selectedLevel]);
+  }, [courses, searchQuery, selectedCategory, selectedLevel, selectedPricingType]);
 
   const featuredCourse = courses.find((c) => c.isFeatured) || courses[0];
 
@@ -97,6 +112,13 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
     switch (userRole) {
       case 'learner':
         return [
+          {
+            id: 'my-learning',
+            title: 'Mes Formations',
+            subtitle: `${enrolledCourseIds.length} cours en cours`,
+            icon: BookOpen,
+            color: 'bg-indigo-50 text-indigo-700',
+          },
           {
             id: 'learner-journey',
             title: 'Mon Parcours',
@@ -107,15 +129,8 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
           {
             id: 'profile',
             title: 'Profil & Certificats',
-            subtitle: 'Mur & Certificats',
+            subtitle: 'Mur & Diplômes',
             icon: User,
-            color: 'bg-sky-50 text-sky-700',
-          },
-          {
-            id: 'my-learning',
-            title: 'Mes Formations',
-            subtitle: `${enrolledCourseIds.length} cours actifs`,
-            icon: BookOpen,
             color: 'bg-sky-50 text-sky-700',
           },
           {
@@ -281,11 +296,11 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
   const roleShortcuts = getRoleShortcuts();
 
   return (
-    <div id="course-catalog-view" className="space-y-8 pb-16">
+    <div id="course-catalog-view" className="space-y-5 pb-12">
       {/* Quick Navigation Hub & Shortcuts (Strictly Role-Filtered) */}
       {onNavigate && (
-        <div className="bg-gradient-to-r from-sky-50/80 via-white to-blue-50/80 border border-sky-100 rounded-3xl p-5 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3.5">
+        <div className="bg-gradient-to-r from-sky-50/80 via-white to-blue-50/80 border border-sky-100 rounded-2xl p-3.5 sm:p-4 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
             <div>
               <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-sky-600" />
@@ -293,9 +308,9 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
               </h2>
               <p className="text-xs text-slate-500">
                 {userRole === 'learner'
-                  ? 'Accédez directement à vos jalons, vos micro-cours animés, votre profil et vos certificats.'
+                  ? 'Accédez directement à vos jalons, micro-cours animés, profil et certificats.'
                   : userRole === 'trainer'
-                  ? 'Accédez à votre créateur de cours Nano Banana, au suivi des apprenants et au Studio IA.'
+                  ? 'Accédez à votre créateur de cours, au suivi des apprenants et au Studio IA.'
                   : userRole === 'center_admin' || userRole === 'super_admin'
                   ? 'Supervisez vos campus, formateurs, cours et suivi analytique en temps réel.'
                   : 'Découvrez notre catalogue de formations certifiantes et programmes officiels.'}
@@ -306,21 +321,21 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
             </span>
           </div>
 
-          <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-${Math.min(roleShortcuts.length, 5)} gap-2.5`}>
+          <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-${Math.min(roleShortcuts.length, 5)} gap-2`}>
             {roleShortcuts.map((shortcut) => {
               const Icon = shortcut.icon;
               return (
                 <button
                   key={shortcut.id}
                   onClick={() => onNavigate(shortcut.id)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white border border-slate-200/80 hover:border-sky-400 hover:shadow-xs transition-all text-left group"
+                  className="flex items-center gap-2.5 p-2 rounded-xl bg-white border border-slate-200/80 hover:border-sky-400 hover:shadow-xs transition-all text-left group"
                 >
-                  <div className={`w-8 h-8 rounded-xl ${shortcut.color} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform`}>
-                    <Icon className="w-4 h-4" />
+                  <div className={`w-7 h-7 rounded-lg ${shortcut.color} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform`}>
+                    <Icon className="w-3.5 h-3.5" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-800 truncate group-hover:text-sky-600">{shortcut.title}</p>
-                    <p className="text-[11px] text-slate-500 truncate">{shortcut.subtitle}</p>
+                    <p className="text-[10px] text-slate-500 truncate">{shortcut.subtitle}</p>
                   </div>
                 </button>
               );
@@ -333,33 +348,33 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
       {featuredCourse && !searchQuery && selectedCategory === 'all' && (
         <div
           id="featured-hero-banner"
-          className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-6 sm:p-8 lg:p-10 shadow-sm"
+          className="relative overflow-hidden rounded-2xl bg-white border border-slate-200 p-4 sm:p-6 lg:p-7 shadow-sm"
         >
           {/* Subtle Accent Background Graphic */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-sky-50/60 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-          <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-50/50 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-80 h-80 bg-sky-50/60 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+          <div className="absolute bottom-0 left-1/3 w-56 h-56 bg-teal-50/50 rounded-full blur-2xl pointer-events-none" />
 
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            <div className="lg:col-span-7 space-y-4">
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+            <div className="lg:col-span-7 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200/80 uppercase tracking-wider flex items-center gap-1.5 shadow-xs">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200/80 uppercase tracking-wider flex items-center gap-1.5 shadow-xs">
                   <Sparkles className="w-3.5 h-3.5 text-sky-600" />
                   Masterclass Vedette
                 </span>
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                   {featuredCourse.level}
                 </span>
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
                   <Award className="w-3 h-3 text-emerald-600" />
                   Certificat Automatisé
                 </span>
               </div>
 
-              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight break-words">
+              <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight break-words">
                 {featuredCourse.title}
               </h1>
 
-              <p className="text-slate-600 text-sm sm:text-base line-clamp-3 leading-relaxed">
+              <p className="text-slate-600 text-xs sm:text-sm line-clamp-2 leading-relaxed">
                 {featuredCourse.description}
               </p>
 
@@ -404,16 +419,16 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
                     }
                     onSelectCourse(featuredCourse);
                   }}
-                  className="px-6 py-3 rounded-xl text-sm font-bold bg-sky-500 hover:bg-sky-400 text-white shadow-sm flex items-center gap-2 transform active:scale-95 transition-all shadow-sky-500/20"
+                  className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-sky-500 hover:bg-sky-400 text-white shadow-sm flex items-center gap-2 transform active:scale-95 transition-all shadow-sky-500/20"
                 >
-                  <PlayCircle className="w-5 h-5 fill-white text-sky-500" />
+                  <PlayCircle className="w-4 h-4 fill-white text-sky-500" />
                   <span>{enrolledCourseIds.includes(featuredCourse.id) ? 'Continuer la formation' : 'Commencer gratuitement'}</span>
                 </button>
 
                 <button
                   id="featured-preview-button"
                   onClick={() => setPreviewCourse(featuredCourse)}
-                  className="px-5 py-3 rounded-xl text-sm font-semibold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-2 transition-colors"
+                  className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1.5 transition-colors"
                 >
                   <BookOpen className="w-4 h-4 text-slate-500" />
                   <span>Voir le programme complet</span>
@@ -431,7 +446,7 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
                   onError={(e) => {
                     e.currentTarget.src = 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=1000&auto=format&fit=crop&q=80';
                   }}
-                  className="w-full h-56 sm:h-72 object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="w-full h-44 sm:h-56 object-cover transition-transform duration-500 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent flex items-end p-4">
                   <div className="flex items-center justify-between w-full">
@@ -501,9 +516,9 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
           })}
         </div>
 
-        {/* Level Filters */}
-        <div className="flex items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2">
+        {/* Level Filters & Pricing Model Filter */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs pt-1 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-2">
             <Filter className="w-3.5 h-3.5 text-slate-500" />
             <span className="text-slate-600 font-medium">Niveau :</span>
             {['all', 'Débutant', 'Intermédiaire', 'Avancé', 'Tous niveaux'].map((lvl) => (
@@ -522,9 +537,63 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
             ))}
           </div>
 
-          <div className="text-slate-500 hidden sm:block">
-            Centre : <strong className="text-slate-800">{activeCenter.name}</strong>
+          {/* Pricing Model Filter */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-slate-500 font-semibold mr-1">Tarification :</span>
+            {[
+              { id: 'all', label: 'Tous tarifs' },
+              { id: 'free', label: 'Gratuits' },
+              { id: 'paid', label: 'Payants à l\'unité' },
+              { id: 'subscription', label: 'Inclus Pass' },
+            ].map((p) => (
+              <button
+                key={p.id}
+                id={`filter-pricing-${p.id}`}
+                onClick={() => setSelectedPricingType(p.id as any)}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                  selectedPricingType === p.id
+                    ? p.id === 'free'
+                      ? 'bg-emerald-600 text-white shadow-2xs'
+                      : p.id === 'subscription'
+                      ? 'bg-purple-600 text-white shadow-2xs'
+                      : p.id === 'paid'
+                      ? 'bg-amber-500 text-slate-950 shadow-2xs'
+                      : 'bg-slate-900 text-white shadow-2xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
+        </div>
+
+        {/* Banner Pass Abonnement Panafricain */}
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-950 to-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm border border-purple-800/40">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 shrink-0">
+              <Crown className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-bold flex items-center gap-2">
+                <span>Pass Abonnement Academia ITECH</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-500 text-white uppercase">
+                  Accès Total
+                </span>
+              </div>
+              <p className="text-xs text-purple-200">
+                Accédez à toutes les formations certifiantes, labs cloud et tuteur IA illimité pour seulement 19 $/mois.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowSubscriptionModal(true)}
+            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-purple-500 hover:bg-purple-400 text-white text-xs font-bold whitespace-nowrap shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Découvrir les Formules Pass</span>
+          </button>
         </div>
       </div>
 
@@ -566,10 +635,26 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
                 </div>
 
                 <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-900/90 backdrop-blur text-amber-300 border border-amber-400/30 shadow-xs flex items-center gap-1">
-                    <Coins className="w-3 h-3 text-amber-400" />
-                    {formatPrice(course.priceUSD)}
-                  </span>
+                  {course.pricingType === 'free' || course.price === 0 ? (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-600 text-white shadow-xs">
+                      GRATUIT
+                    </span>
+                  ) : course.pricingType === 'subscription' ? (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-600 text-white shadow-xs flex items-center gap-1">
+                      <Crown className="w-3 h-3" />
+                      PASS
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-900/90 backdrop-blur text-amber-300 border border-amber-400/30 shadow-xs flex items-center gap-1">
+                      <Coins className="w-3 h-3 text-amber-400" />
+                      {formatPrice(course.price || course.priceUSD)}
+                      {course.originalPrice && (
+                        <span className="line-through text-slate-400 text-[9px] font-normal">
+                          {formatPrice(course.originalPrice)}
+                        </span>
+                      )}
+                    </span>
+                  )}
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/95 backdrop-blur text-amber-700 border border-amber-200 shadow-xs flex items-center gap-1">
                     <Award className="w-3 h-3 text-amber-600" />
                     Certifié
@@ -593,7 +678,7 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
                 <div className="space-y-2">
                   {/* Center name */}
                   <div className="text-[11px] text-sky-600 font-semibold truncate">
-                    {course.centerName || activeCenter.name}
+                    {course.centerName || activeCenter?.name || 'Academia ITECH'}
                   </div>
 
                   <h3
@@ -673,12 +758,24 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
                     <button
                       id={`course-action-btn-${course.id}`}
                       onClick={() => {
-                        if (!isEnrolled) onEnrollCourse(course.id);
-                        onSelectCourse(course);
+                        if (isEnrolled) {
+                          onSelectCourse(course);
+                        } else if (course.pricingType === 'subscription') {
+                          setShowSubscriptionModal(true);
+                        } else if (course.pricingType === 'paid') {
+                          setCheckoutCourse(course);
+                        } else {
+                          onEnrollCourse(course.id);
+                          onSelectCourse(course);
+                        }
                       }}
                       className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
                         isEnrolled
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                          : course.pricingType === 'subscription'
+                          ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-xs active:scale-95 shadow-purple-600/20'
+                          : course.pricingType === 'paid'
+                          ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold shadow-xs active:scale-95'
                           : 'bg-sky-500 text-white hover:bg-sky-400 font-semibold shadow-xs active:scale-95 shadow-sky-500/20'
                       }`}
                     >
@@ -687,9 +784,19 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                           <span>Reprendre</span>
                         </>
+                      ) : course.pricingType === 'subscription' ? (
+                        <>
+                          <Crown className="w-3.5 h-3.5" />
+                          <span>Pass Requis</span>
+                        </>
+                      ) : course.pricingType === 'paid' ? (
+                        <>
+                          <Coins className="w-3.5 h-3.5" />
+                          <span>Acheter ({formatPrice(course.price || course.priceUSD)})</span>
+                        </>
                       ) : (
                         <>
-                          <span>Suivre</span>
+                          <span>Gratuit</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </>
                       )}
@@ -819,20 +926,71 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
                 <button
                   id="modal-start-course-btn"
                   onClick={() => {
-                    if (!enrolledCourseIds.includes(previewCourse.id)) {
-                      onEnrollCourse(previewCourse.id);
-                    }
-                    onSelectCourse(previewCourse);
+                    const c = previewCourse;
                     setPreviewCourse(null);
+                    if (enrolledCourseIds.includes(c.id)) {
+                      onSelectCourse(c);
+                    } else if (c.pricingType === 'subscription') {
+                      setShowSubscriptionModal(true);
+                    } else if (c.pricingType === 'paid') {
+                      setCheckoutCourse(c);
+                    } else {
+                      onEnrollCourse(c.id);
+                      onSelectCourse(c);
+                    }
                   }}
-                  className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-sky-500 hover:bg-sky-400 text-white shadow-xs active:scale-95 shadow-sky-500/20"
+                  className={`px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-xs active:scale-95 ${
+                    enrolledCourseIds.includes(previewCourse.id)
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                      : previewCourse.pricingType === 'subscription'
+                      ? 'bg-purple-600 hover:bg-purple-500 text-white'
+                      : previewCourse.pricingType === 'paid'
+                      ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black'
+                      : 'bg-sky-500 hover:bg-sky-400 text-white shadow-sky-500/20'
+                  }`}
                 >
-                  {enrolledCourseIds.includes(previewCourse.id) ? 'Ouvrir le cours' : "S'inscrire et démarrer"}
+                  {enrolledCourseIds.includes(previewCourse.id)
+                    ? 'Ouvrir le cours'
+                    : previewCourse.pricingType === 'subscription'
+                    ? 'Débloquer avec Pass'
+                    : previewCourse.pricingType === 'paid'
+                    ? `Acheter (${formatPrice(previewCourse.price || previewCourse.priceUSD)})`
+                    : "S'inscrire et démarrer"}
                 </button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Payment Checkout Modal for Single Course Purchase */}
+      {checkoutCourse && (
+        <PaymentCheckoutModal
+          course={checkoutCourse}
+          currentUser={currentUser}
+          isOpen={!!checkoutCourse}
+          onClose={() => setCheckoutCourse(null)}
+          onSuccess={(order) => {
+            const unlockedCourse = checkoutCourse;
+            onEnrollCourse(unlockedCourse.id, true);
+            setCheckoutCourse(null);
+            onSelectCourse(unlockedCourse);
+          }}
+        />
+      )}
+
+      {/* Subscription Plans Modal for Unlimited Pass */}
+      {showSubscriptionModal && (
+        <SubscriptionPlansModal
+          isOpen={showSubscriptionModal}
+          currentUser={currentUser}
+          onClose={() => setShowSubscriptionModal(false)}
+          onSuccess={(order, plan) => {
+            // Unlock all courses with unlimitted pass
+            courses.forEach((c) => onEnrollCourse(c.id, true));
+            setShowSubscriptionModal(false);
+          }}
+        />
       )}
     </div>
   );

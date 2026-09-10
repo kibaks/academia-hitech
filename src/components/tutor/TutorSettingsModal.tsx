@@ -20,7 +20,9 @@ import {
   Brain,
   MessageSquare,
   Globe2,
-  Languages
+  Languages,
+  ArrowLeft,
+  ArrowRight
 } from 'lucide-react';
 
 interface TutorSettingsModalProps {
@@ -37,6 +39,7 @@ export const TutorSettingsModal: React.FC<TutorSettingsModalProps> = ({
   onSaveConfig,
 }) => {
   const [localConfig, setLocalConfig] = useState<TutorConfig>({ ...config });
+  const [tutorStep, setTutorStep] = useState<1 | 2 | 3>(1);
   const [isPlayingSample, setIsPlayingSample] = useState(false);
   const [customLangInput, setCustomLangInput] = useState('');
   const [showCustomLang, setShowCustomLang] = useState(false);
@@ -135,415 +138,517 @@ export const TutorSettingsModal: React.FC<TutorSettingsModalProps> = ({
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
+          {/* Stepper Navigation Bar */}
+          <div className="flex items-center justify-between px-6 py-2.5 bg-slate-900 border-b border-slate-800 text-xs">
+            <button
+              type="button"
+              onClick={() => setTutorStep(1)}
+              className={`flex-1 py-1.5 px-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                tutorStep === 1
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+                tutorStep === 1 ? 'bg-white text-indigo-700' : 'bg-slate-800 text-slate-400'
+              }`}>
+                1
+              </span>
+              <span>1. Langue & Avatar</span>
+            </button>
+
+            <div className="w-4 h-0.5 bg-slate-700 mx-1 shrink-0" />
+
+            <button
+              type="button"
+              onClick={() => setTutorStep(2)}
+              className={`flex-1 py-1.5 px-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                tutorStep === 2
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+                tutorStep === 2 ? 'bg-white text-indigo-700' : 'bg-slate-800 text-slate-400'
+              }`}>
+                2
+              </span>
+              <span>2. Voix Réelle & Vitesse</span>
+            </button>
+
+            <div className="w-4 h-0.5 bg-slate-700 mx-1 shrink-0" />
+
+            <button
+              type="button"
+              onClick={() => setTutorStep(3)}
+              className={`flex-1 py-1.5 px-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                tutorStep === 3
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+                tutorStep === 3 ? 'bg-white text-indigo-700' : 'bg-slate-800 text-slate-400'
+              }`}>
+                3
+              </span>
+              <span>3. Pédagogie & Appel</span>
+            </button>
+          </div>
+
           {/* Scrollable Form Body */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {/* Section 1: Choix de la Langue (Français, Lingala, Anglais, etc.) */}
-            <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-                  <Globe2 className="w-4 h-4 text-emerald-400" />
-                  1. Langue d'Apprentissage & d'Élocution (Pré-configurée)
-                </label>
-                <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                  <Languages className="w-3.5 h-3.5" />
-                  Actif : {currentLanguage.name} {currentLanguage.flag}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                Le tuteur adapte ses réponses écrites, orales, transcriptions d'appels et quiz dans la langue sélectionnée.
-              </p>
-
-              {/* Languages Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
-                {TUTOR_LANGUAGES.map((lang) => {
-                  const isSelected = localConfig.audioLanguage === lang.code;
-                  return (
-                    <button
-                      key={lang.code}
-                      type="button"
-                      onClick={() => handleSelectLanguage(lang.code)}
-                      className={`p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
-                        isSelected
-                          ? 'bg-emerald-950/60 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.25)] ring-1 ring-emerald-400'
-                          : 'bg-slate-800/40 border-slate-700/60 hover:bg-slate-800 hover:border-slate-600'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between w-full mb-1">
-                        <span className="text-lg">{lang.flag}</span>
-                        {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-white truncate">{lang.name}</div>
-                        <div className="text-[10px] text-slate-400 truncate">{lang.nativeName}</div>
-                      </div>
-                      <div className="text-[9px] text-emerald-400/80 mt-1 font-mono truncate">{lang.region}</div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Custom Other Language Accordion */}
-              <div className="pt-2 border-t border-slate-800/80">
-                {!showCustomLang ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowCustomLang(true)}
-                    className="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1.5 transition-colors"
-                  >
-                    <span>+ Configurer une autre langue personnalisée</span>
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="text"
-                      value={customLangInput}
-                      onChange={(e) => setCustomLangInput(e.target.value)}
-                      placeholder="Ex: Wolof, Allemand, Arabe, Chinois..."
-                      className="flex-1 px-3 py-1.5 text-xs rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (customLangInput.trim()) {
-                          handleSelectLanguage(customLangInput.trim().toLowerCase());
-                          setShowCustomLang(false);
-                        }
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition-colors"
-                    >
-                      Appliquer
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowCustomLang(false)}
-                      className="px-2 py-1.5 text-xs text-slate-400 hover:text-white"
-                    >
-                      Annuler
-                    </button>
+            {/* STEP 1: LANGUE ET AVATAR */}
+            {tutorStep === 1 && (
+              <div className="space-y-6 animate-in fade-in duration-150">
+                {/* Section 1: Choix de la Langue (Français, Lingala, Anglais, etc.) */}
+                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                      <Globe2 className="w-4 h-4 text-emerald-400" />
+                      1. Langue d'Apprentissage & d'Élocution (Pré-configurée)
+                    </label>
+                    <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                      <Languages className="w-3.5 h-3.5" />
+                      Actif : {currentLanguage.name} {currentLanguage.flag}
+                    </span>
                   </div>
-                )}
-              </div>
-            </div>
+                  <p className="text-[11px] text-slate-400">
+                    Le tuteur adapte ses réponses écrites, orales, transcriptions d'appels et quiz dans la langue sélectionnée.
+                  </p>
 
-            {/* Section 2: Choix de l'Avatar & Genre (Homme / Femme) */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                  <User className="w-4 h-4 text-cyan-400" />
-                  2. Choix du Tuteur Animé (Style Application de Langues Android)
-                </label>
-                <span className="text-xs text-indigo-400 font-medium flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  Lèvres Réactives & Visèmes
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {TUTOR_PERSONAS.map((p) => {
-                  const isSelected = localConfig.personaId === p.id;
-                  return (
-                    <div
-                      key={p.id}
-                      onClick={() => handleSelectPersona(p)}
-                      className={`relative p-3.5 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
-                        isSelected
-                          ? 'bg-indigo-950/60 border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.25)] ring-1 ring-indigo-400'
-                          : 'bg-slate-800/60 border-slate-700/70 hover:bg-slate-800 hover:border-slate-600'
-                      }`}
-                    >
-                      <div className="relative shrink-0">
-                        <img
-                          src={p.avatarUrl}
-                          alt={p.name}
-                          referrerPolicy="no-referrer"
-                          className="w-14 h-14 rounded-2xl object-cover border-2 border-slate-700"
-                        />
-                        <span
-                          className={`absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold text-white ${
-                            p.gender === 'female' ? 'bg-pink-600' : 'bg-blue-600'
+                  {/* Languages Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                    {TUTOR_LANGUAGES.map((lang) => {
+                      const isSelected = localConfig.audioLanguage === lang.code;
+                      return (
+                        <button
+                          key={lang.code}
+                          type="button"
+                          onClick={() => handleSelectLanguage(lang.code)}
+                          className={`p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer ${
+                            isSelected
+                              ? 'bg-emerald-950/60 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.25)] ring-1 ring-emerald-400'
+                              : 'bg-slate-800/40 border-slate-700/60 hover:bg-slate-800 hover:border-slate-600'
                           }`}
                         >
-                          {p.gender === 'female' ? 'Femme' : 'Homme'}
-                        </span>
+                          <div className="flex items-center justify-between w-full mb-1">
+                            <span className="text-lg">{lang.flag}</span>
+                            {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-white truncate">{lang.name}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{lang.nativeName}</div>
+                          </div>
+                          <div className="text-[9px] text-emerald-400/80 mt-1 font-mono truncate">{lang.region}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Custom Other Language Accordion */}
+                  <div className="pt-2 border-t border-slate-800/80">
+                    {!showCustomLang ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomLang(true)}
+                        className="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <span>+ Configurer une autre langue personnalisée</span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="text"
+                          value={customLangInput}
+                          onChange={(e) => setCustomLangInput(e.target.value)}
+                          placeholder="Ex: Wolof, Allemand, Arabe, Chinois..."
+                          className="flex-1 px-3 py-1.5 text-xs rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (customLangInput.trim()) {
+                              handleSelectLanguage(customLangInput.trim().toLowerCase());
+                              setShowCustomLang(false);
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition-colors cursor-pointer"
+                        >
+                          Appliquer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowCustomLang(false)}
+                          className="px-2 py-1.5 text-xs text-slate-400 hover:text-white cursor-pointer"
+                        >
+                          Annuler
+                        </button>
                       </div>
+                    )}
+                  </div>
+                </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-bold text-white truncate">{p.name}</h4>
-                          {isSelected && <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />}
-                        </div>
-                        <p className="text-[11px] text-indigo-300 font-medium truncate">{p.title}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{p.specialty}</p>
+                {/* Section 2: Choix de l'Avatar & Genre (Homme / Femme) */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                      <User className="w-4 h-4 text-cyan-400" />
+                      2. Choix du Tuteur Animé (Style Application de Langues Android)
+                    </label>
+                    <span className="text-xs text-indigo-400 font-medium flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      Lèvres Réactives & Visèmes
+                    </span>
+                  </div>
 
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {p.traits.map((t, idx) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {TUTOR_PERSONAS.map((p) => {
+                      const isSelected = localConfig.personaId === p.id;
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => handleSelectPersona(p)}
+                          className={`relative p-3.5 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
+                            isSelected
+                              ? 'bg-indigo-950/60 border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.25)] ring-1 ring-indigo-400'
+                              : 'bg-slate-800/60 border-slate-700/70 hover:bg-slate-800 hover:border-slate-600'
+                          }`}
+                        >
+                          <div className="relative shrink-0">
+                            <img
+                              src={p.avatarUrl}
+                              alt={p.name}
+                              referrerPolicy="no-referrer"
+                              className="w-14 h-14 rounded-2xl object-cover border-2 border-slate-700"
+                            />
                             <span
-                              key={idx}
-                              className="px-1.5 py-0.5 rounded bg-slate-900/80 text-[9px] text-slate-300 border border-slate-700/50"
+                              className={`absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold text-white ${
+                                p.gender === 'female' ? 'bg-pink-600' : 'bg-blue-600'
+                              }`}
                             >
-                              {t}
+                              {p.gender === 'female' ? 'Femme' : 'Homme'}
                             </span>
-                          ))}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm font-bold text-white truncate">{p.name}</h4>
+                              {isSelected && <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />}
+                            </div>
+                            <p className="text-[11px] text-indigo-300 font-medium truncate">{p.title}</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{p.specialty}</p>
+
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {p.traits.map((t, idx) => (
+                                <span
+                                  key={idx}
+                                  className="px-1.5 py-0.5 rounded bg-slate-900/80 text-[9px] text-slate-300 border border-slate-700/50"
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Section 3: Vitesse de Réponse & Intelligence */}
-            <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 mb-3">
-                <Zap className="w-4 h-4 text-amber-400" />
-                3. Vitesse de Réponse de l'IA (Résolution de la latence)
-              </label>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div
-                  onClick={() => setLocalConfig((prev) => ({ ...prev, speedMode: 'flash' }))}
-                  className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
-                    localConfig.speedMode === 'flash'
-                      ? 'bg-amber-950/50 border-amber-500 shadow-md ring-1 ring-amber-400/50'
-                      : 'bg-slate-800/40 border-slate-700/60 hover:bg-slate-800/80'
-                  }`}
-                >
-                  <Zap className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-white">Mode Éclair (Ultra-Rapide &lt;0.8s)</span>
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                        Recommandé
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Réponses concises, directes et immédiates. Idéal pour la fluidité des appels vocaux et du chat sans attente.
-                    </p>
-                  </div>
-                </div>
-
-                <div
-                  onClick={() => setLocalConfig((prev) => ({ ...prev, speedMode: 'pro' }))}
-                  className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
-                    localConfig.speedMode === 'pro'
-                      ? 'bg-indigo-950/50 border-indigo-500 shadow-md ring-1 ring-indigo-400/50'
-                      : 'bg-slate-800/40 border-slate-700/60 hover:bg-slate-800/80'
-                  }`}
-                >
-                  <Brain className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="text-xs font-bold text-white">Mode Approfondi & Analyse</span>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Raisonnement détaillé avec blocs de code complets et démonstrations architecturales.
-                    </p>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Section 4: Calibrage de la Voix Réelle & Audio */}
-            <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                  <Volume2 className="w-4 h-4 text-cyan-400" />
-                  4. Calibrage de la Voix Réelle ({currentLanguage.name})
-                </label>
-                <button
-                  onClick={handleTestVoice}
-                  disabled={isPlayingSample}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow transition-all disabled:opacity-50"
-                >
-                  <Play className="w-3.5 h-3.5" />
-                  <span>{isPlayingSample ? 'Écoute en cours...' : `Tester la voix (${currentLanguage.flag})`}</span>
-                </button>
-              </div>
-
-              {/* Sliders Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                <div>
-                  <div className="flex justify-between text-xs text-slate-300 mb-1">
-                    <span>Vitesse d'élocution</span>
-                    <span className="font-mono text-cyan-400">{localConfig.voiceRate}x</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.8"
-                    max="1.4"
-                    step="0.05"
-                    value={localConfig.voiceRate}
-                    onChange={(e) =>
-                      setLocalConfig((prev) => ({ ...prev, voiceRate: parseFloat(e.target.value) }))
-                    }
-                    className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-500 mt-1">
-                    <span>Calme (0.8x)</span>
-                    <span>Naturel (1.05x)</span>
-                    <span>Rapide (1.4x)</span>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs text-slate-300 mb-1">
-                    <span>Tonalité & Timbre (Pitch)</span>
-                    <span className="font-mono text-cyan-400">{localConfig.voicePitch}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.7"
-                    max="1.3"
-                    step="0.05"
-                    value={localConfig.voicePitch}
-                    onChange={(e) =>
-                      setLocalConfig((prev) => ({ ...prev, voicePitch: parseFloat(e.target.value) }))
-                    }
-                    className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-500 mt-1">
-                    <span>Grave (0.7)</span>
-                    <span>Équilibré (1.0)</span>
-                    <span>Aigu (1.3)</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Auto-Speak Checkbox */}
-              <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="autoSpeakCheck"
-                    checked={localConfig.autoSpeak}
-                    onChange={(e) =>
-                      setLocalConfig((prev) => ({ ...prev, autoSpeak: e.target.checked }))
-                    }
-                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700"
-                  />
-                  <label htmlFor="autoSpeakCheck" className="text-xs text-slate-300 cursor-pointer">
-                    Lecture vocale automatique des réponses dans le chat
+            {/* STEP 2: VOIX ET VITESSE */}
+            {tutorStep === 2 && (
+              <div className="space-y-6 animate-in fade-in duration-150">
+                {/* Section 3: Vitesse de Réponse & Intelligence */}
+                <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 mb-3">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                    3. Vitesse de Réponse de l'IA (Résolution de la latence)
                   </label>
-                </div>
-              </div>
-            </div>
 
-            {/* Section 5: Style Pédagogique */}
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 mb-3">
-                <BookOpen className="w-4 h-4 text-indigo-400" />
-                5. Personnalité & Style d'Enseignement
-              </label>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                {[
-                  { id: 'supportive', label: 'Bienveillant', desc: 'Pédagogie douce et encouragements' },
-                  { id: 'expert', label: 'Expert Senior', desc: 'Rigueur technique et code optimisé' },
-                  { id: 'coach', label: 'Coach Énergique', desc: 'Défis stimulants et gains XP' },
-                  { id: 'socratic', label: 'Méthode Socratique', desc: 'Questions de guidage vers la solution' },
-                ].map((style) => {
-                  const isSelected = localConfig.teachingStyle === style.id;
-                  return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div
-                      key={style.id}
-                      onClick={() =>
-                        setLocalConfig((prev) => ({ ...prev, teachingStyle: style.id as any }))
-                      }
-                      className={`p-3 rounded-xl border cursor-pointer text-center transition-all ${
-                        isSelected
-                          ? 'bg-indigo-900/60 border-indigo-500 text-white font-semibold'
-                          : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-800'
+                      onClick={() => setLocalConfig((prev) => ({ ...prev, speedMode: 'flash' }))}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                        localConfig.speedMode === 'flash'
+                          ? 'bg-amber-950/50 border-amber-500 shadow-md ring-1 ring-amber-400/50'
+                          : 'bg-slate-800/40 border-slate-700/60 hover:bg-slate-800/80'
                       }`}
                     >
-                      <p className="text-xs">{style.label}</p>
-                      <p className="text-[10px] text-slate-400 mt-1 leading-tight">{style.desc}</p>
+                      <Zap className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-white">Mode Éclair (Ultra-Rapide &lt;0.8s)</span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                            Recommandé
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          Réponses concises, directes et immédiates. Idéal pour la fluidité des appels vocaux et du chat sans attente.
+                        </p>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
 
-            {/* Section 6: Paramètres des Appels Vidéo/Audio */}
-            <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-cyan-950/80 text-cyan-400 border border-cyan-800">
-                  <Video className="w-5 h-5" />
+                    <div
+                      onClick={() => setLocalConfig((prev) => ({ ...prev, speedMode: 'pro' }))}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                        localConfig.speedMode === 'pro'
+                          ? 'bg-indigo-950/50 border-indigo-500 shadow-md ring-1 ring-indigo-400/50'
+                          : 'bg-slate-800/40 border-slate-700/60 hover:bg-slate-800/80'
+                      }`}
+                    >
+                      <Brain className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-xs font-bold text-white">Mode Approfondi & Analyse</span>
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          Raisonnement détaillé avec blocs de code complets et démonstrations architecturales.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Section 4: Calibrage de la Voix Réelle & Audio */}
+                <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                      <Volume2 className="w-4 h-4 text-cyan-400" />
+                      4. Calibrage de la Voix Réelle ({currentLanguage.name})
+                    </label>
+                    <button
+                      onClick={handleTestVoice}
+                      disabled={isPlayingSample}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5" />
+                      <span>{isPlayingSample ? 'Écoute en cours...' : `Tester la voix (${currentLanguage.flag})`}</span>
+                    </button>
+                  </div>
+
+                  {/* Sliders Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    <div>
+                      <div className="flex justify-between text-xs text-slate-300 mb-1">
+                        <span>Vitesse d'élocution</span>
+                        <span className="font-mono text-cyan-400">{localConfig.voiceRate}x</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.8"
+                        max="1.4"
+                        step="0.05"
+                        value={localConfig.voiceRate}
+                        onChange={(e) =>
+                          setLocalConfig((prev) => ({ ...prev, voiceRate: parseFloat(e.target.value) }))
+                        }
+                        className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                      />
+                      <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                        <span>Calme (0.8x)</span>
+                        <span>Naturel (1.05x)</span>
+                        <span>Rapide (1.4x)</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-xs text-slate-300 mb-1">
+                        <span>Tonalité & Timbre (Pitch)</span>
+                        <span className="font-mono text-cyan-400">{localConfig.voicePitch}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.7"
+                        max="1.3"
+                        step="0.05"
+                        value={localConfig.voicePitch}
+                        onChange={(e) =>
+                          setLocalConfig((prev) => ({ ...prev, voicePitch: parseFloat(e.target.value) }))
+                        }
+                        className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                      />
+                      <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                        <span>Grave (0.7)</span>
+                        <span>Équilibré (1.0)</span>
+                        <span>Aigu (1.3)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Auto-Speak Checkbox */}
+                  <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="autoSpeakCheck"
+                        checked={localConfig.autoSpeak}
+                        onChange={(e) =>
+                          setLocalConfig((prev) => ({ ...prev, autoSpeak: e.target.checked }))
+                        }
+                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700 cursor-pointer"
+                      />
+                      <label htmlFor="autoSpeakCheck" className="text-xs text-slate-300 cursor-pointer">
+                        Lecture vocale automatique des réponses dans le chat
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: STYLE PÉDAGOGIQUE ET APPEL VIDÉO */}
+            {tutorStep === 3 && (
+              <div className="space-y-6 animate-in fade-in duration-150">
+                {/* Section 5: Style Pédagogique */}
                 <div>
-                  <h4 className="text-xs font-bold text-white">Options d'Appel Vidéo Interactif</h4>
-                  <p className="text-[11px] text-slate-400">Activer la caméra apprenant et la reconnaissance vocale continue</p>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 mb-3">
+                    <BookOpen className="w-4 h-4 text-indigo-400" />
+                    5. Personnalité & Style d'Enseignement
+                  </label>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {[
+                      { id: 'supportive', label: 'Bienveillant', desc: 'Pédagogie douce et encouragements' },
+                      { id: 'expert', label: 'Expert Senior', desc: 'Rigueur technique et code optimisé' },
+                      { id: 'coach', label: 'Coach Énergique', desc: 'Défis stimulants et gains XP' },
+                      { id: 'socratic', label: 'Méthode Socratique', desc: 'Questions de guidage vers la solution' },
+                    ].map((style) => {
+                      const isSelected = localConfig.teachingStyle === style.id;
+                      return (
+                        <div
+                          key={style.id}
+                          onClick={() =>
+                            setLocalConfig((prev) => ({ ...prev, teachingStyle: style.id as any }))
+                          }
+                          className={`p-3 rounded-xl border cursor-pointer text-center transition-all ${
+                            isSelected
+                              ? 'bg-indigo-900/60 border-indigo-500 text-white font-semibold'
+                              : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-800'
+                          }`}
+                        >
+                          <p className="text-xs">{style.label}</p>
+                          <p className="text-[10px] text-slate-400 mt-1 leading-tight">{style.desc}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Section 6: Paramètres des Appels Vidéo/Audio */}
+                <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-cyan-950/80 text-cyan-400 border border-cyan-800">
+                      <Video className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-white">Options d'Appel Vidéo Interactif</h4>
+                      <p className="text-[11px] text-slate-400">Activer la caméra apprenant et la reconnaissance vocale continue</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={localConfig.enableCallVideo}
+                        onChange={(e) =>
+                          setLocalConfig((prev) => ({ ...prev, enableCallVideo: e.target.checked }))
+                        }
+                        className="w-4 h-4 rounded text-cyan-600 bg-slate-800 border-slate-700 cursor-pointer"
+                      />
+                      <span>Webcam activée</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={localConfig.enableSpeechRecognition}
+                        onChange={(e) =>
+                          setLocalConfig((prev) => ({ ...prev, enableSpeechRecognition: e.target.checked }))
+                        }
+                        className="w-4 h-4 rounded text-cyan-600 bg-slate-800 border-slate-700 cursor-pointer"
+                      />
+                      <span>Microphone auto</span>
+                    </label>
+                  </div>
                 </div>
               </div>
-
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={localConfig.enableCallVideo}
-                    onChange={(e) =>
-                      setLocalConfig((prev) => ({ ...prev, enableCallVideo: e.target.checked }))
-                    }
-                    className="w-4 h-4 rounded text-cyan-600 bg-slate-800 border-slate-700"
-                  />
-                  <span>Webcam activée</span>
-                </label>
-
-                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={localConfig.enableSpeechRecognition}
-                    onChange={(e) =>
-                      setLocalConfig((prev) => ({ ...prev, enableSpeechRecognition: e.target.checked }))
-                    }
-                    className="w-4 h-4 rounded text-cyan-600 bg-slate-800 border-slate-700"
-                  />
-                  <span>Microphone auto</span>
-                </label>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Footer Actions */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-slate-950/80">
-            <button
-              onClick={() => {
-                const defaultP = TUTOR_PERSONAS[0];
-                setLocalConfig({
-                  personaId: defaultP.id,
-                  speedMode: 'flash',
-                  teachingStyle: 'supportive',
-                  voiceGender: 'female',
-                  voiceName: '',
-                  voicePitch: defaultP.defaultPitch,
-                  voiceRate: defaultP.defaultRate,
-                  autoSpeak: true,
-                  enableCallVideo: true,
-                  enableSpeechRecognition: true,
-                  audioLanguage: 'fr-FR',
-                });
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-slate-400 hover:text-white transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Réinitialiser par défaut</span>
-            </button>
-
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors"
+                type="button"
+                onClick={() => {
+                  const defaultP = TUTOR_PERSONAS[0];
+                  setLocalConfig({
+                    personaId: defaultP.id,
+                    speedMode: 'flash',
+                    teachingStyle: 'supportive',
+                    voiceGender: 'female',
+                    voiceName: '',
+                    voicePitch: defaultP.defaultPitch,
+                    voiceRate: defaultP.defaultRate,
+                    autoSpeak: true,
+                    enableCallVideo: true,
+                    enableSpeechRecognition: true,
+                    audioLanguage: 'fr-FR',
+                  });
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
               >
-                Annuler
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Réinitialiser</span>
               </button>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              {tutorStep > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setTutorStep((prev) => (prev > 1 ? ((prev - 1) as 1 | 2 | 3) : 1))}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Précédent</span>
+                </button>
+              )}
+
+              {tutorStep < 3 ? (
+                <button
+                  type="button"
+                  onClick={() => setTutorStep((prev) => (prev < 3 ? ((prev + 1) as 1 | 2 | 3) : 3))}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-xs transition-colors cursor-pointer"
+                >
+                  <span>Suivant</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow-lg shadow-emerald-900/40 transition-all hover:scale-105 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Enregistrer & Appliquer</span>
+                </button>
+              )}
+
               <button
-                onClick={handleSave}
-                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-lg shadow-indigo-900/40 transition-all hover:scale-105"
+                type="button"
+                onClick={onClose}
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer"
               >
-                Enregistrer & Appliquer
+                Fermer
               </button>
             </div>
           </div>

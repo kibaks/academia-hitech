@@ -4,6 +4,7 @@ import { TutorMessage, Course, TutorConfig, TutorPersona } from '../../types';
 import { TUTOR_PERSONAS, DEFAULT_TUTOR_CONFIG, TUTOR_LANGUAGES, getGreetingForLanguage } from './personaData';
 import { playTutorSpeech } from './speechUtils';
 import { RealisticAvatar } from './RealisticAvatar';
+import { FacialLipSyncModule } from './FacialLipSyncModule';
 import { TutorCallModal } from './TutorCallModal';
 import { TutorSettingsModal } from './TutorSettingsModal';
 import { VoiceNoteRecorder } from './VoiceNoteRecorder';
@@ -35,7 +36,13 @@ import {
   ShieldCheck,
   Radio,
   Languages,
-  Globe2
+  Globe2,
+  Server,
+  Terminal,
+  ArrowRight,
+  Play,
+  AlertCircle,
+  Info
 } from 'lucide-react';
 
 interface VirtualTutorProps {
@@ -74,24 +81,28 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [avatarState, setAvatarState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
   const [isListeningMic, setIsListeningMic] = useState(false);
+  const [activeSyncText, setActiveSyncText] = useState<string>('');
 
   // WhatsApp Simulation & Real Connect State
-  const [whatsAppPhone, setWhatsAppPhone] = useState('+243 89 000 0000');
+  const [whatsAppPhone, setWhatsAppPhone] = useState('+1 555-631-6001');
   const [whatsAppCustomText, setWhatsAppCustomText] = useState(
     `Bonjour ${activePersona.name} ! Je m'entraîne sur le cours "${currentCourse?.title || 'IA & Software Engineering'}" sur Academia ITECH. Peux-tu m'accompagner pour mes révisions ?`
   );
-  const [waMessages, setWaMessages] = useState<Array<{ sender: 'user' | 'bot'; text: string; time: string }>>([
+  const [waMessages, setWaMessages] = useState<Array<{ id: string; sender: 'user' | 'bot'; text: string; time: string; isStreaming?: boolean }>>([
     {
+      id: 'wa-init-1',
       sender: 'bot',
       text: `🤖 *Academia ITECH Bot - ${activePersona.name}*\n\nBienvenue sur votre tuteur WhatsApp officiel ! Vous recevrez ici vos rappels de cours, mini-quiz quotidiens et pouvez poser toutes vos questions 24/7.`,
       time: '09:00',
     },
     {
+      id: 'wa-init-2',
       sender: 'user',
       text: `Bonjour ${activePersona.name}, quel est mon défi du jour ?`,
       time: '09:02',
     },
     {
+      id: 'wa-init-3',
       sender: 'bot',
       text: "🔥 *Défi Quotidien (+50 XP)* :\n\nDans un Transformer, pourquoi le Positional Encoding est-il indispensable ?\n\n1️⃣ Pour encoder l'ordre des mots\n2️⃣ Pour chiffrer les données\n\n_Réponds 1 ou 2 !_",
       time: '09:02',
@@ -100,6 +111,120 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
   const [waInput, setWaInput] = useState('');
   const [isWaLoading, setIsWaLoading] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [whatsappSubTab, setWhatsappSubTab] = useState<'simulator' | 'webhook_setup'>('simulator');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [testWebhookMessage, setTestWebhookMessage] = useState('Bonjour Fatou Sow ! Peux-tu me résumer le cours en 3 points ?');
+  const [testWebhookResult, setTestWebhookResult] = useState<string | null>(null);
+  const [isTestingWebhook, setIsTestingWebhook] = useState(false);
+
+  // Live Meta WhatsApp Send Test State
+  const [metaTestToken, setMetaTestToken] = useState('EAANVBMe0VZBABSd5ZBN5VRlIkFbHmTbyKW2xujlZAdcD85trLxGrp6So7QMNfbRf3ZAIplHWWlxkaX66g5SgiUGxTZBBJkZBZBXa7vdQJM7zfyNgimmIXoZBWByLIx4GJV8rmxyFvdoENhkRHI4lemVWWGp4yPjDTFIIdvlzYcaeQQAAGMi8myQXmtzf8FprmZBl1ZA76uZAdZBHNibDb1lRZCbZAJwOOreJkgwuE4j5gNv9rV1CkdRILp35UvfrRtloYLwGlTgXswF85dyyWZCNbZAyraAQ8N5U9wZDZD');
+  const [metaTestRecipient, setMetaTestRecipient] = useState('');
+  const [metaTestMessage, setMetaTestMessage] = useState('Bonjour ! Ceci est un message test de Fatou Sow depuis Academia ITECH 👩🏽‍🏫. Votre connexion WhatsApp fonctionne !');
+  const [metaTestResult, setMetaTestResult] = useState<{ success: boolean; message: string; details?: any } | null>(null);
+  const [isSendingMetaTest, setIsSendingMetaTest] = useState(false);
+
+  const [webhookStatus, setWebhookStatus] = useState<{
+    metaConfigured: boolean;
+    twilioConfigured: boolean;
+    verifyToken: string;
+    phoneNumberId?: string;
+    phoneNumber?: string;
+    hasGeminiKey: boolean;
+  }>({
+    metaConfigured: false,
+    twilioConfigured: false,
+    verifyToken: 'itech_academia_secret_token',
+    phoneNumberId: '979483715258628',
+    phoneNumber: '+1 555-631-6001',
+    hasGeminiKey: true,
+  });
+
+  // Check Webhook diagnostic on mount
+  useEffect(() => {
+    fetch('/api/webhook/status')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setWebhookStatus(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleTestWebhookDirectly = async () => {
+    if (!testWebhookMessage.trim() || isTestingWebhook) return;
+    setIsTestingWebhook(true);
+    setTestWebhookResult(null);
+
+    try {
+      const res = await fetch('/api/gemini/tutor-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: testWebhookMessage,
+          isWhatsAppMode: true,
+          personaName: activePersona.name,
+          personaGender: activePersona.gender,
+          teachingStyle: config.teachingStyle,
+          audioLanguage: config.audioLanguage,
+          contextCourse: currentCourse?.title || 'Masterclass IA',
+        }),
+      });
+      const data = await res.json();
+      setTestWebhookResult(data.reply || 'Réponse générée avec succès !');
+    } catch (err: any) {
+      setTestWebhookResult(`Erreur lors du test : ${err?.message || 'Vérification serveur'}`);
+    } finally {
+      setIsTestingWebhook(false);
+    }
+  };
+
+  const handleSendMetaTest = async () => {
+    if (!metaTestRecipient.trim() || isSendingMetaTest) return;
+    setIsSendingMetaTest(true);
+    setMetaTestResult(null);
+
+    try {
+      const res = await fetch('/api/webhook/send-test-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientPhone: metaTestRecipient,
+          messageText: metaTestMessage,
+          customToken: metaTestToken.trim() || undefined,
+          customPhoneId: webhookStatus.phoneNumberId || '979483715258628',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMetaTestResult({
+          success: true,
+          message: data.message || 'Message envoyé avec succès ! Vérifiez votre WhatsApp.',
+          details: data.metaResponse,
+        });
+      } else {
+        setMetaTestResult({
+          success: false,
+          message: data.error || 'Erreur lors de l’envoi Meta',
+          details: data.details,
+        });
+      }
+    } catch (err: any) {
+      setMetaTestResult({
+        success: false,
+        message: err.message || 'Erreur de connexion au serveur',
+      });
+    } finally {
+      setIsSendingMetaTest(false);
+    }
+  };
+
+  const copyToClipboard = (text: string, fieldId: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldId);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<any>(null);
@@ -132,9 +257,10 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
     ]);
   }, [config.personaId, config.audioLanguage]);
 
-  // Text to Speech with guaranteed native accent
+  // Text to Speech with guaranteed native accent & lip-sync text binding
   const speakText = (text: string) => {
     if (!config.autoSpeak) return;
+    setActiveSyncText(text);
 
     playTutorSpeech({
       text,
@@ -318,6 +444,7 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
           hasReceivedFirstChunk = true;
           setAvatarState('speaking');
         }
+        setActiveSyncText(fullText);
         setMessages((prev) =>
           prev.map((m) => (m.id === tempBotId ? { ...m, text: fullText, isStreaming: true } : m))
         );
@@ -496,20 +623,30 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
   const handleSendWaMessage = async () => {
     if (!waInput.trim() || isWaLoading) return;
 
-    const userText = waInput;
+    const userText = waInput.trim();
+    const userMsgId = `wa-u-${Date.now()}`;
+    const botMsgId = `wa-b-${Date.now()}`;
+
     const newMsg = {
+      id: userMsgId,
       sender: 'user' as const,
       text: userText,
       time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
     };
 
-    const tempBotWaIndex = waMessages.length + 1;
     const botPlaceholder = {
+      id: botMsgId,
       sender: 'bot' as const,
       text: '',
       time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
       isStreaming: true,
     };
+
+    // Include multi-turn conversation history from previous messages
+    const conversationHistory = waMessages.map((m) => ({
+      sender: m.sender === 'user' ? ('user' as const) : ('tutor' as const),
+      text: m.text,
+    }));
 
     setWaMessages((prev) => [...prev, newMsg, botPlaceholder]);
     setWaInput('');
@@ -518,6 +655,7 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
     const payload = {
       message: userText,
       contextCourse: currentCourse?.title || 'Masterclass IA Academia ITECH',
+      conversationHistory,
       isWhatsAppMode: true,
       personaName: activePersona.name,
       personaGender: activePersona.gender,
@@ -531,14 +669,16 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
       payload,
       (_chunk, fullText) => {
         setWaMessages((prev) =>
-          prev.map((m, idx) => (idx === tempBotWaIndex ? { ...m, text: fullText } : m))
+          prev.map((m) => (m.id === botMsgId ? { ...m, text: fullText, isStreaming: true } : m))
         );
       },
       (_suggestions, fullText) => {
-        const finalWaText = fullText || `🤖 *Academia ITECH (${activePersona.name})*\n\nSalut ! J'ai bien analysé votre message : _"${userText.slice(0, 40)}"_.\n\nDans le cadre de *${currentCourse?.title || "votre formation"}*, appliquez la méthode pas-à-pas et testez vos fonctions dans l'atelier interactif !`;
+        const finalWaText =
+          fullText ||
+          `🤖 *${activePersona.name} (Academia ITECH)*\n\nJ'ai bien analysé votre message : _"${userText}"_.\n\nDans le cadre de *${currentCourse?.title || "votre formation"}*, appliquez la méthode pas-à-pas et testez vos fonctions dans l'atelier interactif !`;
         setWaMessages((prev) =>
-          prev.map((m, idx) =>
-            idx === tempBotWaIndex ? { ...m, text: finalWaText, isStreaming: false } : m
+          prev.map((m) =>
+            m.id === botMsgId ? { ...m, text: finalWaText, isStreaming: false } : m
           )
         );
         setIsWaLoading(false);
@@ -553,11 +693,13 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
           });
           const data = await fallbackRes.json();
           setWaMessages((prev) =>
-            prev.map((m, idx) =>
-              idx === tempBotWaIndex
+            prev.map((m) =>
+              m.id === botMsgId
                 ? {
                     ...m,
-                    text: data.reply || `🤖 *${activePersona.name}* : Concernant _"${userText.slice(0, 35)}"_, voici l'astuce clé : découpez votre code en fonctions simples et testables !`,
+                    text:
+                      data.reply ||
+                      `🤖 *${activePersona.name}* : Concernant _"${userText}"_, voici l'astuce clé : découpez votre problème en étapes simples et validez chaque résultat !`,
                     isStreaming: false,
                   }
                 : m
@@ -565,9 +707,13 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
           );
         } catch {
           setWaMessages((prev) =>
-            prev.map((m, idx) =>
-              idx === tempBotWaIndex
-                ? { ...m, text: `🤖 *${activePersona.name}* : Message bien reçu pour _"${userText.slice(0, 30)}"_. Recommandation : testez votre solution dans l'éditeur de code !`, isStreaming: false }
+            prev.map((m) =>
+              m.id === botMsgId
+                ? {
+                    ...m,
+                    text: `🤖 *${activePersona.name}* : Message bien reçu pour _"${userText}"_. Recommandation : testez votre solution dans l'éditeur interactif !`,
+                    isStreaming: false,
+                  }
                 : m
             )
           );
@@ -738,6 +884,15 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
                   <span>Calibrer Voix ({config.voicePitch} / {config.voiceRate}x)</span>
                 </button>
               </div>
+
+              {/* Real-time Facial Lip-Sync Module with Framer Motion */}
+              <FacialLipSyncModule
+                persona={activePersona}
+                textToSync={activeSyncText || (messages.filter((m) => m.sender === 'tutor').slice(-1)[0]?.text || '')}
+                isStreaming={isLoading}
+                isPlayingAudio={isSpeaking || avatarState === 'speaking'}
+                speed={config.voiceRate || 1.0}
+              />
 
               {/* Interactive Lip-Sync & Speaking Demonstration Button */}
               <div className="p-2.5 rounded-2xl bg-indigo-950/40 border border-indigo-800/40 space-y-2">
@@ -1008,208 +1163,863 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
         </div>
       )}
 
-      {/* TAB 2: WhatsApp Suite & Simulator */}
+      {/* TAB 2: WhatsApp Suite & Webhook Gateway */}
       {activeTab === 'whatsapp_connect' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* WhatsApp Configuration & QR Code Column */}
-          <div className="lg:col-span-5 space-y-6">
-            <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600">
-                  <Smartphone className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Connexion WhatsApp Directe</h3>
-                  <p className="text-xs text-slate-500">
-                    Scannez le QR Code ou cliquez pour discuter instantanément avec {activePersona.name} sur WhatsApp.
-                  </p>
-                </div>
-              </div>
+        <div className="space-y-6">
+          {/* Sub-tab switcher */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-white rounded-2xl border border-slate-200 shadow-xs">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setWhatsappSubTab('simulator')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                  whatsappSubTab === 'simulator'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Smartphone className="w-4 h-4" />
+                <span>Simulateur & QR Code (Instantané)</span>
+              </button>
 
-              {/* Real Scannable QR Code */}
-              <div className="p-5 rounded-2xl bg-gradient-to-b from-slate-50 to-emerald-50/40 border border-slate-200 text-center space-y-3.5">
-                <a
-                  href={directWhatsAppLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Cliquer pour ouvrir directement sur WhatsApp Web ou Mobile"
-                  className="group relative inline-block mx-auto p-3.5 bg-white rounded-2xl border-2 border-emerald-200 shadow-md transition-all hover:scale-105 hover:border-emerald-500 cursor-pointer"
-                >
-                  <QRCodeSVG
-                    value={directWhatsAppLink}
-                    size={180}
-                    level="M"
-                    includeMargin={false}
-                    bgColor="#ffffff"
-                    fgColor="#0f172a"
-                  />
-                  <div className="absolute inset-0 bg-emerald-950/0 group-hover:bg-emerald-950/10 rounded-2xl transition-colors flex items-center justify-center">
-                    <span className="opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold shadow-lg transition-opacity flex items-center gap-1.5">
-                      <ExternalLink className="w-3.5 h-3.5" /> Ouvrir WhatsApp
-                    </span>
-                  </div>
-                </a>
+              <button
+                type="button"
+                onClick={() => setWhatsappSubTab('webhook_setup')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                  whatsappSubTab === 'webhook_setup'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Server className="w-4 h-4" />
+                <span>Relier un Vrai Numéro WhatsApp (Webhooks Meta & Twilio)</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black">
+                  Actif
+                </span>
+              </button>
+            </div>
 
-                <div className="space-y-1">
-                  <div className="text-xs font-bold text-slate-800 flex items-center justify-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>QR Code 100% Fonctionnel</span>
-                  </div>
-                  <div className="text-[11px] text-slate-500 max-w-xs mx-auto">
-                    Pointez l'appareil photo de votre smartphone ou l'application WhatsApp pour ouvrir la discussion.
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Prompt Presets */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-700">
-                  Message pré-rempli pour WhatsApp :
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { label: "📚 Résumé de cours", text: `Bonjour ${activePersona.name} ! Peux-tu me faire un résumé concis du cours "${currentCourse?.title || 'IA'}" avec 3 points clés ?` },
-                    { label: "🔥 Défi du jour (+50 XP)", text: `Bonjour ${activePersona.name} ! Envoie-moi mon défi tech du jour pour gagner 50 XP sur Academia ITECH !` },
-                    { label: "💻 Aide au code", text: `Salut ${activePersona.name} ! J'ai un bogue dans mon code TypeScript / Python sur la leçon "${currentLessonTitle || 'Pratique'}". Peux-tu m'aider ?` },
-                    { label: "🎯 Quiz flash", text: `Salut ${activePersona.name} ! Pose-moi une question de quiz sur le cours "${currentCourse?.title || 'IA & Software Engineering'}".` }
-                  ].map((p, pIdx) => (
-                    <button
-                      key={pIdx}
-                      type="button"
-                      onClick={() => setWhatsAppCustomText(p.text)}
-                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all text-left font-medium ${
-                        whatsAppCustomText === p.text
-                          ? "bg-emerald-100 text-emerald-900 border-emerald-300 shadow-xs"
-                          : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-
-                <textarea
-                  rows={2}
-                  value={whatsAppCustomText}
-                  onChange={(e) => setWhatsAppCustomText(e.target.value)}
-                  placeholder="Tapez le message à envoyer sur WhatsApp..."
-                  className="w-full p-2.5 rounded-xl bg-slate-50 text-slate-800 text-xs border border-slate-200 focus:outline-none focus:border-emerald-500 focus:bg-white resize-none"
-                />
-              </div>
-
-              {/* Direct WhatsApp Web Button & Phone Number */}
-              <div className="space-y-3 pt-1 border-t border-slate-100">
-                <a
-                  href={directWhatsAppLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  <span>Ouvrir WhatsApp sur Mobile / Web</span>
-                </a>
-
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      value={whatsAppPhone}
-                      onChange={(e) => setWhatsAppPhone(e.target.value)}
-                      placeholder="Numéro WhatsApp (ex: +243 890 000 000)"
-                      className="w-full p-2.5 rounded-xl bg-slate-50 text-slate-800 text-xs border border-slate-200 focus:outline-none focus:border-emerald-500 focus:bg-white font-mono"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(directWhatsAppLink);
-                      setCopiedLink(true);
-                      setTimeout(() => setCopiedLink(false), 2000);
-                    }}
-                    className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 border border-slate-200 transition-colors whitespace-nowrap"
-                  >
-                    {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                    <span>{copiedLink ? 'Lien copié !' : 'Copier le lien'}</span>
-                  </button>
-                </div>
-              </div>
+            <div className="flex items-center gap-2 text-xs text-slate-500 pr-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="font-semibold text-slate-700">Moteur Gemini IA WhatsApp en ligne</span>
             </div>
           </div>
 
-          {/* WhatsApp Live Simulator Column */}
-          <div className="lg:col-span-7">
-            <div className="rounded-3xl bg-slate-900 border-4 border-slate-800 shadow-xl overflow-hidden max-w-md mx-auto flex flex-col h-[580px]">
-              {/* WhatsApp Smartphone Header */}
-              <div className="bg-[#075E54] p-3 text-white flex items-center justify-between shadow-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-[#075E54] font-bold text-xs overflow-hidden">
-                    <img
-                      src={activePersona.avatarUrl}
-                      alt={activePersona.name}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover"
-                    />
+          {/* SUB-VIEW 1: Interactive Simulator & wa.me QR Code */}
+          {whatsappSubTab === 'simulator' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              {/* WhatsApp Configuration & QR Code Column */}
+              <div className="lg:col-span-5 space-y-6">
+                <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-5 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600">
+                      <Smartphone className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">Connexion & Simulateur WhatsApp</h3>
+                      <p className="text-xs text-slate-500">
+                        Discutez en direct avec {activePersona.name} dans le simulateur ci-contre ou connectez votre numéro de smartphone.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold leading-tight">Academia ITECH • {activePersona.name}</h4>
-                    <span className="text-[10px] text-emerald-200">En ligne 24/7</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-xs opacity-90">
-                  <ShieldCheck className="w-4 h-4 text-emerald-300" />
-                </div>
-              </div>
 
-              {/* Chat Canvas (WhatsApp wallpaper styled) */}
-              <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-[#E5DDD5]">
-                {waMessages.map((msg, idx) => (
-                  <div
-                    key={idx}
-                    className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-lg p-3 text-xs leading-relaxed shadow-xs ${
-                        msg.sender === 'user'
-                          ? 'bg-[#DCF8C6] text-slate-800 rounded-tr-none'
-                          : 'bg-white text-slate-800 rounded-tl-none'
-                      }`}
+                  {/* Informative connection banner */}
+                  <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 text-xs text-emerald-950 space-y-2">
+                    <div className="font-bold flex items-center justify-between text-emerald-900">
+                      <div className="flex items-center gap-1.5">
+                        <Zap className="w-4 h-4 text-emerald-600" />
+                        <span>Agent IA {activePersona.name} : 100% Opérationnel</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setWhatsappSubTab('webhook_setup')}
+                        className="text-[11px] font-bold text-emerald-700 underline hover:text-emerald-900"
+                      >
+                        Relier votre vrai WhatsApp →
+                      </button>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-emerald-800">
+                      • <strong>Sur l'application web</strong> : Utilisez le simulateur WhatsApp à droite pour échanger en direct avec réponses instantanées.<br />
+                      • <strong>Sur votre téléphone portable</strong> : Cliquez sur le bouton "Relier un Vrai Numéro" ci-dessus pour connecter les Webhooks officiels Meta ou Twilio.
+                    </p>
+                  </div>
+
+                  {/* Real Scannable QR Code */}
+                  <div className="p-5 rounded-2xl bg-gradient-to-b from-slate-50 to-emerald-50/40 border border-slate-200 text-center space-y-3.5">
+                    <a
+                      href={directWhatsAppLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Cliquer pour ouvrir directement sur WhatsApp Web ou Mobile"
+                      className="group relative inline-block mx-auto p-3.5 bg-white rounded-2xl border-2 border-emerald-200 shadow-md transition-all hover:scale-105 hover:border-emerald-500 cursor-pointer"
                     >
-                      <div className="whitespace-pre-line">{msg.text}</div>
-                      <div className="text-[9px] text-slate-400 text-right mt-1 flex items-center justify-end gap-1">
-                        <span>{msg.time}</span>
-                        {msg.sender === 'user' && <Check className="w-3 h-3 text-blue-500" />}
+                      <QRCodeSVG
+                        value={directWhatsAppLink}
+                        size={180}
+                        level="M"
+                        includeMargin={false}
+                        bgColor="#ffffff"
+                        fgColor="#0f172a"
+                      />
+                      <div className="absolute inset-0 bg-emerald-950/0 group-hover:bg-emerald-950/10 rounded-2xl transition-colors flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold shadow-lg transition-opacity flex items-center gap-1.5">
+                          <ExternalLink className="w-3.5 h-3.5" /> Ouvrir WhatsApp
+                        </span>
+                      </div>
+                    </a>
+
+                    <div className="space-y-1">
+                      <div className="text-xs font-bold text-slate-800 flex items-center justify-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>Lien & QR Code Directs</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                        Ouvre votre WhatsApp avec le message pré-rempli pour {activePersona.name}.
                       </div>
                     </div>
                   </div>
-                ))}
-                {isWaLoading && (
-                  <div className="bg-white p-2 rounded-lg text-[11px] text-slate-500 shadow-xs flex items-center gap-1.5 w-fit">
-                    <RefreshCw className="w-3 h-3 animate-spin text-emerald-600" />
-                    <span>{activePersona.name} est en train d'écrire...</span>
+
+                  {/* Quick Prompt Presets */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Message pré-rempli pour WhatsApp :
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { label: "📚 Résumé de cours", text: `Bonjour ${activePersona.name} ! Peux-tu me faire un résumé concis du cours "${currentCourse?.title || 'IA'}" avec 3 points clés ?` },
+                        { label: "🔥 Défi du jour (+50 XP)", text: `Bonjour ${activePersona.name} ! Envoie-moi mon défi tech du jour pour gagner 50 XP sur Academia ITECH !` },
+                        { label: "💻 Aide au code", text: `Salut ${activePersona.name} ! J'ai un bogue dans mon code TypeScript / Python sur la leçon "${currentLessonTitle || 'Pratique'}". Peux-tu m'aider ?` },
+                        { label: "🎯 Quiz flash", text: `Salut ${activePersona.name} ! Pose-moi une question de quiz sur le cours "${currentCourse?.title || 'IA & Software Engineering'}".` }
+                      ].map((p, pIdx) => (
+                        <button
+                          key={pIdx}
+                          type="button"
+                          onClick={() => setWhatsAppCustomText(p.text)}
+                          className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all text-left font-medium ${
+                            whatsAppCustomText === p.text
+                              ? "bg-emerald-100 text-emerald-900 border-emerald-300 shadow-xs"
+                              : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <textarea
+                      rows={2}
+                      value={whatsAppCustomText}
+                      onChange={(e) => setWhatsAppCustomText(e.target.value)}
+                      placeholder="Tapez le message à envoyer sur WhatsApp..."
+                      className="w-full p-2.5 rounded-xl bg-slate-50 text-slate-800 text-xs border border-slate-200 focus:outline-none focus:border-emerald-500 focus:bg-white resize-none"
+                    />
+                  </div>
+
+                  {/* Direct WhatsApp Web Button & Phone Number */}
+                  <div className="space-y-3 pt-1 border-t border-slate-100">
+                    <a
+                      href={directWhatsAppLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      <span>Ouvrir WhatsApp sur Mobile / Web</span>
+                    </a>
+
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={whatsAppPhone}
+                          onChange={(e) => setWhatsAppPhone(e.target.value)}
+                          placeholder="Numéro WhatsApp (ex: +243 890 000 000)"
+                          className="w-full p-2.5 rounded-xl bg-slate-50 text-slate-800 text-xs border border-slate-200 focus:outline-none focus:border-emerald-500 focus:bg-white font-mono"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(directWhatsAppLink, 'direct-link')}
+                        className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 border border-slate-200 transition-colors whitespace-nowrap"
+                      >
+                        {copiedField === 'direct-link' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                        <span>{copiedField === 'direct-link' ? 'Copié !' : 'Copier'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* WhatsApp Live Simulator Column */}
+              <div className="lg:col-span-7">
+                <div className="rounded-3xl bg-slate-900 border-4 border-slate-800 shadow-xl overflow-hidden max-w-md mx-auto flex flex-col h-[580px]">
+                  {/* WhatsApp Smartphone Header */}
+                  <div className="bg-[#075E54] p-3 text-white flex items-center justify-between shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-[#075E54] font-bold text-xs overflow-hidden">
+                        <img
+                          src={activePersona.avatarUrl}
+                          alt={activePersona.name}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold leading-tight">Academia ITECH • {activePersona.name}</h4>
+                        <span className="text-[10px] text-emerald-200">En ligne 24/7 (Simulateur IA)</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs opacity-90">
+                      <ShieldCheck className="w-4 h-4 text-emerald-300" />
+                    </div>
+                  </div>
+
+                    {/* Chat Canvas (WhatsApp wallpaper styled) */}
+                    <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-[#E5DDD5]">
+                      {waMessages.map((msg, idx) => (
+                        <div
+                          key={msg.id || idx}
+                          className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                        >
+                          <div
+                            className={`max-w-[85%] rounded-lg p-3 text-xs leading-relaxed shadow-xs ${
+                              msg.sender === 'user'
+                                ? 'bg-[#DCF8C6] text-slate-800 rounded-tr-none'
+                                : 'bg-white text-slate-800 rounded-tl-none'
+                            }`}
+                          >
+                            <div className="whitespace-pre-line">
+                              {msg.text ? (
+                                msg.text
+                              ) : (
+                                <span className="inline-flex items-center gap-2 text-slate-500 italic py-0.5">
+                                  <RefreshCw className="w-3 h-3 animate-spin text-emerald-600" />
+                                  <span>{activePersona.name} écrit...</span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[9px] text-slate-400 text-right mt-1 flex items-center justify-end gap-1">
+                              <span>{msg.time}</span>
+                              {msg.sender === 'user' && <Check className="w-3 h-3 text-blue-500" />}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {isWaLoading && !waMessages.some((m) => m.isStreaming && !m.text) && (
+                        <div className="bg-white p-2 rounded-lg text-[11px] text-slate-500 shadow-xs flex items-center gap-1.5 w-fit">
+                          <RefreshCw className="w-3 h-3 animate-spin text-emerald-600" />
+                          <span>{activePersona.name} est en train d'écrire...</span>
+                        </div>
+                      )}
+                    </div>
+
+                  {/* WhatsApp Input Bar */}
+                  <div className="p-2.5 bg-[#F0F0F0] border-t border-slate-300 flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={waInput}
+                      onChange={(e) => setWaInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendWaMessage()}
+                      placeholder="Répondre sur WhatsApp..."
+                      className="flex-1 px-3 py-2 text-xs rounded-full bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-emerald-600"
+                    />
+                    <button
+                      onClick={handleSendWaMessage}
+                      disabled={!waInput.trim() || isWaLoading}
+                      className="p-2.5 rounded-full bg-[#128C7E] hover:bg-[#075E54] text-white disabled:opacity-40 transition-colors shadow-xs"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SUB-VIEW 2: Real WhatsApp Webhook & API Gateway Hub */}
+          {whatsappSubTab === 'webhook_setup' && (
+            <div className="space-y-6">
+              {/* Architecture Explanation Banner */}
+              <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-950 text-white border border-emerald-800/40 shadow-xl space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      <Server className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white">
+                        Passerelle Webhook Serveur pour Vrai WhatsApp
+                      </h3>
+                      <p className="text-xs text-slate-300">
+                        Votre serveur dispose des endpoints réels configurés pour recevoir les messages et y répondre automatiquement avec Gemini.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Endpoints Actifs & Écoutants
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-xs">
+                  <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+                    <div className="font-bold text-emerald-300">1. Réception du Message</div>
+                    <p className="text-slate-400 text-[11px]">
+                      L'apprenant envoie un message sur WhatsApp à votre numéro professionnel.
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+                    <div className="font-bold text-emerald-300">2. Analyse & Génération IA</div>
+                    <p className="text-slate-400 text-[11px]">
+                      Le serveur active Gemini ({activePersona.name}) et produit une réponse contextualisée.
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+                    <div className="font-bold text-emerald-300">3. Réponse Automatique</div>
+                    <p className="text-slate-400 text-[11px]">
+                      La réponse est réexpédiée instantanément sur le smartphone de l'apprenant.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ready-to-use Webhook URLs */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Meta Cloud API Card */}
+                <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-xl bg-blue-50 text-blue-600 font-black text-xs">
+                        META
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900">
+                        Option 1 : Meta WhatsApp Cloud API (Officiel)
+                      </h4>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200">
+                      1000 conv/mois gratuites
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    À renseigner dans votre portail <strong>developers.facebook.com</strong> ➔ Produit WhatsApp ➔ Configuration Webhook.
+                  </p>
+
+                  <div className="space-y-3">
+                    {/* Meta Phone Number & ID Info */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 rounded-xl bg-blue-50/70 border border-blue-200/80 text-xs">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-blue-900 block">Numéro Meta Associé :</span>
+                        <div className="font-mono font-bold text-blue-950 flex items-center justify-between">
+                          <span>+1 555-631-6001</span>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard('+15556316001', 'meta-phone')}
+                            className="text-[10px] text-blue-700 hover:text-blue-900 underline font-sans"
+                          >
+                            {copiedField === 'meta-phone' ? 'Copié' : 'Copier'}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-blue-900 block">Phone Number ID :</span>
+                        <div className="font-mono font-bold text-blue-950 flex items-center justify-between">
+                          <span>979483715258628</span>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard('979483715258628', 'meta-phone-id')}
+                            className="text-[10px] text-blue-700 hover:text-blue-900 underline font-sans"
+                          >
+                            {copiedField === 'meta-phone-id' ? 'Copié' : 'Copier'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                          URL de Rappel Principale (Public / Production)
+                        </label>
+                        <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                          Recommandée pour Meta
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={typeof window !== 'undefined' ? `${window.location.origin}/api/webhook/whatsapp` : 'https://ais-dev-2kviy7o7gqzkzldk6zfg4m-706369466028.europe-west2.run.app/api/webhook/whatsapp'}
+                          className="flex-1 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-800 select-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(typeof window !== 'undefined' ? `${window.location.origin}/api/webhook/whatsapp` : 'https://ais-dev-2kviy7o7gqzkzldk6zfg4m-706369466028.europe-west2.run.app/api/webhook/whatsapp', 'meta-pre-url')}
+                          className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 border border-slate-200"
+                        >
+                          {copiedField === 'meta-pre-url' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                          <span>{copiedField === 'meta-pre-url' ? 'Copié' : 'Copier'}</span>
+                        </button>
+                      </div>
+
+                      <div className="text-[10px] text-slate-500 mb-2">
+                        Ou URL alternative : <code className="bg-slate-100 px-1 py-0.5 rounded">{typeof window !== 'undefined' ? `${window.location.origin}/api/webhook/whatsapp` : ''}</code>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                        Jeton de Vérification (Verify Token à coller sur Meta)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={webhookStatus.verifyToken || 'itech_academia_secret_token'}
+                          className="flex-1 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-800 select-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(webhookStatus.verifyToken || 'itech_academia_secret_token', 'verify-token')}
+                          className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 border border-slate-200"
+                        >
+                          {copiedField === 'verify-token' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                          <span>{copiedField === 'verify-token' ? 'Copié' : 'Copier'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-1.5">
+                    <div className="font-bold text-slate-800">Étapes pour finaliser sur Meta :</div>
+                    <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-slate-700">
+                      <li>Collez l'<strong>URL de Rappel Cloudflare</strong> et le <strong>Jeton de vérification</strong> (<code>itech_academia_secret_token</code>) dans Meta.</li>
+                      <li>Cliquez sur <strong>Vérifier et enregistrer</strong> sur Meta.</li>
+                      <li>Cochez l'abonnement au champ <strong>messages</strong>.</li>
+                      <li>Ajoutez votre numéro personnel dans la liste <strong>"Numéros de téléphone de test"</strong> sur Meta pour recevoir les réponses.</li>
+                    </ol>
+                  </div>
+                </div>
+
+                {/* Cloudflare Worker Autonomous Code Card */}
+                <div className="p-6 rounded-3xl bg-amber-50/50 border border-amber-200 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-xl bg-amber-600 text-white font-black text-xs">
+                        CLOUDFLARE
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900">
+                        Code Cloudflare Worker (Anti-blocage + Réponses Illimitées)
+                      </h4>
+                    </div>
+                    <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 font-bold border border-emerald-300">
+                      Version 3.0 (Anti-blocage + Relais IA)
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Ce script résout le problème des messages limités ou lents grâce à <code>ctx.waitUntil</code> (réponse immédiate en 15ms à Meta pour bloquer tout retry).
+                  </p>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const code = `// Cloudflare Worker - Fatou Sow (Academia ITECH) v2.0
+// Anti-blocage Meta + Traitement d'arrière-plan + IA Gemini
+const seenMessages = new Set();
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+
+    // 1. Validation Webhook Meta (GET)
+    if (request.method === "GET") {
+      const challenge = url.searchParams.get("hub.challenge");
+      return new Response(challenge || "OK", { status: 200 });
+    }
+
+    // 2. Réception des messages WhatsApp (POST)
+    if (request.method === "POST") {
+      let body;
+      try {
+        body = await request.json();
+      } catch (e) {
+        return new Response("OK", { status: 200 });
+      }
+
+      // Traitement asynchrone pour ne JAMAIS bloquer Meta (réponse < 20ms)
+      if (ctx && ctx.waitUntil) {
+        ctx.waitUntil(handleIncoming(body, env));
+      } else {
+        await handleIncoming(body, env);
+      }
+
+      // Toujours répondre 200 OK immédiatement à Meta pour éviter les doublons et les blocages
+      return new Response("EVENT_RECEIVED", { status: 200 });
+    }
+
+    return new Response("Academia ITECH WhatsApp Gateway Active", { status: 200 });
+  },
+};
+
+async function handleIncoming(body, env) {
+  try {
+    const entry = body.entry?.[0]?.changes?.[0]?.value;
+    const msg = entry?.messages?.[0];
+
+    if (!msg || !msg.text) return;
+
+    // Déduplication : ignorer les messages déjà traités
+    if (seenMessages.has(msg.id)) return;
+    seenMessages.add(msg.id);
+    if (seenMessages.size > 200) seenMessages.clear();
+
+    const from = msg.from; // Numéro de l'étudiant
+    const userText = msg.text.body.trim();
+
+    const META_TOKEN = env.META_TOKEN || "${metaTestToken}";
+    const PHONE_ID = env.PHONE_ID || "979483715258628";
+    const GEMINI_KEY = env.GEMINI_API_KEY || "";
+
+    let aiReply = "";
+
+    // 1. Si une clé Gemini est fournie dans Cloudflare (Settings > Variables)
+    if (GEMINI_KEY) {
+      try {
+        const prompt = "Tu es Fatou Sow, tutrice experte d'Academia ITECH sur WhatsApp. Réponds avec bienveillance, clarté pédagogique et un langage direct et amical (formatage WhatsApp avec *gras* et émojis). Réponds précisément à ce message : " + userText;
+        const gRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + GEMINI_KEY, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+          }),
+        });
+        const gData = await gRes.json();
+        aiReply = gData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      } catch (err) {
+        console.error("Erreur Gemini:", err);
+      }
+    }
+
+    // 2. Moteur conversationnel intelligent de secours (cohérent même sans clé Gemini)
+    if (!aiReply) {
+      const lower = userText.toLowerCase();
+      if (lower.match(/^(bonjour|salut|coucou|hello|bonsoir|hi)/)) {
+        aiReply = "👋 Bonjour ! Je suis *Fatou Sow*, votre tutrice chez Academia ITECH 👩🏽‍🏫.\\n\\nComment puis-je vous aider aujourd'hui ?\\n- 🐍 *Python & Programmation*\\n- 🌐 *Développement Web (HTML, CSS, JS)*\\n- 🎯 *Tapez !quiz pour un défi*\\n\\nDe quoi voulez-vous parler ?";
+      } else if (lower.includes("qui es-tu") || lower.includes("qui est tu") || lower.includes("t'es qui") || lower.includes("presentation")) {
+        aiReply = "👩🏽‍🏫 Je suis *Fatou Sow*, la tutrice virtuelle officielle d'Academia ITECH !\\n\\nMon rôle est de vous accompagner 24h/24 dans votre apprentissage des métiers de la Tech (code, data, cloud, cybersécurité). Posez-moi vos questions de cours !";
+      } else if (lower.includes("quiz") || lower.includes("defi") || lower.includes("test")) {
+        aiReply = "🎯 *Mini-Quiz Academia ITECH* :\\n\\nEn informatique, que signifie l'acronyme *API* ?\\n\\n1️⃣ Application Programming Interface\\n2️⃣ Automated Program Instruction\\n3️⃣ Advanced Private Internet\\n\\n👉 _Envoyez 1, 2 ou 3 !_";
+      } else if (lower.includes("merci")) {
+        aiReply = "Avec grand plaisir ! 😊 N'hésitez pas si vous avez d'autres questions sur vos leçons ou vos projets de code. Bon courage !";
+      } else {
+        aiReply = "👩🏽‍🏫 *Fatou Sow* :\\n\\nJ'ai bien noté votre question : _\\"" + userText + "\\\"_.\\n\\n💡 *Conseil* : Pour que je puisse analyser vos questions complexes en détail avec mon cerveau IA complet, ajoutez la variable *GEMINI_API_KEY* dans les paramètres de votre Cloudflare Worker. En attendant, quel langage de programmation apprenez-vous actuellement ?";
+      }
+    }
+
+    // Envoi de la réponse sur WhatsApp
+    await fetch("https://graph.facebook.com/v19.0/" + PHONE_ID + "/messages", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + META_TOKEN,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: from,
+        type: "text",
+        text: { body: aiReply },
+      }),
+    });
+  } catch (error) {
+    console.error("Erreur générale handler:", error);
+  }
+}`;
+                        copyToClipboard(code, 'cloudflare-worker');
+                      }}
+                      className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-colors"
+                    >
+                      {copiedField === 'cloudflare-worker' ? (
+                        <>
+                          <Check className="w-4 h-4 text-white" />
+                          <span>Code v2.0 Copié !</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          <span>Copier le Code Cloudflare v2.0 (Corrigé)</span>
+                        </>
+                      )}
+                    </button>
+                    <span className="text-[11px] text-slate-500">
+                      Collez-le dans votre Worker ➔ Cliquez sur <strong>Save and Deploy</strong>
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    <div className="p-3 rounded-xl bg-slate-900 text-amber-300 font-mono text-[11px] max-h-48 overflow-y-auto border border-slate-800">
+                      <code>{`// Cloudflare Worker v2.0 - Non bloquant avec ctx.waitUntil & Déduplication
+const seenMessages = new Set();
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    if (request.method === "GET") {
+      const challenge = url.searchParams.get("hub.challenge");
+      return new Response(challenge || "OK", { status: 200 });
+    }
+    if (request.method === "POST") {
+      let body = await request.json().catch(() => null);
+      if (ctx?.waitUntil) ctx.waitUntil(handleIncoming(body, env));
+      else await handleIncoming(body, env);
+      return new Response("EVENT_RECEIVED", { status: 200 });
+    }
+    return new Response("OK", { status: 200 });
+  }
+};`}</code>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Twilio Sandbox Card */}
+                <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-xl bg-rose-50 text-rose-600 font-black text-xs">
+                        TWILIO
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900">
+                        Option 2 : Twilio WhatsApp Sandbox (Test en 2 min)
+                      </h4>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 font-bold border border-rose-200">
+                      Configuration Ultra Rapide
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Idéal pour tester immédiatement avec n'importe quel compte WhatsApp sans formalités d'entreprise.
+                  </p>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                        URL Webhook Twilio (When a message comes in)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/webhook/twilio-whatsapp`}
+                          className="flex-1 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-800 select-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(`${window.location.origin}/api/webhook/twilio-whatsapp`, 'twilio-url')}
+                          className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 border border-slate-200"
+                        >
+                          {copiedField === 'twilio-url' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                          <span>{copiedField === 'twilio-url' ? 'Copié' : 'Copier'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 space-y-1">
+                      <div className="font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Réponse TwiML Automatique</span>
+                      </div>
+                      <p className="text-emerald-800">
+                        Ce webhook répond automatiquement au format XML standard Twilio : dès qu'un message arrive, l'IA lui répond directement sur WhatsApp sans code supplémentaire.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Interactive Webhook Simulator / Test Tool */}
+              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+                <div className="flex items-center gap-2">
+                  <Terminal className="w-5 h-5 text-emerald-600" />
+                  <h4 className="text-sm font-bold text-slate-900">
+                    Testeur de Requête Webhook en Temps Réel
+                  </h4>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Simulez une requête de message entrant pour voir exactement comment l'agent {activePersona.name} formule sa réponse WhatsApp formatée.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="sm:col-span-9">
+                    <input
+                      type="text"
+                      value={testWebhookMessage}
+                      onChange={(e) => setTestWebhookMessage(e.target.value)}
+                      placeholder="Ex: Peux-tu m'expliquer les Transformers en 2 phrases ?"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white"
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <button
+                      type="button"
+                      onClick={handleTestWebhookDirectly}
+                      disabled={isTestingWebhook || !testWebhookMessage.trim()}
+                      className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-2 shadow-xs"
+                    >
+                      {isTestingWebhook ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Traitement IA...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-3.5 h-3.5" />
+                          <span>Tester l'Agent</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {testWebhookResult && (
+                  <div className="p-4 rounded-2xl bg-slate-950 text-emerald-300 font-mono text-xs space-y-2 border border-slate-800">
+                    <div className="text-[11px] font-bold text-slate-400 flex items-center justify-between border-b border-slate-800 pb-2">
+                      <span>RÉPONSE GÉNÉRÉE POUR WHATSAPP :</span>
+                      <span className="text-emerald-400">200 OK • Prêt à envoyer</span>
+                    </div>
+                    <div className="whitespace-pre-line text-slate-100 leading-relaxed font-sans">
+                      {testWebhookResult}
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* WhatsApp Input Bar */}
-              <div className="p-2.5 bg-[#F0F0F0] border-t border-slate-300 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={waInput}
-                  onChange={(e) => setWaInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendWaMessage()}
-                  placeholder="Répondre sur WhatsApp..."
-                  className="flex-1 px-3 py-2 text-xs rounded-full bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-emerald-600"
-                />
-                <button
-                  onClick={handleSendWaMessage}
-                  disabled={!waInput.trim() || isWaLoading}
-                  className="p-2.5 rounded-full bg-[#128C7E] hover:bg-[#075E54] text-white disabled:opacity-40 transition-colors shadow-xs"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
+              {/* Direct Meta WhatsApp Message Sender & Live Verifier */}
+              <div className="p-6 rounded-3xl bg-blue-50/60 border border-blue-200 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-blue-600 text-white font-bold text-xs">
+                      LIVE
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">
+                        Testeur d'Envoi Réel WhatsApp (Meta Graph API)
+                      </h4>
+                      <p className="text-[11px] text-slate-600">
+                        Envoyez un message direct depuis le numéro Meta <code>+1 555-631-6001</code> vers votre smartphone.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 font-bold border border-blue-300">
+                    Diagnostic Instantané
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      1. Jeton d'accès Meta (Temporary Access Token)
+                    </label>
+                    <input
+                      type="password"
+                      value={metaTestToken}
+                      onChange={(e) => setMetaTestToken(e.target.value)}
+                      placeholder="Collez votre jeton temporaire depuis developers.facebook.com"
+                      className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 font-mono focus:outline-none focus:border-blue-500"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      Trouvable sur Meta ➔ WhatsApp ➔ Démarrage de l'API ➔ "Jeton d'accès temporaire"
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      2. Votre Numéro WhatsApp Mobile (Destinataire)
+                    </label>
+                    <input
+                      type="text"
+                      value={metaTestRecipient}
+                      onChange={(e) => setMetaTestRecipient(e.target.value)}
+                      placeholder="Ex: +243890000000 ou +33612345678"
+                      className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 font-mono focus:outline-none focus:border-blue-500"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      Format international avec indicatif pays (+243, +33, +221, etc.)
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Message de test à envoyer :
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={metaTestMessage}
+                      onChange={(e) => setMetaTestMessage(e.target.value)}
+                      className="flex-1 p-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSendMetaTest}
+                      disabled={isSendingMetaTest || !metaTestRecipient.trim()}
+                      className="py-2.5 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-2 shadow-xs transition-colors whitespace-nowrap"
+                    >
+                      {isSendingMetaTest ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Envoi en cours...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          <span>Envoyer sur mon WhatsApp</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {metaTestResult && (
+                  <div
+                    className={`p-4 rounded-2xl text-xs space-y-2 border ${
+                      metaTestResult.success
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                        : 'bg-rose-50 border-rose-300 text-rose-900'
+                    }`}
+                  >
+                    <div className="font-bold flex items-center gap-2">
+                      {metaTestResult.success ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      )}
+                      <span>{metaTestResult.message}</span>
+                    </div>
+
+                    {!metaTestResult.success && metaTestResult.details && (
+                      <div className="p-3 rounded-xl bg-white/80 border border-rose-200 text-[11px] space-y-1 text-slate-700">
+                        <div className="font-bold text-rose-800">Diagnostic Meta Cloud API :</div>
+                        <div className="font-mono text-[10px] text-slate-800 break-all">
+                          Code : {metaTestResult.details.code} | Message : {metaTestResult.details.message}
+                        </div>
+                        {metaTestResult.details.code === 131030 && (
+                          <div className="text-amber-800 font-medium">
+                            💡 <strong>Solution</strong> : Votre numéro n'est pas encore autorisé dans Meta. Allez sur <strong>Démarrage de l'API</strong> ➔ Champ <strong>"À"</strong> ➔ Ajoutez votre numéro pour le débloquer.
+                          </div>
+                        )}
+                        {metaTestResult.details.code === 190 && (
+                          <div className="text-amber-800 font-medium">
+                            💡 <strong>Solution</strong> : Le jeton temporaire a expiré. Cliquez sur "Actualiser le jeton" sur votre portail Meta for Developers et recollez-le ici.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 

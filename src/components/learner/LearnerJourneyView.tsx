@@ -49,7 +49,7 @@ export const LearnerJourneyView: React.FC<LearnerJourneyViewProps> = ({
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-full min-w-0 overflow-x-hidden space-y-6">
       {/* Nano Banana Modal Player */}
       {activeNanoBanana && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md p-4 sm:p-8 flex items-center justify-center animate-fadeIn">
@@ -64,27 +64,32 @@ export const LearnerJourneyView: React.FC<LearnerJourneyViewProps> = ({
       )}
 
       {/* 1. Header Profile & Journey Banner */}
-      <div className="bg-gradient-to-r from-sky-900 via-slate-900 to-sky-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="relative">
+      <div className="bg-gradient-to-r from-sky-950 via-slate-900 to-sky-900 rounded-3xl p-5 sm:p-7 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-sky-500/20">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="relative shrink-0">
             <img
               src={currentUser.avatar}
               alt={currentUser.name}
-              className="w-20 h-20 rounded-2xl object-cover border-2 border-sky-400 shadow-lg"
+              referrerPolicy="no-referrer"
+              className="w-20 h-20 rounded-2xl object-cover border-2 border-sky-400 shadow-xl"
             />
-            <span className="absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
+            <span className="absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-xs">
               Nv.{currentUser.level}
             </span>
           </div>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-500/30 text-sky-300 border border-sky-500/40">
-                Parcours d'Excellence Apprenant
+                Espace Apprenant Académie
               </span>
-              <span className="text-xs text-slate-400">{currentUser.centerName}</span>
+              <span className="text-xs text-slate-300 truncate">{currentUser.centerName}</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white">{currentUser.name}</h1>
-            <p className="text-xs sm:text-sm text-slate-300 mt-0.5">{currentUser.headline || 'Étudiant en Ingénierie IA'}</p>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight break-words">
+              {currentUser.name}
+            </h1>
+            <p className="text-xs sm:text-sm font-semibold text-sky-100/80 mt-0.5 max-w-xl truncate">
+              {currentUser.headline || 'Étudiant & Praticien en Ingénierie IA'}
+            </p>
           </div>
         </div>
 
