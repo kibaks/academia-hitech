@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TutorPersona } from '../../types';
 import { Sparkles, Mic, Brain, Volume2, ShieldCheck, Zap, Bot, Camera, Play, VolumeX } from 'lucide-react';
-import { AndroidStyleCharacter } from './AndroidStyleCharacter';
+import { AndroidStyleCharacter, CharacterPose } from './AndroidStyleCharacter';
 
 interface RealisticAvatarProps {
   persona: TutorPersona;
@@ -12,6 +12,7 @@ interface RealisticAvatarProps {
   showControlsOverlay?: boolean;
   speedMode?: 'flash' | 'pro';
   avatarStyle?: 'android_animated' | 'realistic';
+  currentPose?: CharacterPose;
   onToggleStyle?: () => void;
 }
 
@@ -22,6 +23,7 @@ export const RealisticAvatar: React.FC<RealisticAvatarProps> = ({
   isCalling = false,
   speedMode = 'flash',
   avatarStyle: initialAvatarStyle = 'android_animated',
+  currentPose,
   onToggleStyle,
 }) => {
   const [currentStyle, setCurrentStyle] = useState<'android_animated' | 'realistic'>(initialAvatarStyle);
@@ -88,6 +90,7 @@ export const RealisticAvatar: React.FC<RealisticAvatarProps> = ({
           state={state}
           size={size}
           isCalling={isCalling}
+          currentPose={currentPose}
         />
 
         {/* Quick Style Switcher Pill */}
@@ -95,10 +98,10 @@ export const RealisticAvatar: React.FC<RealisticAvatarProps> = ({
           type="button"
           onClick={handleToggleStyle}
           title="Basculer vers le mode photo réaliste"
-          className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 text-[10px] font-semibold border border-slate-800 transition-colors"
+          className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-cyan-300 text-xs font-bold border border-slate-700 transition-colors shadow-sm"
         >
-          <Camera className="w-3 h-3 text-cyan-400" />
-          <span>Passer en Mode Photo</span>
+          <Camera className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Passer en Mode Photo Réaliste</span>
         </button>
       </div>
     );
@@ -219,15 +222,15 @@ export const RealisticAvatar: React.FC<RealisticAvatarProps> = ({
           <span>{stateBadge[state].label}</span>
         </div>
 
-        {/* Switch back to Android Character Animation Mode */}
+        {/* Switch back to Cartoon Animation Mode */}
         <button
           type="button"
           onClick={handleToggleStyle}
-          title="Basculer vers le mode animé Android"
-          className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-indigo-300 text-[10px] font-semibold border border-slate-800 transition-colors"
+          title="Basculer vers le mode dessin animé"
+          className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold border border-emerald-400/50 shadow-md shadow-emerald-950/40 transition-all hover:scale-102"
         >
-          <Bot className="w-3 h-3 text-indigo-400" />
-          <span>Passer en Mode Animé Android (Lèvres Actives)</span>
+          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+          <span>Activer le Vrai Dessin Animé (Avatar Fatou 2D)</span>
         </button>
       </div>
     </div>

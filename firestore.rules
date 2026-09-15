@@ -1,12 +1,22 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // User profiles: allow read and write for app users
+    // Profils utilisateurs
     match /user_profiles/{userId} {
       allow read, write: if true;
     }
 
-    // Default catch-all
+    // Forum et chats en direct des cours
+    match /course_chats/{messageId} {
+      allow read, write: if true;
+    }
+
+    // Document de vérification de connectivité
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    // Règle par défaut
     match /{document=**} {
       allow read, write: if true;
     }

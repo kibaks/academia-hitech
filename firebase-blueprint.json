@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "userProfile": {
+      "title": "UserProfile",
+      "description": "Profil utilisateur de la plateforme Academia iTech (apprenants, formateurs, administrateurs)",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifiant unique de l'utilisateur"
+        },
+        "name": {
+          "type": "string",
+          "description": "Nom complet de l'utilisateur",
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "description": "Adresse email de l'utilisateur",
+          "maxLength": 255
+        },
+        "role": {
+          "type": "string",
+          "description": "Rôle de l'utilisateur dans l'académie"
+        },
+        "avatar": {
+          "type": "string",
+          "description": "URL ou chemin de l'avatar"
+        },
+        "centerName": {
+          "type": "string",
+          "description": "Campus de rattachement"
+        },
+        "enrolledCourseIds": {
+          "type": "array",
+          "description": "Identifiants des cours inscrits"
+        },
+        "completedLessonIds": {
+          "type": "array",
+          "description": "Identifiants des leçons complétées"
+        },
+        "certificates": {
+          "type": "array",
+          "description": "Liste des certificats obtenus"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Horodatage de la dernière modification"
+        }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "courseChatMessage": {
+      "title": "CourseChatMessage",
+      "description": "Messages échangés dans le forum et chat direct enseignant-apprenant",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifiant unique du message"
+        },
+        "courseId": {
+          "type": "string",
+          "description": "Identifiant du cours associé"
+        },
+        "senderId": {
+          "type": "string",
+          "description": "Identifiant de l'auteur"
+        },
+        "senderName": {
+          "type": "string",
+          "description": "Nom complet de l'auteur",
+          "maxLength": 120
+        },
+        "senderRole": {
+          "type": "string",
+          "description": "Rôle de l'auteur"
+        },
+        "senderAvatar": {
+          "type": "string",
+          "description": "Avatar de l'auteur"
+        },
+        "content": {
+          "type": "string",
+          "description": "Contenu textuel du message",
+          "maxLength": 5000
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Date et heure du message"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Horodatage de création"
+        }
+      },
+      "required": ["id", "courseId", "senderId", "senderName", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/user_profiles/{userId}": {
+      "schema": "userProfile",
+      "description": "Profils des utilisateurs"
+    },
+    "/course_chats/{messageId}": {
+      "schema": "courseChatMessage",
+      "description": "Messages du forum et chat de cours"
+    }
+  }
+}

@@ -25,19 +25,51 @@ import {
 } from 'lucide-react';
 import { CourseVideoProject, TimelineClip } from '../../types';
 import { playTutorSpeech, stopTutorSpeech } from '../tutor/speechUtils';
+import { AndroidStyleCharacter } from '../tutor/AndroidStyleCharacter';
+import { TUTOR_PERSONAS } from '../tutor/personaData';
 
 interface GeneratedVideoPlayerProps {
   project: CourseVideoProject;
   lessonTitle?: string;
+  courseTitle?: string;
   onLessonComplete?: () => void;
   autoPlay?: boolean;
+  hasRawVideo?: boolean;
+  onSwitchToRawVideo?: () => void;
+  onOpenVideoStudio?: () => void;
+  canEdit?: boolean;
 }
+
+const isVideoSourceUrl = (url?: string, type?: string) => {
+  if (!url) return false;
+  if (type === 'video' || type === 'screen_recording') {
+    if (
+      url.match(/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i) ||
+      url.startsWith('blob:') ||
+      url.startsWith('data:video') ||
+      url.includes('commondatastorage.googleapis.com')
+    ) {
+      return true;
+    }
+  }
+  return Boolean(
+    url.match(/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i) ||
+    url.startsWith('blob:') ||
+    url.startsWith('data:video') ||
+    url.includes('commondatastorage.googleapis.com')
+  );
+};
 
 export const GeneratedVideoPlayer: React.FC<GeneratedVideoPlayerProps> = ({
   project,
   lessonTitle,
+  courseTitle,
   onLessonComplete,
   autoPlay = false,
+  hasRawVideo = false,
+  onSwitchToRawVideo,
+  onOpenVideoStudio,
+  canEdit = false,
 }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
@@ -51,11 +83,13 @@ export const GeneratedVideoPlayer: React.FC<GeneratedVideoPlayerProps> = ({
   const [quizSelectedOption, setQuizSelectedOption] = useState<number | null>(null);
   const [quizAnsweredCorrectly, setQuizAnsweredCorrectly] = useState<boolean | null>(null);
   const [answeredQuizIds, setAnsweredQuizIds] = useState<Set<string>>(new Set());
+  const [pipAvatarStyle, setPipAvatarStyle] = useState<'cartoon' | 'photo'>('cartoon');
 
   // Show controls on hover
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const videoElementRef = useRef<HTMLVideoElement | null>(null);
 
   // Playhead animation loop
   const animationFrameRef = useRef<number | null>(null);
@@ -71,23 +105,69 @@ export const GeneratedVideoPlayer: React.FC<GeneratedVideoPlayerProps> = ({
   };
 
   // Find active clips at currentTime
-  const activeClips = project.clips.filter(
+  const activeClips = (project.clips || []).filter(
     (c) => currentTime >= c.startSeconds && currentTime < c.startSeconds + c.durationSeconds
   );
   const activeVideoClip = activeClips.find((c) => c.trackId === 'track-video');
   const activeAvatarClip = activeClips.find((c) => c.trackId === 'track-avatar');
   const activeTextClip = activeClips.find((c) => c.trackId === 'track-text');
 
+  // Synchronize underlying video element if active clip is a video
+  useEffect(() => {
+    if (videoElementRef.current && activeVideoClip && isVideoSourceUrl(activeVideoClip.sourceUrl, activeVideoClip.type)) {
+      const clipOffset = Math.max(0, currentTime - activeVideoClip.startSeconds);
+      if (Math.abs(videoElementRef.current.currentTime - clipOffset) > 0.45) {
+        videoElementRef.current.currentTime = clipOffset;
+      }
+      videoElementRef.current.playbackRate = playbackRate;
+      videoElementRef.current.muted = isMuted;
+
+      if (isPlaying) {
+        videoElementRef.current.play().catch(() => {});
+      } else {
+        videoElementRef.current.pause();
+      }
+    }
+  }, [isPlaying, currentTime, activeVideoClip, playbackRate, isMuted]);
+
   // Check for quiz checkpoint
   useEffect(() => {
     const quizClip = activeClips.find((c) => c.trackId === 'track-quiz' && c.quizData);
     if (quizClip && !answeredQuizIds.has(quizClip.id) && !activeQuizClip) {
       setIsPlaying(false);
+      if (videoElementRef.current) videoElementRef.current.pause();
       setActiveQuizClip(quizClip);
       setQuizSelectedOption(null);
       setQuizAnsweredCorrectly(null);
     }
   }, [currentTime, activeClips, answeredQuizIds, activeQuizClip]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        handleTogglePlay();
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        handleSeek(currentTime + 5);
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        handleSeek(currentTime - 5);
+      } else if (e.code === 'KeyM') {
+        e.preventDefault();
+        setIsMuted((prev) => !prev);
+      } else if (e.code === 'KeyF') {
+        e.preventDefault();
+        handleToggleFullscreen();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPlaying, hasEnded, currentTime, isFullscreen, isMuted, project.totalDurationSeconds]);
 
   // Voiceover playback when avatar clip enters
   useEffect(() => {
@@ -209,6 +289,54 @@ export const GeneratedVideoPlayer: React.FC<GeneratedVideoPlayerProps> = ({
         isFullscreen ? 'fixed inset-0 z-50 rounded-none h-screen' : ''
       }`}
     >
+      {/* Top Floating Badge & Action Bar */}
+      <div className="absolute top-3 inset-x-3 z-35 flex items-center justify-between gap-2 pointer-events-auto">
+        <div className="flex items-center gap-2">
+          <span className="px-2.5 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-wider bg-slate-900/85 backdrop-blur-md text-pink-300 border border-pink-500/30 flex items-center gap-1.5 shadow-md">
+            <Sparkles className="w-3.5 h-3.5 text-pink-400" />
+            <span>
+              {project.theme === 'cartoon' || project.theme === 'comic' || project.theme === 'whiteboard'
+                ? 'Cours Dessin Animé Illustré • Rendu Apprenant'
+                : canEdit
+                ? 'Montage Enseignant • Studio ITECH'
+                : 'Cours Vidéo Pédagogique'}
+            </span>
+          </span>
+
+          {hasEnded && (
+            <span className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+              <Check className="w-3 h-3 text-emerald-400" />
+              <span>Complétée (+50 XP)</span>
+            </span>
+          )}
+        </div>
+
+        {/* Action buttons: Switch to raw video or edit in studio */}
+        <div className="flex items-center gap-2">
+          {hasRawVideo && onSwitchToRawVideo && (
+            <button
+              type="button"
+              onClick={onSwitchToRawVideo}
+              className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-sky-300 hover:text-white text-xs font-bold border border-sky-500/30 flex items-center gap-1.5 backdrop-blur-md transition-all shadow-md"
+            >
+              <Film className="w-3.5 h-3.5 text-sky-400" />
+              <span>Voir la Vidéo Source</span>
+            </button>
+          )}
+
+          {canEdit && onOpenVideoStudio && (
+            <button
+              type="button"
+              onClick={onOpenVideoStudio}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all hover:scale-105"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>Modifier le Montage</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* 16:9 VIDEO CANVAS */}
       <div className="relative aspect-video w-full bg-black overflow-hidden flex items-center justify-center">
         {/* Layer 1: Background Video Clip / B-Roll */}
@@ -220,19 +348,32 @@ export const GeneratedVideoPlayer: React.FC<GeneratedVideoPlayerProps> = ({
             transition={{ duration: 0.2 }}
             className="absolute inset-0 w-full h-full"
           >
-            <img
-              src={
-                activeVideoClip.sourceUrl ||
-                'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&auto=format&fit=crop&q=80'
-              }
-              alt={activeVideoClip.title}
-              className="w-full h-full object-cover"
-              style={{
-                transform: `scale(${activeVideoClip.transform?.scale || 1})`,
-              }}
-            />
+            {isVideoSourceUrl(activeVideoClip.sourceUrl, activeVideoClip.type) ? (
+              <video
+                ref={videoElementRef}
+                src={activeVideoClip.sourceUrl}
+                muted={isMuted}
+                playsInline
+                className="w-full h-full object-cover"
+                style={{
+                  transform: `scale(${activeVideoClip.transform?.scale || 1})`,
+                }}
+              />
+            ) : (
+              <img
+                src={
+                  activeVideoClip.sourceUrl ||
+                  'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&auto=format&fit=crop&q=80'
+                }
+                alt={activeVideoClip.title}
+                className="w-full h-full object-cover"
+                style={{
+                  transform: `scale(${activeVideoClip.transform?.scale || 1})`,
+                }}
+              />
+            )}
             {/* Cinematic gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/40" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/40 pointer-events-none" />
           </motion.div>
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 text-slate-500">
@@ -270,6 +411,25 @@ export const GeneratedVideoPlayer: React.FC<GeneratedVideoPlayerProps> = ({
                     <code>{activeTextClip.codeContent.code}</code>
                   </pre>
                 </div>
+              ) : activeTextClip.bubbleStyle || activeTextClip.comicBadge ? (
+                <div className="relative p-3.5 sm:p-4 rounded-2xl bg-amber-50 text-slate-950 border-3 border-slate-900 shadow-[5px_5px_0px_0px_rgba(15,23,42,1)] select-none">
+                  {activeTextClip.comicBadge && (
+                    <span className="inline-block px-2.5 py-0.5 rounded-md bg-pink-600 text-white text-[10px] font-black uppercase tracking-wider mb-1.5 shadow-xs border border-pink-700">
+                      {activeTextClip.comicBadge}
+                    </span>
+                  )}
+                  <h3 className="font-black text-sm sm:text-base md:text-lg text-slate-950 tracking-tight leading-snug">
+                    {activeTextClip.textContent}
+                  </h3>
+                  {activeTextClip.textSubtitle && (
+                    <p className="text-xs text-slate-800 font-bold mt-1 leading-normal">
+                      {activeTextClip.textSubtitle}
+                    </p>
+                  )}
+                  {/* Comic bubble arrow */}
+                  <div className="absolute -bottom-2.5 left-7 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[11px] border-t-slate-900" />
+                  <div className="absolute -bottom-1.5 left-[30px] w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[9px] border-t-amber-50" />
+                </div>
               ) : (
                 <div
                   className="p-3 sm:p-4 rounded-xl shadow-2xl backdrop-blur-md border border-white/10"
@@ -300,49 +460,99 @@ export const GeneratedVideoPlayer: React.FC<GeneratedVideoPlayerProps> = ({
 
         {/* Layer 3: Trainer Avatar PiP (Incrustation Formateur) */}
         <AnimatePresence>
-          {activeAvatarClip && (
-            <motion.div
-              key={activeAvatarClip.id}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: activeAvatarClip.transform?.scale ?? 0.85, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              className={`absolute z-30 pointer-events-none ${
-                activeAvatarClip.transform?.pipPosition === 'bottom-left'
-                  ? 'bottom-16 left-4'
-                  : activeAvatarClip.transform?.pipPosition === 'top-right'
-                  ? 'top-4 right-4'
-                  : activeAvatarClip.transform?.pipPosition === 'top-left'
-                  ? 'top-4 left-4'
-                  : 'bottom-16 right-4'
-              }`}
-            >
-              <div className="relative group">
-                <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full p-1 bg-gradient-to-tr from-indigo-500 via-purple-500 to-amber-400 shadow-2xl">
-                  <img
-                    src={
-                      activeAvatarClip.sourceUrl ||
-                      activeAvatarClip.voiceoverData?.characterAvatar ||
-                      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80'
-                    }
-                    alt={activeAvatarClip.title}
-                    className="w-full h-full rounded-full object-cover border-2 border-slate-900"
-                  />
-                </div>
+          {activeAvatarClip && (() => {
+            const charName = activeAvatarClip.voiceoverData?.characterName || project.leadCharacterName || 'Robot Android ITECH';
+            const matchedPersona = TUTOR_PERSONAS.find(
+              (p) =>
+                p.name.toLowerCase().includes(charName.toLowerCase().split(' ')[0]) ||
+                charName.toLowerCase().includes(p.name.toLowerCase().split(' ')[0])
+            ) || TUTOR_PERSONAS[0];
 
-                {/* Animated speaker badge */}
-                {isPlaying && (
-                  <div className="absolute -top-1 -right-1 bg-emerald-500 text-white p-1 rounded-full shadow-md flex items-center justify-center animate-pulse">
-                    <Volume2 className="w-3.5 h-3.5" />
+            return (
+              <motion.div
+                key={activeAvatarClip.id}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: activeAvatarClip.transform?.scale ?? 0.85, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                className={`absolute z-30 pointer-events-auto ${
+                  activeAvatarClip.transform?.pipPosition === 'bottom-left'
+                    ? 'bottom-16 left-4'
+                    : activeAvatarClip.transform?.pipPosition === 'top-right'
+                    ? 'top-4 right-4'
+                    : activeAvatarClip.transform?.pipPosition === 'top-left'
+                    ? 'top-4 left-4'
+                    : 'bottom-16 right-4'
+                }`}
+              >
+                {pipAvatarStyle === 'cartoon' ? (
+                  <div className="relative flex flex-col items-center">
+                    <div className="w-24 h-28 sm:w-28 sm:h-32 rounded-2xl p-1 bg-slate-950/90 border-2 border-emerald-500/50 shadow-2xl backdrop-blur-md flex items-center justify-center overflow-hidden">
+                      <AndroidStyleCharacter
+                        persona={matchedPersona}
+                        state={isPlaying ? 'speaking' : 'idle'}
+                        size="sm"
+                        currentPose={isPlaying ? 'explaining' : 'waving'}
+                        showBadge={false}
+                        showVoiceWaves={false}
+                      />
+                    </div>
+                    {/* Style switcher & name pill */}
+                    <div className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-950/90 border border-emerald-500/50 text-[10px] font-bold text-emerald-300 shadow-md">
+                      <span className="truncate max-w-[90px]">{charName}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPipAvatarStyle('photo');
+                        }}
+                        title="Passer en photo"
+                        className="text-slate-400 hover:text-white"
+                      >
+                        📷
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative group">
+                    <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full p-1 bg-gradient-to-tr from-indigo-500 via-purple-500 to-amber-400 shadow-2xl">
+                      <img
+                        src={
+                          activeAvatarClip.sourceUrl ||
+                          activeAvatarClip.voiceoverData?.characterAvatar ||
+                          'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80'
+                        }
+                        alt={activeAvatarClip.title}
+                        className="w-full h-full rounded-full object-cover border-2 border-slate-900"
+                      />
+                    </div>
+
+                    {/* Animated speaker badge */}
+                    {isPlaying && (
+                      <div className="absolute -top-1 -right-1 bg-emerald-500 text-white p-1 rounded-full shadow-md flex items-center justify-center animate-pulse">
+                        <Volume2 className="w-3.5 h-3.5" />
+                      </div>
+                    )}
+
+                    {/* Trainer Name Pill & switch to cartoon */}
+                    <div className="absolute -bottom-2 inset-x-0 mx-auto w-max max-w-[140px] px-2 py-0.5 rounded-full bg-slate-900/95 border border-slate-700 text-[10px] font-bold text-slate-200 text-center truncate shadow-md flex items-center gap-1">
+                      <span className="truncate max-w-[85px]">{charName}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPipAvatarStyle('cartoon');
+                        }}
+                        title="Activer l'avatar Robot Android ITECH"
+                        className="text-emerald-400 hover:text-emerald-200 font-bold"
+                      >
+                        🤖 Robot
+                      </button>
+                    </div>
                   </div>
                 )}
-
-                {/* Trainer Name Pill */}
-                <div className="absolute -bottom-2 inset-x-0 mx-auto w-max max-w-[130px] px-2 py-0.5 rounded-full bg-slate-900/90 border border-slate-700 text-[10px] font-bold text-slate-200 text-center truncate shadow-md">
-                  {activeAvatarClip.voiceoverData?.characterName || 'Formateur Expert'}
-                </div>
-              </div>
-            </motion.div>
-          )}
+              </motion.div>
+            );
+          })()}
         </AnimatePresence>
 
         {/* Big Center Play/Pause button on Click/Tap */}
@@ -610,23 +820,50 @@ export const GeneratedVideoPlayer: React.FC<GeneratedVideoPlayerProps> = ({
         </div>
 
         {/* Quick jump to chapter markers */}
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          {project.clips
-            .filter((c) => c.trackId === 'track-video')
-            .map((clip, index) => (
-              <button
-                key={clip.id}
-                type="button"
-                onClick={() => handleSeek(clip.startSeconds)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
-                  currentTime >= clip.startSeconds && currentTime < clip.startSeconds + clip.durationSeconds
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
-                }`}
-              >
-                Partie {index + 1}
-              </button>
-            ))}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar max-w-full sm:max-w-md">
+          {project.markers && project.markers.length > 0
+            ? project.markers.map((marker, index) => {
+                const nextMarkerTime =
+                  index < project.markers!.length - 1
+                    ? project.markers![index + 1].timeSeconds
+                    : project.totalDurationSeconds;
+                const isActive = currentTime >= marker.timeSeconds && currentTime < nextMarkerTime;
+                return (
+                  <button
+                    key={marker.id}
+                    type="button"
+                    onClick={() => handleSeek(marker.timeSeconds)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all flex items-center gap-1 shrink-0 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xs scale-102'
+                        : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: marker.color || '#a855f7' }}
+                    />
+                    <span>{marker.label}</span>
+                  </button>
+                );
+              })
+            : project.clips
+                .filter((c) => c.trackId === 'track-video')
+                .map((clip, index) => (
+                  <button
+                    key={clip.id}
+                    type="button"
+                    onClick={() => handleSeek(clip.startSeconds)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                      currentTime >= clip.startSeconds &&
+                      currentTime < clip.startSeconds + clip.durationSeconds
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
+                    }`}
+                  >
+                    Partie {index + 1}
+                  </button>
+                ))}
         </div>
       </div>
     </div>

@@ -168,6 +168,25 @@ export const VideoMonitor: React.FC<VideoMonitorProps> = ({
                       <code>{activeTextClip.codeContent.code}</code>
                     </pre>
                   </div>
+                ) : activeTextClip.bubbleStyle || activeTextClip.comicBadge ? (
+                  <div className="relative p-3.5 sm:p-4 rounded-2xl bg-amber-50 text-slate-950 border-3 border-slate-900 shadow-[5px_5px_0px_0px_rgba(15,23,42,1)] select-none">
+                    {activeTextClip.comicBadge && (
+                      <span className="inline-block px-2.5 py-0.5 rounded-md bg-pink-600 text-white text-[10px] font-black uppercase tracking-wider mb-1.5 shadow-xs border border-pink-700">
+                        {activeTextClip.comicBadge}
+                      </span>
+                    )}
+                    <h3 className="font-black text-sm sm:text-base md:text-lg text-slate-950 tracking-tight leading-snug">
+                      {activeTextClip.textContent}
+                    </h3>
+                    {activeTextClip.textSubtitle && (
+                      <p className="text-xs text-slate-800 font-bold mt-1 leading-normal">
+                        {activeTextClip.textSubtitle}
+                      </p>
+                    )}
+                    {/* Comic bubble arrow */}
+                    <div className="absolute -bottom-2.5 left-7 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[11px] border-t-slate-900" />
+                    <div className="absolute -bottom-1.5 left-[30px] w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[9px] border-t-amber-50" />
+                  </div>
                 ) : (
                   <div
                     className="p-3.5 rounded-xl shadow-2xl backdrop-blur-md border border-white/10"

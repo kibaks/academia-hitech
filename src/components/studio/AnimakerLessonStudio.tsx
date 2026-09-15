@@ -11,6 +11,7 @@ import { TUTOR_PERSONAS } from '../tutor/personaData';
 import { AndroidStyleCharacter } from '../tutor/AndroidStyleCharacter';
 import { playTutorSpeech } from '../tutor/speechUtils';
 import { ANIMAKER_MOTION_PRESETS } from '../../data/templatesData';
+import { PowerPointMotionBoard, PowerPointSlideData } from '../tutor/PowerPointMotionBoard';
 import {
   Play,
   Pause,
@@ -73,6 +74,15 @@ export interface AnimakerLessonStudioProps {
 // Preset characters with specialized animations and avatars
 export const ANIMAKER_CHARACTERS = [
   {
+    id: 'itech-droid',
+    name: 'Robot Android ITECH',
+    role: 'Tuteur Robot Android & Motions PowerPoint',
+    avatar: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=300&auto=format&fit=crop&q=80',
+    gender: 'female' as const,
+    color: '#22c55e',
+    specialty: 'Robot Pédagogique, Voix Synchrone & Diapositives PowerPoint Motion',
+  },
+  {
     id: 'alex-chen',
     name: 'Alex Chen',
     role: 'Expert HSE & Sécurité Usine',
@@ -80,15 +90,6 @@ export const ANIMAKER_CHARACTERS = [
     gender: 'male' as const,
     color: '#eab308',
     specialty: 'Prévention des Risques, EPI & LOTO',
-  },
-  {
-    id: 'fatou-sow',
-    name: 'Fatou Sow',
-    role: 'Lead Data & IA Générative',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80',
-    gender: 'female' as const,
-    color: '#0284c7',
-    specialty: 'Transformers, Embeddings & RAG',
   },
   {
     id: 'landry-bakweto',
@@ -247,6 +248,7 @@ export const AnimakerLessonStudio: React.FC<AnimakerLessonStudioProps> = ({
   const [viewMode, setViewMode] = useState<'editor' | 'preview'>(readOnly ? 'preview' : 'editor');
   const [activeInspectorTab, setActiveInspectorTab] = useState<'montage' | 'dialogue' | 'character' | 'board' | 'quiz'>('montage');
   const [showCaptions, setShowCaptions] = useState(true);
+  const [usePowerPointBoard, setUsePowerPointBoard] = useState(true);
 
   // AI Prompt State
   const [aiTopicPrompt, setAiTopicPrompt] = useState('Formation Sécurité Usine : Règles EPI, Protecteurs Machine & Déversements');
@@ -760,7 +762,102 @@ export const AnimakerLessonStudio: React.FC<AnimakerLessonStudioProps> = ({
 
           {/* MAIN GRAPHICS BOARD AREA */}
           <div className="relative z-10 w-full mb-6">
-            {activeScene.boardContent && (
+            {/* Display Mode Switcher: PowerPoint Motion vs Standard */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/60 backdrop-blur-md border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setUsePowerPointBoard(true)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    usePowerPointBoard
+                      ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Diaporama PowerPoint Motion</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUsePowerPointBoard(false)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    !usePowerPointBoard
+                      ? 'bg-slate-700 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Layout className="w-3.5 h-3.5" />
+                  <span>Vue Tableau Simple</span>
+                </button>
+              </div>
+
+              {activeScene.pose === 'pointing' && (
+                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-950/80 border border-red-500/50 text-red-300 text-[11px] font-bold animate-pulse">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                  <span>Laser Pointeur Robot Actif</span>
+                </div>
+              )}
+            </div>
+
+            {usePowerPointBoard ? (
+              <PowerPointMotionBoard
+                activeSlideData={{
+                  id: `pp-slide-${activeScene.id}`,
+                  title: activeScene.boardContent?.title || activeScene.title,
+                  subtitle: activeScene.boardContent?.type
+                    ? `Animation Motion Diapositive • ${activeScene.boardContent.type.replace('_', ' ')}`
+                    : 'Animation Motion PowerPoint Synchronisée',
+                  type:
+                    activeScene.boardContent?.type === 'correct_incorrect'
+                      ? 'correct_incorrect'
+                      : activeScene.boardContent?.type === 'numbered_steps'
+                      ? 'numbered_steps'
+                      : activeScene.boardContent?.type === 'four_grid'
+                      ? 'four_grid'
+                      : 'three_cards',
+                  cards:
+                    activeScene.boardContent?.cards && activeScene.boardContent.cards.length > 0
+                      ? activeScene.boardContent.cards.map((c) => ({
+                          title: c.title,
+                          desc: c.subtitle || c.category || 'Point clé',
+                          badge: c.category,
+                        }))
+                      : [
+                          { title: 'Étape 1 : Diagnostic', desc: 'Vérification préalable du poste de travail et des flux', badge: 'Init' },
+                          { title: 'Étape 2 : Sécurité', desc: 'Application stricte des protocoles et normes', badge: 'Action' },
+                          { title: 'Étape 3 : Validation', desc: 'Clôture et enregistrement de conformité', badge: 'Succès' },
+                        ],
+                  gridItems:
+                    activeScene.boardContent?.gridItems && activeScene.boardContent.gridItems.length > 0
+                      ? activeScene.boardContent.gridItems.map((item) => ({
+                          title: item.title,
+                          desc: item.desc,
+                          badge: item.badge,
+                        }))
+                      : undefined,
+                  correctPoints: activeScene.boardContent?.correctPoints || [
+                    'Port complet des EPI obligatoires',
+                    'Vérification visuelle des dispositifs de coupure',
+                    'Consignation physique avec cadenas personnel',
+                  ],
+                  incorrectPoints: activeScene.boardContent?.incorrectPoints || [
+                    'Intervention sans coupure d’énergie préalable',
+                    'Désactivation manuelle des protecteurs de machines',
+                    'Non-signalisation de la zone de maintenance',
+                  ],
+                  steps:
+                    activeScene.boardContent?.type === 'numbered_steps' && activeScene.boardContent.steps
+                      ? activeScene.boardContent.steps.map((st) => ({
+                          title: st.title,
+                          desc: st.desc,
+                        }))
+                      : undefined,
+                  speakerNotes: activeScene.dialogueText,
+                  highlightText: activeScene.boardContent?.highlightText,
+                }}
+              />
+            ) : (
+              activeScene.boardContent && (
               <div
                 className={`p-5 sm:p-6 rounded-2xl border transition-all duration-300 ${activeBg.boardClass}`}
               >
@@ -968,6 +1065,7 @@ export const AnimakerLessonStudio: React.FC<AnimakerLessonStudioProps> = ({
                   </div>
                 )}
               </div>
+            )
             )}
 
             {/* MINI QUIZ CARD (IF PRESENT) */}
@@ -1041,11 +1139,29 @@ export const AnimakerLessonStudio: React.FC<AnimakerLessonStudioProps> = ({
                   persona={matchedPersona}
                   state={isSpeaking ? 'speaking' : 'idle'}
                   size="md"
+                  characterModel="android_robot"
+                  currentPose={
+                    activeScene.pose === 'waving'
+                      ? 'waving'
+                      : activeScene.pose === 'pointing'
+                      ? 'pointing'
+                      : activeScene.pose === 'celebrating'
+                      ? 'celebrating'
+                      : activeScene.pose === 'warning' || activeScene.pose === 'alert_danger'
+                      ? 'thinking'
+                      : isSpeaking
+                      ? 'explaining'
+                      : 'neutral'
+                  }
                   interactiveMood={
                     activeScene.pose === 'celebrating' || activeScene.pose === 'thumbs_up'
                       ? 'celebrating'
                       : activeScene.pose === 'alert_danger' || activeScene.pose === 'warning'
                       ? 'focused'
+                      : activeScene.pose === 'waving'
+                      ? 'waving'
+                      : activeScene.pose === 'pointing'
+                      ? 'pointing'
                       : 'explaining'
                   }
                 />

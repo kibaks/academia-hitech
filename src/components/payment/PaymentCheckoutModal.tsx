@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Course, CourseOrder, PaymentGatewayConfig, PaymentGatewayId, UserProfile } from '../../types';
+import { Course, CourseOrder, Lesson, PaymentGatewayConfig, PaymentGatewayId, UserProfile } from '../../types';
 import { useCurrency } from '../../context/CurrencyContext';
 import { getStoredPaymentGateways, getStoredOrders, saveStoredOrders, DEFAULT_PAYMENT_GATEWAYS } from '../../lib/paymentGateways';
 import { RdcPaymentLogo, RdcPaymentBadgesRow } from './RdcPaymentLogo';
@@ -37,14 +37,16 @@ import {
 
 interface PaymentCheckoutModalProps {
   course: Course;
+  targetLesson?: Lesson;
   currentUser?: UserProfile;
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (order: CourseOrder) => void;
+  onSuccess: (order: CourseOrder, unlockedLessonId?: string) => void;
 }
 
 export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
   course,
+  targetLesson,
   currentUser,
   isOpen,
   onClose,
@@ -110,11 +112,12 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
     gateways[0] ||
     DEFAULT_PAYMENT_GATEWAYS[0];
 
-  // Pricing calculations
-  const rawPriceUSD = course.price || 40;
+  // Pricing calculations: either course price or single-lesson price
+  const isLessonPurchase = !!targetLesson;
+  const rawPriceUSD = isLessonPurchase ? (targetLesson.lessonPrice || 5) : (course.price || 40);
   const discountedPriceUSD = appliedDiscount > 0 ? rawPriceUSD * (1 - appliedDiscount / 100) : rawPriceUSD;
   const localPrice = convertPrice(discountedPriceUSD);
-  const originalLocalPrice = course.originalPrice ? convertPrice(course.originalPrice) : null;
+  const originalLocalPrice = !isLessonPurchase && course.originalPrice ? convertPrice(course.originalPrice) : null;
 
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,6 +188,8 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
           userName: currentUser?.name || 'Apprenant ITECH',
           courseId: course.id,
           courseTitle: course.title,
+          unlockedLessonId: targetLesson?.id,
+          lessonTitle: targetLesson?.title,
           amountUSD: discountedPriceUSD,
           paidAmount: Math.round(localPrice),
           paidCurrency: currencyCode,
@@ -264,6 +269,8 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
             userName: currentUser?.name || 'Étudiant ITECH',
             courseId: course.id,
             courseTitle: course.title,
+            unlockedLessonId: targetLesson?.id,
+            lessonTitle: targetLesson?.title,
             amountUSD: discountedPriceUSD,
             paidAmount: Math.round(localPrice),
             paidCurrency: currencyCode,
@@ -416,13 +423,13 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
               <button
                 onClick={() => {
                   if (completedOrder) {
-                    onSuccess(completedOrder);
+                    onSuccess(completedOrder, completedOrder.unlockedLessonId);
                   }
                   onClose();
                 }}
                 className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm shadow-sky-500/20 active:scale-95 transition-all"
               >
-                <span>Accéder au Cours Maintenant</span>
+                <span>{targetLesson ? 'Accéder à la Leçon Débloquée' : 'Accéder au Cours Maintenant'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -441,22 +448,29 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
                   />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                      <span className="font-bold text-sky-700 uppercase bg-sky-100/80 px-1.5 py-0.2 rounded text-[9px]">
-                        {course.category.replace('_', ' ')}
-                      </span>
+                      {targetLesson ? (
+                        <span className="font-bold text-amber-700 uppercase bg-amber-100/90 px-1.5 py-0.5 rounded text-[9px] flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5" />
+                          Leçon Premium Payante
+                        </span>
+                      ) : (
+                        <span className="font-bold text-sky-700 uppercase bg-sky-100/80 px-1.5 py-0.2 rounded text-[9px]">
+                          {course.category.replace('_', ' ')}
+                        </span>
+                      )}
                       <span>•</span>
                       <span className="flex items-center gap-0.5">
                         <Clock className="w-2.5 h-2.5 text-slate-400" />
-                        {course.durationHours}h
+                        {targetLesson ? `${targetLesson.durationMinutes} min` : `${course.durationHours}h`}
                       </span>
                       <span className="hidden sm:inline">•</span>
                       <span className="hidden sm:inline text-emerald-600 font-semibold flex items-center gap-0.5">
                         <Award className="w-3 h-3" />
-                        Certifié
+                        {targetLesson ? 'Atelier Pratique' : 'Certifié'}
                       </span>
                     </div>
                     <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate leading-snug">
-                      {course.title}
+                      {targetLesson ? `Leçon : ${targetLesson.title}` : course.title}
                     </h4>
                   </div>
                 </div>

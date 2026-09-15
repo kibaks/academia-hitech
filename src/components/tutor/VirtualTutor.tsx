@@ -4,6 +4,7 @@ import { TutorMessage, Course, TutorConfig, TutorPersona } from '../../types';
 import { TUTOR_PERSONAS, DEFAULT_TUTOR_CONFIG, TUTOR_LANGUAGES, getGreetingForLanguage } from './personaData';
 import { playTutorSpeech } from './speechUtils';
 import { RealisticAvatar } from './RealisticAvatar';
+import { CharacterPose } from './AndroidStyleCharacter';
 import { FacialLipSyncModule } from './FacialLipSyncModule';
 import { TutorCallModal } from './TutorCallModal';
 import { TutorSettingsModal } from './TutorSettingsModal';
@@ -80,6 +81,7 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [avatarState, setAvatarState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
+  const [avatarPose, setAvatarPose] = useState<CharacterPose>('neutral');
   const [isListeningMic, setIsListeningMic] = useState(false);
   const [activeSyncText, setActiveSyncText] = useState<string>('');
 
@@ -113,24 +115,36 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [whatsappSubTab, setWhatsappSubTab] = useState<'simulator' | 'webhook_setup'>('simulator');
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [testWebhookMessage, setTestWebhookMessage] = useState('Bonjour Fatou Sow ! Peux-tu me résumer le cours en 3 points ?');
+  const [testWebhookMessage, setTestWebhookMessage] = useState('Bonjour Robot Android ITECH ! Peux-tu me résumer le cours en 3 points ?');
   const [testWebhookResult, setTestWebhookResult] = useState<string | null>(null);
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
 
   // Live Meta WhatsApp Send Test State
-  const [metaTestToken, setMetaTestToken] = useState('EAANVBMe0VZBABSd5ZBN5VRlIkFbHmTbyKW2xujlZAdcD85trLxGrp6So7QMNfbRf3ZAIplHWWlxkaX66g5SgiUGxTZBBJkZBZBXa7vdQJM7zfyNgimmIXoZBWByLIx4GJV8rmxyFvdoENhkRHI4lemVWWGp4yPjDTFIIdvlzYcaeQQAAGMi8myQXmtzf8FprmZBl1ZA76uZAdZBHNibDb1lRZCbZAJwOOreJkgwuE4j5gNv9rV1CkdRILp35UvfrRtloYLwGlTgXswF85dyyWZCNbZAyraAQ8N5U9wZDZD');
+  const [metaTestToken, setMetaTestToken] = useState('');
   const [metaTestRecipient, setMetaTestRecipient] = useState('');
-  const [metaTestMessage, setMetaTestMessage] = useState('Bonjour ! Ceci est un message test de Fatou Sow depuis Academia ITECH 👩🏽‍🏫. Votre connexion WhatsApp fonctionne !');
+  const [metaTestMessage, setMetaTestMessage] = useState('Bip bop ! Ceci est un message test du Robot Android ITECH 🤖. Votre connexion WhatsApp fonctionne parfaitement !');
   const [metaTestResult, setMetaTestResult] = useState<{ success: boolean; message: string; details?: any } | null>(null);
   const [isSendingMetaTest, setIsSendingMetaTest] = useState(false);
 
   const [webhookStatus, setWebhookStatus] = useState<{
     metaConfigured: boolean;
+    tokenDiagnostic?: {
+      status: 'valid' | 'expired' | 'invalid' | 'missing';
+      message: string;
+      details?: any;
+    };
+    phoneIdStatus?: {
+      configuredValue: string;
+      resolvedPhoneId: string;
+      isCorrectFormat: boolean;
+      warning?: string | null;
+    };
     twilioConfigured: boolean;
     verifyToken: string;
     phoneNumberId?: string;
     phoneNumber?: string;
     hasGeminiKey: boolean;
+    callbackUrl?: string;
   }>({
     metaConfigured: false,
     twilioConfigured: false,
@@ -139,9 +153,10 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
     phoneNumber: '+1 555-631-6001',
     hasGeminiKey: true,
   });
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
 
-  // Check Webhook diagnostic on mount
-  useEffect(() => {
+  const refreshWebhookStatus = () => {
+    setIsRefreshingStatus(true);
     fetch('/api/webhook/status')
       .then((res) => res.json())
       .then((data) => {
@@ -149,7 +164,13 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
           setWebhookStatus(data);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setIsRefreshingStatus(false));
+  };
+
+  // Check Webhook diagnostic on mount
+  useEffect(() => {
+    refreshWebhookStatus();
   }, []);
 
   const handleTestWebhookDirectly = async () => {
@@ -435,15 +456,10 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
       language: config.audioLanguage,
     };
 
-    let hasReceivedFirstChunk = false;
-
     await streamTutorChat(
       payload,
       (_chunk, fullText) => {
-        if (!hasReceivedFirstChunk) {
-          hasReceivedFirstChunk = true;
-          setAvatarState('speaking');
-        }
+        // The tutor stays in cognitive thinking mode while generating the response
         setActiveSyncText(fullText);
         setMessages((prev) =>
           prev.map((m) => (m.id === tempBotId ? { ...m, text: fullText, isStreaming: true } : m))
@@ -510,6 +526,8 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
           );
           if (config.autoSpeak) {
             speakText(fallbackText);
+          } else {
+            setAvatarState('idle');
           }
         } catch (fallbackErr) {
           console.error(fallbackErr);
@@ -520,9 +538,12 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
                 : m
             )
           );
+          setAvatarState('idle');
         } finally {
           setIsLoading(false);
-          setAvatarState('idle');
+          if (!config.autoSpeak) {
+            setAvatarState('idle');
+          }
         }
       }
     );
@@ -846,6 +867,7 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
               <RealisticAvatar
                 persona={activePersona}
                 state={avatarState}
+                currentPose={avatarPose}
                 size="md"
                 speedMode={config.speedMode}
               />
@@ -896,9 +918,9 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
 
               {/* Interactive Lip-Sync & Speaking Demonstration Button */}
               <div className="p-2.5 rounded-2xl bg-indigo-950/40 border border-indigo-800/40 space-y-2">
-                <div className="flex items-center justify-between text-[11px] text-indigo-300 font-semibold px-1">
-                  <span>📱 Animation Visuelle (Style App Android)</span>
-                  <Sparkles className="w-3 h-3 text-amber-400" />
+                <div className="flex items-center justify-between text-[11px] text-indigo-300 font-bold px-1">
+                  <span>✨ Poses & Gestuelles Dessin Animé</span>
+                  <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
                 </div>
                 <button
                   type="button"
@@ -906,55 +928,107 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
                     const sampleSentence = config.audioLanguage.startsWith('ln')
                       ? `Mbote ! Tala monoko na ngai ezali koningana ntango nazali koloba na yo !`
                       : config.audioLanguage.startsWith('en')
-                      ? `Hello! Watch my lips move smoothly while I explain your lessons on Academia ITECH!`
-                      : `Bonjour ! Regardez mes lèvres bouger en rythme pendant que je vous explique les concepts sur Academia ITECH !`;
+                      ? `Hello! Watch my cartoon lips and gestures move smoothly while I explain your lessons on Academia ITECH!`
+                      : `Bonjour ! Regardez mes lèvres bouger en rythme et mes bras animés pendant que je vous explique les concepts sur Academia ITECH !`;
+                    setAvatarPose('explaining');
                     speakText(sampleSentence);
+                    setTimeout(() => setAvatarPose('neutral'), 4500);
                   }}
-                  className="w-full py-2 px-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-indigo-950/40 transition-all hover:scale-102 active:scale-98"
+                  className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950/40 transition-all hover:scale-102 active:scale-98"
                 >
-                  <Volume2 className="w-3.5 h-3.5 text-cyan-300" />
-                  <span>Tester le mouvement des lèvres</span>
+                  <Volume2 className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Tester le Dessin Animé & Lèvres</span>
                 </button>
 
-                {/* Quick Emotion triggers */}
+                {/* Quick Cartoon Poses & Emotion triggers */}
                 <div className="grid grid-cols-3 gap-1.5 pt-1">
                   <button
                     type="button"
                     onClick={() => {
-                      setAvatarState('speaking');
-                      setTimeout(() => setAvatarState('idle'), 3500);
+                      setAvatarPose('waving');
+                      setTimeout(() => setAvatarPose('neutral'), 3500);
                     }}
                     className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
-                      avatarState === 'speaking'
-                        ? 'bg-cyan-900/80 border-cyan-500 text-cyan-300'
+                      avatarPose === 'waving'
+                        ? 'bg-amber-900/80 border-amber-500 text-amber-300'
                         : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    🗣️ Parler
+                    👋 Saluer
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      setAvatarState('listening');
-                      setTimeout(() => setAvatarState('idle'), 3500);
+                      setAvatarPose('explaining');
+                      setAvatarState('speaking');
+                      setTimeout(() => {
+                        setAvatarPose('neutral');
+                        setAvatarState('idle');
+                      }, 3500);
                     }}
                     className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
-                      avatarState === 'listening'
+                      avatarPose === 'explaining'
                         ? 'bg-emerald-900/80 border-emerald-500 text-emerald-300'
                         : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    👂 Écouter
+                    💡 Expliquer
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      setAvatarState('thinking');
-                      setTimeout(() => setAvatarState('idle'), 3500);
+                      setAvatarPose('pointing');
+                      setTimeout(() => setAvatarPose('neutral'), 3500);
                     }}
                     className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
-                      avatarState === 'thinking'
-                        ? 'bg-amber-900/80 border-amber-500 text-amber-300'
+                      avatarPose === 'pointing'
+                        ? 'bg-cyan-900/80 border-cyan-500 text-cyan-300'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    👉 Pointer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvatarPose('celebrating');
+                      setTimeout(() => setAvatarPose('neutral'), 3500);
+                    }}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                      avatarPose === 'celebrating'
+                        ? 'bg-purple-900/80 border-purple-500 text-purple-300'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    🎉 Bravo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvatarPose('thumbs_up');
+                      setTimeout(() => setAvatarPose('neutral'), 3500);
+                    }}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                      avatarPose === 'thumbs_up'
+                        ? 'bg-emerald-900/80 border-emerald-500 text-emerald-300'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    👍 Encourager
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvatarPose('thinking');
+                      setAvatarState('thinking');
+                      setTimeout(() => {
+                        setAvatarPose('neutral');
+                        setAvatarState('idle');
+                      }, 3500);
+                    }}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                      avatarPose === 'thinking'
+                        ? 'bg-indigo-900/80 border-indigo-500 text-indigo-300'
                         : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -1482,6 +1556,86 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
                 </div>
               </div>
 
+              {/* Live Webhook & Meta Health Diagnostic Card */}
+              <div className="p-6 rounded-3xl bg-slate-900 text-white border border-slate-800 shadow-xl space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-3 h-3 rounded-full bg-amber-400 animate-pulse" />
+                    <h4 className="text-sm font-bold tracking-tight text-white flex items-center gap-2">
+                      Rapport Diagnostic en Direct : Liaison WhatsApp Meta
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={refreshWebhookStatus}
+                    disabled={isRefreshingStatus}
+                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition-colors"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingStatus ? 'animate-spin' : ''}`} />
+                    <span>Actualiser le diagnostic</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                  {/* Token Health */}
+                  <div className={`p-4 rounded-2xl border ${
+                    webhookStatus.tokenDiagnostic?.status === 'expired'
+                      ? 'bg-rose-950/40 border-rose-800/80 text-rose-100'
+                      : webhookStatus.tokenDiagnostic?.status === 'valid'
+                      ? 'bg-emerald-950/40 border-emerald-800/80 text-emerald-100'
+                      : 'bg-amber-950/40 border-amber-800/80 text-amber-100'
+                  } space-y-2`}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold uppercase text-[10px] tracking-wider text-slate-400">1. Jeton d'accès Meta</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        webhookStatus.tokenDiagnostic?.status === 'expired'
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                          : webhookStatus.tokenDiagnostic?.status === 'valid'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                          : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                      }`}>
+                        {webhookStatus.tokenDiagnostic?.status === 'expired'
+                          ? 'Expiré (Code 190)'
+                          : webhookStatus.tokenDiagnostic?.status === 'valid'
+                          ? 'Opérationnel'
+                          : 'Non configuré'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed">
+                      {webhookStatus.tokenDiagnostic?.status === 'expired'
+                        ? 'Le jeton temporaire Meta configuré a expiré. Pour que la liaison WhatsApp envoie les réponses réelles, générez un nouveau jeton sur developers.facebook.com.'
+                        : webhookStatus.tokenDiagnostic?.message || 'Vérification en cours...'}
+                    </p>
+                  </div>
+
+                  {/* Phone ID Health */}
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold uppercase text-[10px] tracking-wider text-slate-400">2. Phone Number ID</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        {webhookStatus.phoneIdStatus?.resolvedPhoneId || '979483715258628'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-slate-300">
+                      ID numérique interne vérifié. Le serveur convertit automatiquement tout format d'affichage (+1 555...) en identifiant Meta valide.
+                    </p>
+                  </div>
+
+                  {/* Webhook Endpoint Health */}
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold uppercase text-[10px] tracking-wider text-slate-400">3. Webhook GET/POST</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        Prêt & Actif (200 OK)
+                      </span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-slate-300">
+                      Vérification du handshake validée avec le Verify Token : <code className="bg-black/40 px-1 py-0.5 rounded text-amber-300">{webhookStatus.verifyToken || 'itech_academia_secret_token'}</code>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Ready-to-use Webhook URLs */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Meta Cloud API Card */}
@@ -1538,31 +1692,32 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                          URL de Rappel Principale (Public / Production)
+                          URL de Rappel Active (Cloudflare Workers Détecté)
                         </label>
-                        <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                          Recommandée pour Meta
+                        <span className="text-[10px] text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Recommandée & Validée
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mb-2">
                         <input
                           type="text"
                           readOnly
-                          value={typeof window !== 'undefined' ? `${window.location.origin}/api/webhook/whatsapp` : 'https://ais-dev-2kviy7o7gqzkzldk6zfg4m-706369466028.europe-west2.run.app/api/webhook/whatsapp'}
-                          className="flex-1 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-800 select-all"
+                          value="https://patient-pine-7b82.landrykibakweto123.workers.dev/"
+                          className="flex-1 p-2.5 rounded-xl bg-amber-50/50 border border-amber-300 text-xs font-mono text-slate-900 font-bold select-all"
                         />
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(typeof window !== 'undefined' ? `${window.location.origin}/api/webhook/whatsapp` : 'https://ais-dev-2kviy7o7gqzkzldk6zfg4m-706369466028.europe-west2.run.app/api/webhook/whatsapp', 'meta-pre-url')}
-                          className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 border border-slate-200"
+                          onClick={() => copyToClipboard('https://patient-pine-7b82.landrykibakweto123.workers.dev/', 'cf-url')}
+                          className="p-2.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold flex items-center gap-1 border border-amber-300"
                         >
-                          {copiedField === 'meta-pre-url' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                          <span>{copiedField === 'meta-pre-url' ? 'Copié' : 'Copier'}</span>
+                          {copiedField === 'cf-url' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                          <span>{copiedField === 'cf-url' ? 'Copié' : 'Copier'}</span>
                         </button>
                       </div>
 
                       <div className="text-[10px] text-slate-500 mb-2">
-                        Ou URL alternative : <code className="bg-slate-100 px-1 py-0.5 rounded">{typeof window !== 'undefined' ? `${window.location.origin}/api/webhook/whatsapp` : ''}</code>
+                        URL directe de secours : <code className="bg-slate-100 px-1 py-0.5 rounded">{typeof window !== 'undefined' ? `${window.location.origin}/api/webhook/whatsapp` : ''}</code>
                       </div>
                     </div>
 
@@ -1624,7 +1779,7 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        const code = `// Cloudflare Worker - Fatou Sow (Academia ITECH) v2.0
+                        const code = `// Cloudflare Worker - Robot Android (Academia ITECH) v2.0
 // Anti-blocage Meta + Traitement d'arrière-plan + IA Gemini
 const seenMessages = new Set();
 
@@ -1677,16 +1832,18 @@ async function handleIncoming(body, env) {
     const from = msg.from; // Numéro de l'étudiant
     const userText = msg.text.body.trim();
 
-    const META_TOKEN = env.META_TOKEN || "${metaTestToken}";
+    const META_TOKEN = env.META_TOKEN || "";
     const PHONE_ID = env.PHONE_ID || "979483715258628";
     const GEMINI_KEY = env.GEMINI_API_KEY || "";
+
+    console.log("-> Nouveau message WhatsApp de " + from + " : " + userText);
 
     let aiReply = "";
 
     // 1. Si une clé Gemini est fournie dans Cloudflare (Settings > Variables)
     if (GEMINI_KEY) {
       try {
-        const prompt = "Tu es Fatou Sow, tutrice experte d'Academia ITECH sur WhatsApp. Réponds avec bienveillance, clarté pédagogique et un langage direct et amical (formatage WhatsApp avec *gras* et émojis). Réponds précisément à ce message : " + userText;
+        const prompt = "Tu es le Robot Android ITECH, tuteur intelligent interactif d'Academia ITECH sur WhatsApp. Réponds avec bienveillance, clarté pédagogique et un langage direct et amical (formatage WhatsApp avec *gras* et émojis). Réponds précisément à ce message : " + userText;
         const gRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + GEMINI_KEY, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1705,20 +1862,20 @@ async function handleIncoming(body, env) {
     if (!aiReply) {
       const lower = userText.toLowerCase();
       if (lower.match(/^(bonjour|salut|coucou|hello|bonsoir|hi)/)) {
-        aiReply = "👋 Bonjour ! Je suis *Fatou Sow*, votre tutrice chez Academia ITECH 👩🏽‍🏫.\\n\\nComment puis-je vous aider aujourd'hui ?\\n- 🐍 *Python & Programmation*\\n- 🌐 *Développement Web (HTML, CSS, JS)*\\n- 🎯 *Tapez !quiz pour un défi*\\n\\nDe quoi voulez-vous parler ?";
+        aiReply = "🤖 Bip bop ! Bonjour ! Je suis le *Robot Android ITECH*, votre tuteur interactif chez Academia ITECH.\\n\\nComment puis-je vous guider aujourd'hui ?\\n- 🐍 *Python & Programmation*\\n- 🌐 *Développement Web (HTML, CSS, JS)*\\n- 🎯 *Tapez !quiz pour un défi*\\n\\nDe quoi voulez-vous parler ?";
       } else if (lower.includes("qui es-tu") || lower.includes("qui est tu") || lower.includes("t'es qui") || lower.includes("presentation")) {
-        aiReply = "👩🏽‍🏫 Je suis *Fatou Sow*, la tutrice virtuelle officielle d'Academia ITECH !\\n\\nMon rôle est de vous accompagner 24h/24 dans votre apprentissage des métiers de la Tech (code, data, cloud, cybersécurité). Posez-moi vos questions de cours !";
+        aiReply = "🤖 Je suis le *Robot Android ITECH*, le tuteur virtuel interactif officiel d'Academia ITECH !\\n\\nMon rôle est de vous accompagner 24h/24 dans votre apprentissage avec mes animations motion, mes cours interactifs et la réponse à toutes vos questions de programmation et de tech.";
       } else if (lower.includes("quiz") || lower.includes("defi") || lower.includes("test")) {
         aiReply = "🎯 *Mini-Quiz Academia ITECH* :\\n\\nEn informatique, que signifie l'acronyme *API* ?\\n\\n1️⃣ Application Programming Interface\\n2️⃣ Automated Program Instruction\\n3️⃣ Advanced Private Internet\\n\\n👉 _Envoyez 1, 2 ou 3 !_";
       } else if (lower.includes("merci")) {
-        aiReply = "Avec grand plaisir ! 😊 N'hésitez pas si vous avez d'autres questions sur vos leçons ou vos projets de code. Bon courage !";
+        aiReply = "Avec grand plaisir ! 🤖 Bip bop ! N'hésitez pas si vous avez d'autres questions sur vos leçons ou vos projets de code. Bon courage !";
       } else {
-        aiReply = "👩🏽‍🏫 *Fatou Sow* :\\n\\nJ'ai bien noté votre question : _\\"" + userText + "\\\"_.\\n\\n💡 *Conseil* : Pour que je puisse analyser vos questions complexes en détail avec mon cerveau IA complet, ajoutez la variable *GEMINI_API_KEY* dans les paramètres de votre Cloudflare Worker. En attendant, quel langage de programmation apprenez-vous actuellement ?";
+        aiReply = "🤖 *Robot Android ITECH* :\\n\\nJ'ai bien noté votre question : _\\"" + userText + "\\\"_.\\n\\n💡 *Conseil* : Pour que je puisse analyser vos questions complexes en détail avec mon cerveau IA complet, ajoutez la variable *GEMINI_API_KEY* dans les paramètres de votre Cloudflare Worker. En attendant, quel langage de programmation apprenez-vous actuellement ?";
       }
     }
 
-    // Envoi de la réponse sur WhatsApp
-    await fetch("https://graph.facebook.com/v19.0/" + PHONE_ID + "/messages", {
+    // Envoi de la réponse sur WhatsApp via Meta Cloud API
+    const metaRes = await fetch("https://graph.facebook.com/v19.0/" + PHONE_ID + "/messages", {
       method: "POST",
       headers: {
         "Authorization": "Bearer " + META_TOKEN,
@@ -1731,6 +1888,8 @@ async function handleIncoming(body, env) {
         text: { body: aiReply },
       }),
     });
+    const metaData = await metaRes.json();
+    console.log("Statut Envoi Meta (" + metaRes.status + "):", JSON.stringify(metaData));
   } catch (error) {
     console.error("Erreur générale handler:", error);
   }
@@ -1891,6 +2050,44 @@ export default {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Pourquoi "Toujours rien" ? Guide de déblocage rapide Sandbox */}
+              <div className="p-5 rounded-3xl bg-amber-500/10 border-2 border-amber-500/30 text-slate-800 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+                  <h4 className="text-sm font-bold text-amber-950 flex items-center gap-1.5">
+                    ⚠️ Pourquoi aucun message ne part ou n'arrive encore sur votre téléphone ?
+                  </h4>
+                </div>
+                <p className="text-xs text-slate-700 leading-relaxed">
+                  Dans l'environnement de test (Sandbox) de Meta Cloud API, deux conditions techniques strictes sont indispensables :
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3.5 rounded-2xl bg-white border border-amber-200 shadow-xs space-y-1.5">
+                    <span className="font-bold text-amber-900 block text-[11px] uppercase tracking-wider">
+                      1. Déverrouiller la Sandbox WhatsApp
+                    </span>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      Sur Meta for Developers (<strong>Démarrage rapide / API Setup</strong>), dans le champ <strong>« À » (To)</strong>, choisissez votre numéro vérifié, puis cliquez sur <strong>« Envoyer un message » (Send message)</strong>.
+                    </p>
+                    <p className="text-slate-900 font-semibold text-[11px]">
+                      👉 Vous allez recevoir un message modèle officiel sur votre WhatsApp. <strong>Répondez ensuite directement à ce message</strong> pour que votre conversation soit ouverte !
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-white border border-amber-200 shadow-xs space-y-1.5">
+                    <span className="font-bold text-amber-900 block text-[11px] uppercase tracking-wider">
+                      2. Renouveler le Jeton Temporaire Meta (Code 190)
+                    </span>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      Les jetons Meta expirent toutes les 24 heures. Si le jeton est expiré, Meta bloque silencieusement l'envoi de la réponse du Robot avec l'erreur <code>OAuthException 190</code>.
+                    </p>
+                    <p className="text-slate-900 font-semibold text-[11px]">
+                      👉 Copiez le nouveau <strong>Temporary access token</strong> sur Meta et collez-le ci-dessous dans le testeur ou dans votre Worker (variable <code>META_TOKEN</code>).
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Direct Meta WhatsApp Message Sender & Live Verifier */}

@@ -6,7 +6,12 @@ import { NanoBananaPlayer } from './NanoBananaPlayer';
 import { InteractiveMindMapCanvas } from './InteractiveMindMapCanvas';
 import { VideoEditingStudio } from '../studio/VideoEditingStudio';
 import { GeneratedVideoPlayer } from '../player/GeneratedVideoPlayer';
-import { ANIMAKER_CHARACTERS, convertVideoProjectToAnimakerLesson, convertAnimakerLessonToVideoProject } from '../../data/videoProjectsData';
+import {
+  ANIMAKER_CHARACTERS,
+  convertVideoProjectToAnimakerLesson,
+  convertAnimakerLessonToVideoProject,
+  CARTOON_PRESET_TEMPLATES,
+} from '../../data/videoProjectsData';
 import {
   Plus,
   Trash2,
@@ -165,6 +170,9 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
   const [previewNanoBanana, setPreviewNanoBanana] = useState<NanoBananaLesson | null>(null);
   const [previewAnimakerLesson, setPreviewAnimakerLesson] = useState<AnimakerLesson | null>(null);
   const [showMotionExplainerModal, setShowMotionExplainerModal] = useState<{
+    chapterId: string;
+  } | null>(null);
+  const [showCartoonSelectorModal, setShowCartoonSelectorModal] = useState<{
     chapterId: string;
   } | null>(null);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
@@ -361,6 +369,23 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
       chapters.map((c) => (c.id === chapId ? { ...c, lessons: [...c.lessons, newLesson] } : c))
     );
     setShowMotionExplainerModal(null);
+  };
+
+  const handleAddCartoonTemplateLesson = (chapId: string, cartoonProject: CourseVideoProject) => {
+    const newLesson: Lesson = {
+      id: `les-${Date.now()}`,
+      title: cartoonProject.title,
+      durationMinutes: Math.max(5, Math.ceil(cartoonProject.totalDurationSeconds / 60)),
+      type: 'video_project',
+      content: `### ${cartoonProject.title}\n\nCapsule vidéo en dessin animé illustratif avec mascottes 2D, décors animés, bulles de dialogue et quiz interactifs.\n\n*Conçu par l'enseignant — L'apprenant suit la leçon proprement sans accès aux réglages de montage.*`,
+      videoProjectData: JSON.parse(JSON.stringify(cartoonProject)),
+      animakerData: convertVideoProjectToAnimakerLesson(cartoonProject),
+    };
+
+    setChapters(
+      chapters.map((c) => (c.id === chapId ? { ...c, lessons: [...c.lessons, newLesson] } : c))
+    );
+    setShowCartoonSelectorModal(null);
   };
 
   const handleSaveLessonFromAnimaker = (
@@ -629,7 +654,11 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
               </button>
             </div>
             <GeneratedVideoPlayer
-              lesson={previewAnimakerLesson}
+              project={
+                previewAnimakerLesson.videoProjectData ||
+                convertAnimakerLessonToVideoProject(previewAnimakerLesson)
+              }
+              lessonTitle={previewAnimakerLesson.title}
               autoPlay={true}
             />
           </div>
@@ -705,6 +734,136 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CARTOON PRESET TEMPLATES SELECTOR MODAL */}
+      {showCartoonSelectorModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md p-4 sm:p-6 flex items-center justify-center animate-fadeIn">
+          <div className="w-full max-w-4xl rounded-3xl bg-slate-900 border border-pink-900/50 shadow-2xl p-6 text-white space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-pink-600 to-amber-500 text-white shadow-md">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                    <span>Modèles de Leçons en Dessin Animé Illustratif</span>
+                    <span className="px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 text-[10px] font-extrabold uppercase border border-pink-500/30">
+                      Studio Enseignant
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Insérez des leçons illustrées et animées avec personnages 2D, bulles de dialogue et quiz de validation.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCartoonSelectorModal(null)}
+                className="text-slate-400 hover:text-white text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700"
+              >
+                Fermer
+              </button>
+            </div>
+
+            {/* Educational Guarantee Banner */}
+            <div className="p-3 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 flex items-center gap-3 text-xs text-indigo-200">
+              <Shield className="w-5 h-5 text-indigo-400 shrink-0" />
+              <div>
+                <span className="font-bold text-white">Environnement d'Apprentissage Épuré : </span>
+                L'enseignant configure le cours et les montages. L'apprenant suit la vidéo animée de façon propre et interactive, avec quiz intégrés, sans aucun accès ni commande de montage.
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto pr-1">
+              {CARTOON_PRESET_TEMPLATES.map((cartoonProject) => {
+                const leadAvatarClip = cartoonProject.clips.find(
+                  (c) => c.trackId === 'track-avatar' && (c.voiceoverData?.characterAvatar || c.sourceUrl)
+                );
+                const charName = leadAvatarClip?.voiceoverData?.characterName || 'Mascotte';
+                const avatarUrl =
+                  leadAvatarClip?.voiceoverData?.characterAvatar ||
+                  leadAvatarClip?.sourceUrl ||
+                  'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80';
+                const bgClip = cartoonProject.clips.find(
+                  (c) => c.trackId === 'track-video' && c.sourceUrl
+                );
+                const quizCount = cartoonProject.clips.filter((c) => c.type === 'interactive_quiz').length;
+
+                return (
+                  <div
+                    key={cartoonProject.id}
+                    className="p-4 rounded-2xl bg-slate-800/90 border border-slate-700 hover:border-pink-500/60 hover:shadow-xl transition-all flex flex-col justify-between gap-3 group"
+                  >
+                    <div className="space-y-2.5">
+                      {/* Image Preview & Mascot */}
+                      <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-950 border border-slate-700/50">
+                        <img
+                          src={
+                            bgClip?.sourceUrl ||
+                            'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80'
+                          }
+                          alt={cartoonProject.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
+                        
+                        <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-black/70 backdrop-blur-md border border-white/20 text-[10px] font-bold text-amber-300">
+                          <Sparkles className="w-3 h-3 text-pink-400" />
+                          <span className="capitalize">{cartoonProject.theme || 'Dessin Animé'}</span>
+                        </div>
+
+                        {/* Mascot Badge */}
+                        <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
+                          <img
+                            src={avatarUrl}
+                            alt={charName}
+                            className="w-7 h-7 rounded-full object-cover border-2 border-pink-400 shadow-md"
+                          />
+                          <span className="text-[11px] font-extrabold text-white drop-shadow">
+                            {charName}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-black text-white group-hover:text-pink-300 transition-colors line-clamp-2">
+                          {cartoonProject.title}
+                        </h4>
+                        <p className="text-[11px] text-slate-300 line-clamp-2 mt-1">
+                          {cartoonProject.description || cartoonProject.topic}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-700/60 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                        <span>⏱️ {Math.ceil(cartoonProject.totalDurationSeconds / 60)} min</span>
+                        {quizCount > 0 && (
+                          <span className="text-pink-400 font-semibold">• {quizCount} Quiz</span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleAddCartoonTemplateLesson(
+                            showCartoonSelectorModal.chapterId,
+                            cartoonProject
+                          )
+                        }
+                        className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white text-xs font-bold flex items-center gap-1 shadow-md transition-all hover:scale-105"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Insérer</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1045,6 +1204,12 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
                                   <span>Animation Motion (Studio 2D)</span>
                                 </span>
                               )}
+                              {(les.type === 'video_project' || les.videoProjectData) && (
+                                <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-pink-100 text-pink-900 border border-pink-300 flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3 text-pink-600" />
+                                  <span>Dessin Animé Illustré (Apprenant Sans Montage)</span>
+                                </span>
+                              )}
                               {les.blocks && les.blocks.length > 0 && (
                                 <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-indigo-100 text-indigo-800 border border-indigo-200">
                                   {les.blocks.length} Blocs Elementor
@@ -1105,10 +1270,10 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
                                 )
                               }
                               className="px-2.5 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 border border-purple-300 font-black text-xs flex items-center gap-1"
-                              title="Voir la vidéo générée telle que visionnée par les apprenants"
+                              title="Visionner la capsule animée exactement comme les apprenants (sans commandes de montage)"
                             >
                               <Play className="w-3 h-3 fill-purple-900" />
-                              <span>Aperçu Vidéo Générée</span>
+                              <span>Aperçu Rendu Apprenant</span>
                             </button>
                           )}
 
@@ -1148,6 +1313,15 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
 
                   {/* Add Lesson Selector Buttons */}
                   <div className="flex flex-wrap items-center gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCartoonSelectorModal({ chapterId: chap.id })}
+                      className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-amber-500 hover:from-pink-500 hover:to-amber-400 text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-105"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-yellow-200" />
+                      <span>🎨 + Leçon Dessin Animé Illustré</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => handleAddLesson(chap.id, 'animaker_animated')}

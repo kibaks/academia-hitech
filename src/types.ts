@@ -113,6 +113,14 @@ export interface UserProfile {
   quizScores?: Record<string, number>; // quizId or courseId -> score percentage
   unlockedBadgeIds: string[];
   earnedCertificates: EarnedCertificate[];
+  paidCourseIds?: string[]; // Courses individually unlocked/purchased
+  paidLessonIds?: string[]; // Specific premium lessons individually unlocked
+  subscription?: {
+    plan: 'starter' | 'pro' | 'enterprise';
+    status: 'active' | 'inactive' | 'expired';
+    validUntil?: string;
+  };
+  subscriptionPlan?: 'starter' | 'pro' | 'enterprise' | 'none';
   workplaces?: { id: string; role: string; company: string; period: string; current: boolean }[];
   education?: { id: string; school: string; degree: string; year: string }[];
   socialLinks?: { github?: string; linkedin?: string; twitter?: string; portfolio?: string; whatsapp?: string; website?: string };
@@ -411,6 +419,8 @@ export interface TimelineClip {
     bgColor?: string;
     animation?: 'fade' | 'slide-up' | 'pop' | 'typewriter';
     position?: 'lower-third' | 'center-title' | 'top-banner' | 'side-callout';
+    bubbleStyle?: 'speech' | 'thought' | 'comic_badge' | 'standard';
+    comicBadge?: 'eureka' | 'warning' | 'tip' | 'bam' | 'question';
   };
   codeContent?: {
     code: string;
@@ -464,6 +474,8 @@ export interface CourseVideoProject {
   thumbnailUrl?: string;
   leadCharacterName?: string;
   leadCharacterAvatar?: string;
+  styleTheme?: 'cartoon_animated' | 'whiteboard' | 'comic_strip' | 'realistic';
+  theme?: string;
   authorName?: string;
   authorAvatar?: string;
 }
@@ -557,7 +569,12 @@ export interface Lesson {
   prerequisites?: string[];
   allowPreview?: boolean;
   requiredQuizScore?: number; // Passing score percentage required on checkpoint quiz (e.g. 75 or 80)
-  requiresPayment?: boolean; // Strictly requires course fee payment
+  requiresPayment?: boolean; // Strictly requires course fee payment or individual lesson unlock
+  lessonPrice?: number; // Optional single-lesson purchase price (e.g. $5 USD)
+  isPremiumLocked?: boolean; // Locked specifically behind single payment or subscription
+  prerequisiteQuizId?: string; // Specific quiz ID required to unlock this lesson
+  prerequisiteQuizTitle?: string; // Title of quiz prerequisite
+  requiresSubscription?: boolean; // Available only to active subscribers
   checkpointQuiz?: Quiz;
 }
 
@@ -631,6 +648,11 @@ export interface Course {
   originalPrice?: number;
   pricingType?: 'free' | 'paid' | 'subscription';
   subscriptionPlanRequired?: 'starter' | 'pro' | 'enterprise' | 'all';
+  requiresLogin?: boolean; // Strictly requires login/account even if browsing
+  prerequisiteQuizId?: string; // Admission or preparatory quiz required to access course
+  prerequisiteQuizTitle?: string;
+  prerequisiteQuizMinScore?: number; // Minimum passing percentage required (e.g. 80%)
+  prerequisiteQuiz?: Quiz; // Full quiz definition for admission testing
   isFeatured?: boolean;
   isNew?: boolean;
   hasCertificate: boolean;
@@ -784,6 +806,8 @@ export interface CourseOrder {
   userName: string;
   courseId: string;
   courseTitle: string;
+  unlockedLessonId?: string;
+  lessonTitle?: string;
   amountUSD: number;
   paidAmount: number;
   paidCurrency: string;

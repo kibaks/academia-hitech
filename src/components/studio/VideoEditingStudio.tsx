@@ -29,6 +29,7 @@ import {
   Eye,
   Tv,
   LayoutTemplate,
+  Palette,
 } from 'lucide-react';
 import {
   CourseVideoProject,
@@ -93,6 +94,7 @@ export const VideoEditingStudio: React.FC<VideoEditingStudioProps> = ({
   const [showPreviewGeneratedVideo, setShowPreviewGeneratedVideo] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateModalFilter, setTemplateModalFilter] = useState<'all' | 'cartoon' | 'whiteboard' | 'comic' | 'tech'>('cartoon');
 
   // AI & Feedback State
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -490,15 +492,36 @@ export const VideoEditingStudio: React.FC<VideoEditingStudioProps> = ({
             <span>Tester la Vidéo Générée</span>
           </button>
 
-          {/* Modèles Prédéfinis Animaker Button */}
+          {/* Thème Graphique du Montage */}
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/90 border border-slate-700 text-xs text-slate-300">
+            <Palette className="w-3.5 h-3.5 text-pink-400" />
+            <span className="text-slate-400 text-[11px] font-semibold">Thème :</span>
+            <select
+              value={project.styleTheme || 'cartoon_animated'}
+              onChange={(e) => {
+                const newTheme = e.target.value as any;
+                setProject((prev) => ({ ...prev, styleTheme: newTheme }));
+                setSaveSuccessMessage(`Thème appliqué : ${newTheme}`);
+                setTimeout(() => setSaveSuccessMessage(null), 2500);
+              }}
+              className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer"
+            >
+              <option value="cartoon_animated" className="bg-slate-900 text-white">🎨 Dessin Animé 2D</option>
+              <option value="whiteboard" className="bg-slate-900 text-white">📐 Whiteboard Feutre</option>
+              <option value="comic_strip" className="bg-slate-900 text-white">🦸‍♂️ Bande Dessinée</option>
+              <option value="modern_minimal" className="bg-slate-900 text-white">💼 Moderne Pro</option>
+            </select>
+          </div>
+
+          {/* Templates Dessin Animé & Illustratifs Button */}
           <button
             type="button"
             onClick={() => setShowTemplateModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-950/70 hover:bg-amber-900 text-amber-300 text-xs font-bold border border-amber-500/40 transition-all shadow-xs"
-            title="Choisir un modèle prédéfini de style Animaker (2D Explainer, Whiteboard, Fintech, HSE, Cyber)"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-900/60 to-purple-900/60 hover:from-pink-800/80 hover:to-purple-800/80 text-pink-200 text-xs font-bold border border-pink-500/40 transition-all shadow-xs"
+            title="Choisir un modèle prédéfini de dessin animé illustratif, whiteboard ou BD"
           >
-            <LayoutTemplate className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Modèles Animaker</span>
+            <Sparkles className="w-3.5 h-3.5 text-pink-400" />
+            <span className="hidden sm:inline">Templates Dessin Animé</span>
           </button>
         </div>
 
@@ -738,18 +761,18 @@ export const VideoEditingStudio: React.FC<VideoEditingStudioProps> = ({
             {/* Header */}
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center">
-                  <LayoutTemplate className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-2xl bg-pink-500/20 text-pink-400 border border-pink-500/30 flex items-center justify-center">
+                  <Palette className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-                    <span>Modèles Prédéfinis au Style Animaker</span>
-                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-500/30">
-                      {ANIMAKER_PRESET_TEMPLATES.length} Modèles Prêts
+                    <span>Modèles de Montage : Dessin Animé & Illustratifs</span>
+                    <span className="px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 text-[11px] font-bold border border-pink-500/30">
+                      {ANIMAKER_PRESET_TEMPLATES.length} Templates Prêts
                     </span>
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Sélectionnez un modèle pour charger instantanément ses pistes multi-médias, plans B-roll, animateur PiP et arrêts quiz.
+                    Templates d'apprentissage avec mascottes animées 2D, décors vectoriels, bulles de dialogue et quiz interactifs.
                   </p>
                 </div>
               </div>
@@ -762,10 +785,88 @@ export const VideoEditingStudio: React.FC<VideoEditingStudioProps> = ({
               </button>
             </div>
 
+            {/* Category Filter Tabs */}
+            <div className="px-5 py-3 border-b border-slate-800/80 bg-slate-950/40 flex items-center gap-2 overflow-x-auto text-xs">
+              <button
+                type="button"
+                onClick={() => setTemplateModalFilter('cartoon')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  templateModalFilter === 'cartoon'
+                    ? 'bg-pink-600 text-white shadow-md'
+                    : 'bg-slate-800/80 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>🎨 Dessin Animé 2D</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-pink-900/60 text-pink-200 text-[10px]">
+                  {ANIMAKER_PRESET_TEMPLATES.filter((t) => t.styleTheme === 'cartoon_animated').length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTemplateModalFilter('whiteboard')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  templateModalFilter === 'whiteboard'
+                    ? 'bg-sky-600 text-white shadow-md'
+                    : 'bg-slate-800/80 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>📐 Whiteboard Feutre</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-sky-900/60 text-sky-200 text-[10px]">
+                  {ANIMAKER_PRESET_TEMPLATES.filter((t) => t.styleTheme === 'whiteboard').length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTemplateModalFilter('comic')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  templateModalFilter === 'comic'
+                    ? 'bg-amber-600 text-white shadow-md'
+                    : 'bg-slate-800/80 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>🦸‍♂️ Bande Dessinée</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-amber-900/60 text-amber-200 text-[10px]">
+                  {ANIMAKER_PRESET_TEMPLATES.filter((t) => t.styleTheme === 'comic_strip').length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTemplateModalFilter('tech')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  templateModalFilter === 'tech'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-slate-800/80 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>💼 Tech & Entreprise</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTemplateModalFilter('all')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  templateModalFilter === 'all'
+                    ? 'bg-slate-700 text-white shadow-md'
+                    : 'bg-slate-800/80 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>🌟 Tous ({ANIMAKER_PRESET_TEMPLATES.length})</span>
+              </button>
+            </div>
+
             {/* Template Grid */}
-            <div className="p-6 overflow-y-auto space-y-4 max-h-[calc(90vh-140px)]">
+            <div className="p-6 overflow-y-auto space-y-4 max-h-[calc(90vh-180px)]">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {ANIMAKER_PRESET_TEMPLATES.map((tmpl) => {
+                {ANIMAKER_PRESET_TEMPLATES.filter((tmpl) => {
+                  if (templateModalFilter === 'cartoon') return tmpl.styleTheme === 'cartoon_animated' || tmpl.title.includes('Dessin Animé');
+                  if (templateModalFilter === 'whiteboard') return tmpl.styleTheme === 'whiteboard' || tmpl.title.includes('Whiteboard');
+                  if (templateModalFilter === 'comic') return tmpl.styleTheme === 'comic_strip' || tmpl.title.includes('BD');
+                  if (templateModalFilter === 'tech') return tmpl.styleTheme !== 'cartoon_animated' && tmpl.styleTheme !== 'whiteboard' && tmpl.styleTheme !== 'comic_strip';
+                  return true;
+                }).map((tmpl) => {
                   const isCurrent = project.id === tmpl.id;
                   const quizCount = tmpl.clips.filter((c) => c.type === 'interactive_quiz').length;
                   return (
@@ -773,7 +874,7 @@ export const VideoEditingStudio: React.FC<VideoEditingStudioProps> = ({
                       key={tmpl.id}
                       className={`p-5 rounded-2xl border transition-all flex flex-col justify-between group ${
                         isCurrent
-                          ? 'bg-amber-950/20 border-amber-500/60 shadow-lg shadow-amber-950/20 ring-1 ring-amber-500/40'
+                          ? 'bg-pink-950/20 border-pink-500/60 shadow-lg shadow-pink-950/20 ring-1 ring-pink-500/40'
                           : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40'
                       }`}
                     >
@@ -784,17 +885,19 @@ export const VideoEditingStudio: React.FC<VideoEditingStudioProps> = ({
                               <img
                                 src={tmpl.leadCharacterAvatar}
                                 alt={tmpl.leadCharacterName || 'Avatar'}
-                                className="w-9 h-9 rounded-full object-cover border border-slate-700"
+                                className="w-10 h-10 rounded-full object-cover border-2 border-pink-500/40 bg-slate-900 shrink-0"
                               />
                             )}
                             <div>
-                              <h4 className="text-sm font-black text-white group-hover:text-amber-300 transition-colors">
-                                {tmpl.title}
-                              </h4>
-                              <p className="text-[11px] text-amber-400/90 font-medium">{tmpl.topic}</p>
+                              <div className="flex items-center gap-1.5">
+                                <h4 className="text-sm font-black text-white group-hover:text-pink-300 transition-colors">
+                                  {tmpl.title}
+                                </h4>
+                              </div>
+                              <p className="text-[11px] text-pink-400 font-medium">{tmpl.topic}</p>
                             </div>
                           </div>
-                          <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-bold text-slate-300 whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-bold text-slate-300 whitespace-nowrap shrink-0">
                             {tmpl.totalDurationSeconds}s
                           </span>
                         </div>
@@ -804,14 +907,26 @@ export const VideoEditingStudio: React.FC<VideoEditingStudioProps> = ({
                         </p>
 
                         <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
+                          {tmpl.styleTheme === 'cartoon_animated' && (
+                            <span className="px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
+                              🎨 Dessin Animé 2D
+                            </span>
+                          )}
+                          {tmpl.styleTheme === 'whiteboard' && (
+                            <span className="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-bold border border-sky-500/30">
+                              📐 Whiteboard Doodle
+                            </span>
+                          )}
+                          {tmpl.styleTheme === 'comic_strip' && (
+                            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                              🦸‍♂️ Bande Dessinée
+                            </span>
+                          )}
                           <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300">
                             🎬 {tmpl.clips.length} clips
                           </span>
                           <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300">
-                            📐 {tmpl.aspectRatio}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300">
-                            👤 {tmpl.leadCharacterName || 'Présentateur'}
+                            👤 {tmpl.leadCharacterName || 'Mascotte'}
                           </span>
                           {quizCount > 0 && (
                             <span className="px-2 py-0.5 rounded-lg bg-pink-950/60 border border-pink-500/30 text-pink-300 font-bold">
@@ -832,17 +947,17 @@ export const VideoEditingStudio: React.FC<VideoEditingStudioProps> = ({
                             setCurrentTime(0);
                             setIsPlaying(false);
                             setShowTemplateModal(false);
-                            setSaveSuccessMessage(`Modèle Animaker "${tmpl.title}" chargé avec succès !`);
+                            setSaveSuccessMessage(`Template "${tmpl.title}" chargé avec succès !`);
                             setTimeout(() => setSaveSuccessMessage(null), 3500);
                           }}
                           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                             isCurrent
-                              ? 'bg-slate-800 text-amber-400 border border-amber-500/30'
-                              : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md hover:scale-105'
+                              ? 'bg-slate-800 text-pink-400 border border-pink-500/30'
+                              : 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white shadow-md hover:scale-105'
                           }`}
                         >
                           <LayoutTemplate className="w-3.5 h-3.5" />
-                          <span>{isCurrent ? 'Réinitialiser ce modèle' : 'Charger ce modèle'}</span>
+                          <span>{isCurrent ? 'Réinitialiser ce template' : 'Charger ce template'}</span>
                         </button>
                       </div>
                     </div>

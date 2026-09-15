@@ -17,12 +17,19 @@ import {
   Shield,
   Clock,
   Mic,
+  Palette,
+  Smile,
+  MessageSquare,
+  AlertTriangle,
+  Lightbulb,
 } from 'lucide-react';
 import {
   STOCK_B_ROLL_ITEMS,
   STOCK_MUSIC_ITEMS,
   STOCK_SFX_ITEMS,
   ANIMAKER_CHARACTERS,
+  CARTOON_ANIMAKER_CHARACTERS,
+  CARTOON_ILLUSTRATED_SCENES,
 } from '../../../data/videoProjectsData';
 import { TimelineClip } from '../../../types';
 
@@ -41,13 +48,110 @@ export const MediaLibraryPanel: React.FC<MediaLibraryPanelProps> = ({
   isGeneratingAI,
   readOnly = false,
 }) => {
-  const [activeTab, setActiveTab] = useState<'broll' | 'avatars' | 'titles' | 'audio' | 'quiz' | 'ai_gen'>('broll');
+  const [activeTab, setActiveTab] = useState<'cartoon' | 'broll' | 'avatars' | 'titles' | 'audio' | 'quiz' | 'ai_gen'>('cartoon');
+  const [cartoonFilter, setCartoonFilter] = useState<'all' | 'characters' | 'scenes' | 'bubbles'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   // AI Generator Form State
   const [aiTopic, setAiTopic] = useState('Deep Learning : Mécanisme d’Attention & Transformers');
-  const [aiCharacter, setAiCharacter] = useState('fatou-sow');
+  const [aiCharacter, setAiCharacter] = useState('prof-nia');
   const [aiDuration, setAiDuration] = useState(2); // 2 minutes
+
+  // Insert Cartoon Illustrated Scene (V1)
+  const handleInsertCartoonScene = (scene: typeof CARTOON_ILLUSTRATED_SCENES[0]) => {
+    const newClip: TimelineClip = {
+      id: `clip-scene-${Date.now()}`,
+      trackId: 'track-video',
+      title: scene.name,
+      type: 'b_roll',
+      startSeconds: Math.round(currentTime),
+      durationSeconds: 20,
+      sourceUrl: scene.previewUrl,
+      thumbnail: scene.thumbnail,
+      color: '#ec4899',
+      transform: { x: 0, y: 0, scale: 1, opacity: 1 },
+      transition: { type: 'crossfade', durationSeconds: 0.8 },
+    };
+    onAddClipToTimeline(newClip);
+  };
+
+  // Insert Cartoon Character (V2) with expressive greeting speech bubble
+  const handleInsertCartoonCharacter = (char: typeof CARTOON_ANIMAKER_CHARACTERS[0]) => {
+    const newClip: TimelineClip = {
+      id: `clip-char-${Date.now()}`,
+      trackId: 'track-avatar',
+      title: `${char.name} (${char.badge})`,
+      type: 'avatar',
+      startSeconds: Math.round(currentTime),
+      durationSeconds: 18,
+      sourceUrl: char.avatar,
+      color: char.color || '#ec4899',
+      transform: {
+        x: 34,
+        y: 28,
+        scale: 0.9,
+        opacity: 1,
+        pipPosition: 'bottom-right',
+        chromaKey: true,
+      },
+      voiceoverData: {
+        characterId: char.id,
+        characterName: char.name,
+        characterAvatar: char.avatar,
+        speechText: `Bonjour ! Je suis ${char.name}. Explorons cette notion ensemble avec simplicité !`,
+      },
+    };
+    onAddClipToTimeline(newClip);
+  };
+
+  // Insert Comic Bubble / Callout (V3)
+  const handleInsertComicBubble = (badgeType: 'eureka' | 'warning' | 'tip' | 'speech') => {
+    let title = 'Bulle BD Eurêka';
+    let textContent = 'EURÊKA ! VOICI LA RÈGLE D\'OR';
+    let textSubtitle = 'La clé fondamentale à mémoriser pour réussir l\'examen.';
+    let bgColor = 'rgba(236, 72, 153, 0.92)';
+    let comicBadge: 'eureka' | 'warning' | 'tip' = 'eureka';
+
+    if (badgeType === 'warning') {
+      title = 'Alerte BD Vigilance';
+      textContent = 'ATTENTION : PIÈGE FRÉQUENT !';
+      textSubtitle = 'Ne confondez jamais la latence réseau avec la bande passante.';
+      bgColor = 'rgba(239, 68, 68, 0.95)';
+      comicBadge = 'warning';
+    } else if (badgeType === 'tip') {
+      title = 'Bulle Astuce Magique';
+      textContent = 'ASTUCE PRO DU PROFESSEUR';
+      textSubtitle = 'Utilisez des noms de variables clairs et documentez vos points d\'accès.';
+      bgColor = 'rgba(16, 185, 129, 0.92)';
+      comicBadge = 'tip';
+    } else if (badgeType === 'speech') {
+      title = 'Bulle de Dialogue Cartoon';
+      textContent = '« Observer d\'abord, expérimenter ensuite ! »';
+      textSubtitle = 'Explication en direct de la mascotte pédagogique.';
+      bgColor = 'rgba(99, 102, 241, 0.92)';
+    }
+
+    const newClip: TimelineClip = {
+      id: `clip-bubble-${Date.now()}`,
+      trackId: 'track-text',
+      title,
+      type: 'title_text',
+      startSeconds: Math.round(currentTime),
+      durationSeconds: 15,
+      color: '#ec4899',
+      textContent,
+      textSubtitle,
+      textStyle: {
+        fontSize: 'title',
+        textColor: '#ffffff',
+        bgColor,
+        position: 'center-title',
+        bubbleStyle: badgeType === 'speech' ? 'speech' : 'comic_badge',
+        comicBadge,
+      },
+    };
+    onAddClipToTimeline(newClip);
+  };
 
   // Insert B-Roll clip
   const handleInsertBRoll = (item: typeof STOCK_B_ROLL_ITEMS[0]) => {
@@ -202,7 +306,22 @@ export const MediaLibraryPanel: React.FC<MediaLibraryPanelProps> = ({
   return (
     <div className="flex flex-col h-full bg-slate-900 border-r border-slate-800 text-slate-200 overflow-hidden select-none">
       {/* Navigation Sub-Tabs */}
-      <div className="grid grid-cols-6 border-b border-slate-800 bg-slate-950 p-1 gap-1 text-center">
+      <div className="grid grid-cols-7 border-b border-slate-800 bg-slate-950 p-1 gap-1 text-center">
+        <button
+          type="button"
+          onClick={() => setActiveTab('cartoon')}
+          className={`flex flex-col items-center py-2 px-1 rounded-lg text-[10px] font-bold transition-all relative ${
+            activeTab === 'cartoon'
+              ? 'bg-gradient-to-r from-pink-600 to-rose-600 text-white shadow-sm ring-1 ring-pink-400/50'
+              : 'text-pink-400/90 hover:text-pink-300 hover:bg-pink-950/30'
+          }`}
+          title="Modèles & Éléments Dessin Animé Illustratifs"
+        >
+          <Palette className="w-4 h-4 mb-1 text-pink-300" />
+          <span>Dessin Animé</span>
+          <span className="absolute -top-1 -right-0.5 w-2 h-2 bg-pink-500 rounded-full animate-ping" />
+        </button>
+
         <button
           type="button"
           onClick={() => setActiveTab('broll')}
@@ -278,6 +397,241 @@ export const MediaLibraryPanel: React.FC<MediaLibraryPanelProps> = ({
 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {/* TAB 0: CARTOON ILLUSTRATIFS (DESSIN ANIMÉ, WHITEBOARD, BD) */}
+        {activeTab === 'cartoon' && (
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl bg-gradient-to-r from-pink-950/60 to-purple-950/60 border border-pink-500/30 text-xs">
+              <div className="flex items-center gap-2 font-bold text-pink-300 mb-1">
+                <Palette className="w-4 h-4 text-pink-400" />
+                <span>Templates & Éléments Dessin Animé Illustratifs</span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Insérez des mascottes 2D vectorielles, décors de dessins animés, tableaux blancs et bulles de bandes dessinées au timecode actuel (<span className="text-amber-300 font-mono font-bold">{Math.round(currentTime)}s</span>).
+              </p>
+            </div>
+
+            {/* Cartoon Sub-Filters */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px]">
+              <button
+                type="button"
+                onClick={() => setCartoonFilter('all')}
+                className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
+                  cartoonFilter === 'all'
+                    ? 'bg-pink-600 text-white shadow-xs'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                Tous
+              </button>
+              <button
+                type="button"
+                onClick={() => setCartoonFilter('characters')}
+                className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
+                  cartoonFilter === 'characters'
+                    ? 'bg-pink-600 text-white shadow-xs'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                🎭 Mascottes ({CARTOON_ANIMAKER_CHARACTERS.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setCartoonFilter('scenes')}
+                className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
+                  cartoonFilter === 'scenes'
+                    ? 'bg-pink-600 text-white shadow-xs'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                🌄 Décors ({CARTOON_ILLUSTRATED_SCENES.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setCartoonFilter('bubbles')}
+                className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
+                  cartoonFilter === 'bubbles'
+                    ? 'bg-pink-600 text-white shadow-xs'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                💬 Bulles BD & Callouts
+              </button>
+            </div>
+
+            {/* SECTION: BULLES BD & CALLOUTS (When 'all' or 'bubbles') */}
+            {(cartoonFilter === 'all' || cartoonFilter === 'bubbles') && (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-[11px] font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-pink-400" />
+                    <span>Bulles BD & Callouts Magiques</span>
+                  </h5>
+                  <span className="text-[10px] text-pink-400 font-bold">Piste Texte</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={readOnly}
+                    onClick={() => handleInsertComicBubble('eureka')}
+                    className="p-2.5 rounded-xl bg-pink-950/40 border border-pink-500/40 hover:border-pink-400 hover:bg-pink-900/40 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-pink-300 mb-1">
+                      <Lightbulb className="w-3.5 h-3.5 text-pink-400 group-hover:scale-110 transition-transform" />
+                      <span>💡 Eurêka !</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 line-clamp-1">Idée clé & règle d'or</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={readOnly}
+                    onClick={() => handleInsertComicBubble('warning')}
+                    className="p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/40 hover:border-rose-400 hover:bg-rose-900/40 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-rose-300 mb-1">
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-400 group-hover:scale-110 transition-transform" />
+                      <span>⚠️ Alerte Piège</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 line-clamp-1">Vigilance & sécurité</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={readOnly}
+                    onClick={() => handleInsertComicBubble('tip')}
+                    className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-900/40 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 mb-1">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                      <span>🪄 Astuce Pro</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 line-clamp-1">Bonne pratique expert</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={readOnly}
+                    onClick={() => handleInsertComicBubble('speech')}
+                    className="p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-500/40 hover:border-indigo-400 hover:bg-indigo-900/40 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-300 mb-1">
+                      <MessageSquare className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
+                      <span>🗨️ Bulle Dialogue</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 line-clamp-1">Citation de la mascotte</p>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION: MASCOTTES & AVATARS CARTOON (When 'all' or 'characters') */}
+            {(cartoonFilter === 'all' || cartoonFilter === 'characters') && (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-[11px] font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Smile className="w-3.5 h-3.5 text-pink-400" />
+                    <span>Mascottes & Présentateurs 2D</span>
+                  </h5>
+                  <span className="text-[10px] text-pink-400 font-bold">Piste Avatar (PiP)</span>
+                </div>
+
+                <div className="space-y-2">
+                  {CARTOON_ANIMAKER_CHARACTERS.map((char) => (
+                    <div
+                      key={char.id}
+                      className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700 hover:border-pink-500 transition-all flex items-center justify-between gap-3 group"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img
+                          src={char.avatar}
+                          alt={char.name}
+                          className="w-11 h-11 rounded-full object-cover border-2 border-pink-500/40 bg-slate-900 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-bold text-white group-hover:text-pink-300 transition-colors truncate">
+                              {char.name}
+                            </p>
+                            <span className="px-1.5 py-0.2 rounded-full bg-pink-500/20 text-pink-300 text-[9px] font-bold border border-pink-500/30 whitespace-nowrap">
+                              {char.badge}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-pink-400 truncate">{char.role}</p>
+                          <p className="text-[9px] text-slate-400 truncate">{char.specialty}</p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={readOnly}
+                        onClick={() => handleInsertCartoonCharacter(char)}
+                        title="Placer l'avatar cartoon sur la piste PiP"
+                        className="px-2.5 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold transition-all flex items-center gap-1 shrink-0 shadow-xs hover:scale-105"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Incruster</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SECTION: DÉCORS & ARRIÈRE-PLANS ILLUSTRÉS (When 'all' or 'scenes') */}
+            {(cartoonFilter === 'all' || cartoonFilter === 'scenes') && (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-[11px] font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Palette className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Décors & Scènes de Dessin Animé</span>
+                  </h5>
+                  <span className="text-[10px] text-sky-400 font-bold">Piste Vidéo Fond</span>
+                </div>
+
+                <div className="space-y-2">
+                  {CARTOON_ILLUSTRATED_SCENES.map((scene) => (
+                    <div
+                      key={scene.id}
+                      className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700 hover:border-sky-500 transition-all flex items-center justify-between gap-3 group"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img
+                          src={scene.thumbnail}
+                          alt={scene.name}
+                          className="w-16 h-11 rounded-lg object-cover border border-slate-700 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-white group-hover:text-sky-300 transition-colors truncate">
+                            {scene.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                            <span className="px-1.5 py-0.2 rounded bg-slate-700 text-sky-300 font-semibold">
+                              {scene.tag}
+                            </span>
+                            <span>20s</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={readOnly}
+                        onClick={() => handleInsertCartoonScene(scene)}
+                        title="Placer cette scène de dessin animé sur la piste vidéo principale"
+                        className="px-2.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all flex items-center gap-1 shrink-0 hover:scale-105"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Placer</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* TAB 1: B-ROLL & STOCK VIDEOS */}
         {activeTab === 'broll' && (
           <div className="space-y-3">
@@ -533,7 +887,7 @@ export const MediaLibraryPanel: React.FC<MediaLibraryPanelProps> = ({
                   onChange={(e) => setAiCharacter(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-100 focus:outline-hidden focus:border-indigo-500"
                 >
-                  <option value="fatou-sow">Fatou Sow (Lead Data & IA)</option>
+                  <option value="itech-droid">Robot Android ITECH (Tuteur Officiel Voix & Lipsync)</option>
                   <option value="alex-chen">Alex Chen (Sécurité Usine & HSE)</option>
                   <option value="landry-bakweto">Dr. Landry Bakweto (Cloud & DevOps)</option>
                   <option value="amina-diallo">Amina Diallo (Fintech & Sécurité)</option>

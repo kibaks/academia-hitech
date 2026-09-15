@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
-import { Course, Lesson, UserProfile } from '../../types';
+import { Course, Lesson, UserProfile, CourseVideoProject } from '../../types';
 import { LiveTutorChatSidebar } from './LiveTutorChatSidebar';
 import { GeneratedVideoPlayer } from './GeneratedVideoPlayer';
+import { VideoLessonPlayer } from './VideoLessonPlayer';
+import { VideoEditingStudio } from '../studio/VideoEditingStudio';
 import { PresentationPlayer } from '../teacher/PresentationPlayer';
 import { PaymentCheckoutModal } from '../payment/PaymentCheckoutModal';
 import { useCurrency } from '../../context/CurrencyContext';
+import { MasterStudyAIAssistant } from './MasterStudyAIAssistant';
+import { LessonStudentNotes } from './LessonStudentNotes';
+import { LessonDiscussionQA } from './LessonDiscussionQA';
 import {
   convertAnimakerLessonToVideoProject,
   INITIAL_COURSE_VIDEO_PROJECT,
@@ -40,7 +45,14 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
-  Clock
+  Clock,
+  Crown,
+  LogIn,
+  UserCheck,
+  Zap,
+  Maximize2,
+  Minimize2,
+  Flame,
 } from 'lucide-react';
 
 interface CoursePlayerProps {
@@ -53,19 +65,52 @@ interface CoursePlayerProps {
   onStartQuiz: (quizId?: string) => void;
   onBackToCatalog: () => void;
   onOpenAIAssistantWithContext: (lessonTitle: string) => void;
-  onEnrollCourse?: (courseId: string, forcePaid?: boolean) => void;
+  onEnrollCourse?: (courseId: string, forcePaid?: boolean, unlockedLessonId?: string) => void;
+  onRequireAuth?: () => void;
+  onSubscribePlan?: (planId?: string) => void;
 }
 
 export interface LessonAccessStatus {
   isAccessible: boolean;
-  primaryLockReason: 'payment' | 'prerequisite' | 'quiz' | null;
+  primaryLockReason:
+    | 'auth'
+    | 'course_quiz'
+    | 'subscription'
+    | 'lesson_payment'
+    | 'payment'
+    | 'prerequisite'
+    | 'quiz'
+    | null;
   lockTitle: string;
   lockBadge: string;
+  authCondition: {
+    isSatisfied: boolean;
+    requiresLogin: boolean;
+    statusText: string;
+  };
+  courseQuizCondition: {
+    isSatisfied: boolean;
+    hasCourseAdmissionQuiz: boolean;
+    quizId?: string;
+    quizTitle?: string;
+    requiredScore: number;
+    userScore?: number;
+    hasAttempted: boolean;
+    statusText: string;
+  };
+  subscriptionCondition: {
+    isSatisfied: boolean;
+    requiresSubscription: boolean;
+    hasActiveSubscription: boolean;
+    statusText: string;
+  };
   paymentCondition: {
     isSatisfied: boolean;
     isPaidCourse: boolean;
     isEnrolled: boolean;
     isPreview: boolean;
+    isLessonSpecificallyLocked: boolean;
+    lessonPrice: number;
     price: number;
     statusText: string;
   };
@@ -98,57 +143,168 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
   onBackToCatalog,
   onOpenAIAssistantWithContext,
   onEnrollCourse,
+  onRequireAuth,
+  onSubscribePlan,
 }) => {
   const { formatPrice } = useCurrency();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [targetLessonForPayment, setTargetLessonForPayment] = useState<Lesson | undefined>(undefined);
 
   // Find initial lesson
   const allLessons: Lesson[] = course.chapters.flatMap((ch) => ch.lessons);
   const [currentLessonId, setCurrentLessonId] = useState<string>(allLessons[0]?.id || '');
   const [userCode, setUserCode] = useState<string>('');
   const [codeOutput, setCodeOutput] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'content' | 'notes' | 'resources'>('content');
+  const [activeTab, setActiveTab] = useState<
+    'content' | 'ai_assistant' | 'notes' | 'qa' | 'resources'
+  >('content');
   const [notes, setNotes] = useState<string>('Mes notes personnelles pour cette leçon...');
   const [sidebarTab, setSidebarTab] = useState<'syllabus' | 'live_tutor'>('live_tutor');
+  const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
+  const [showCelebration, setShowCelebration] = useState<boolean>(false);
+
+  // Video playback mode (mounted studio project vs raw video stream)
+  const [videoModeByLesson, setVideoModeByLesson] = useState<Record<string, 'mounted' | 'raw'>>({});
+  const [editingVideoModalOpen, setEditingVideoModalOpen] = useState<boolean>(false);
+  const [activeVideoProject, setActiveVideoProject] = useState<CourseVideoProject | null>(null);
+
+  // Permissions: Only trainers/admins can edit or realize video montages. Learners cannot create or edit montages.
+  const isTeacherOrAdmin = Boolean(
+    currentUser &&
+      (currentUser.role === 'trainer' ||
+        currentUser.role === 'center_admin' ||
+        currentUser.role === 'super_admin')
+  );
 
   const currentLesson = allLessons.find((l) => l.id === currentLessonId) || allLessons[0];
   const currentIndex = allLessons.findIndex((l) => l.id === currentLessonId);
   const isCompleted = completedLessonIds.includes(currentLesson.id);
 
-  // Evaluate conditional access for any lesson
-  const getLessonAccessStatus = (lesson: Lesson, index: number): LessonAccessStatus => {
-    // 1. Payment condition
-    const isPaidCourse =
-      course.pricingType === 'paid' ||
-      course.pricingType === 'subscription' ||
-      (typeof course.price === 'number' && course.price > 0);
+  // Keyboard navigation shortcuts
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+      if (e.key === 'f' || e.key === 'F') {
+        setIsFocusMode((prev) => !prev);
+      } else if (e.key === 'n' || e.key === 'N') {
+        if (currentIndex < allLessons.length - 1) {
+          setCurrentLessonId(allLessons[currentIndex + 1].id);
+        }
+      } else if (e.key === 'p' || e.key === 'P') {
+        if (currentIndex > 0) {
+          setCurrentLessonId(allLessons[currentIndex - 1].id);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentIndex, allLessons.length]);
 
+  // Evaluate conditional access for any lesson with comprehensive multi-criteria logic
+  const getLessonAccessStatus = (lesson: Lesson, index: number): LessonAccessStatus => {
     const isPrivilegedUser =
       currentUser?.role === 'trainer' ||
       currentUser?.role === 'center_admin' ||
       currentUser?.role === 'super_admin';
 
-    const isEnrolled =
-      Boolean(enrolledCourseIds.includes(course.id)) || isPrivilegedUser;
+    const isAuthenticatedUser =
+      Boolean(currentUser && currentUser.role !== 'visitor');
 
-    // Free preview condition: lesson.allowPreview or first lesson if free
+    const isPaidCourse =
+      course.pricingType === 'paid' ||
+      course.pricingType === 'subscription' ||
+      (typeof course.price === 'number' && course.price > 0);
+
+    // 0. Login Requirement Condition (for paid courses, subscription courses, or requiresLogin)
+    const requiresLogin = Boolean(course.requiresLogin || isPaidCourse || course.pricingType === 'subscription');
+    const authSatisfied = isPrivilegedUser || !requiresLogin || isAuthenticatedUser;
+    const authStatusText = authSatisfied
+      ? 'Authentification validée'
+      : 'Connexion obligatoire requise pour ce cours certifiant ou payant';
+
+    // 1. Course Admission Quiz Condition (e.g. 80% passing score to enter course)
+    const hasCourseAdmissionQuiz = Boolean(course.prerequisiteQuizId || course.prerequisiteQuiz);
+    const courseQuizId = course.prerequisiteQuizId || course.prerequisiteQuiz?.id;
+    const courseQuizTitle = course.prerequisiteQuizTitle || course.prerequisiteQuiz?.title || 'Épreuve d\'Admission Obligatoire';
+    const courseQuizRequiredScore = course.prerequisiteQuizMinScore || course.prerequisiteQuiz?.passingScore || 80;
+
+    let admissionUserScore: number | undefined = undefined;
+    if (courseQuizId) {
+      admissionUserScore = quizScores?.[courseQuizId] ?? currentUser?.quizScores?.[courseQuizId];
+    }
+    const hasAttemptedAdmission = admissionUserScore !== undefined;
+    const courseQuizSatisfied =
+      isPrivilegedUser ||
+      !hasCourseAdmissionQuiz ||
+      (hasAttemptedAdmission && admissionUserScore >= courseQuizRequiredScore);
+
+    const courseQuizStatusText = !hasCourseAdmissionQuiz
+      ? 'Aucune épreuve d\'admission requise pour ce cours'
+      : !hasAttemptedAdmission
+      ? `Épreuve d'admission non tentée (Seuil requis : ${courseQuizRequiredScore}%)`
+      : admissionUserScore >= courseQuizRequiredScore
+      ? `Admission validée (${admissionUserScore}% >= ${courseQuizRequiredScore}%)`
+      : `Admission refusée (${admissionUserScore}% < ${courseQuizRequiredScore}% requis)`;
+
+    // 2. Subscription Condition
+    const courseRequiresSub = course.pricingType === 'subscription';
+    const lessonRequiresSub = Boolean(lesson.requiresSubscription);
+    const requiresSub = courseRequiresSub || lessonRequiresSub;
+    const hasActiveSubscription =
+      Boolean(currentUser?.subscription?.status === 'active' || currentUser?.subscriptionPlan);
+    const subscriptionSatisfied = isPrivilegedUser || !requiresSub || hasActiveSubscription;
+    const subscriptionStatusText = !requiresSub
+      ? 'Non soumis à l\'abonnement Pass'
+      : hasActiveSubscription
+      ? 'Pass Pro Actif (Accès illimité débloqué)'
+      : 'Abonnement Pass Pro requis pour déverrouiller ce programme';
+
+    // 3. Payment & Enrollment Condition
+    const isEnrolledInCourse =
+      Boolean(enrolledCourseIds.includes(course.id)) ||
+      Boolean(currentUser?.paidCourseIds?.includes(course.id)) ||
+      (courseRequiresSub && hasActiveSubscription) ||
+      isPrivilegedUser;
+
+    const isLessonSpecificallyLocked = Boolean(lesson.isPremiumLocked || lesson.requiresPayment);
+    const isLessonPaid =
+      Boolean(currentUser?.paidLessonIds?.includes(lesson.id)) ||
+      (isEnrolledInCourse && isPaidCourse) ||
+      hasActiveSubscription ||
+      isPrivilegedUser;
+
     const isPreview = Boolean(lesson.allowPreview);
-    const paymentSatisfied = !isPaidCourse || isEnrolled || isPreview;
 
-    const paymentStatusText = !isPaidCourse
-      ? 'Formation Ouverte & Gratuite'
-      : isEnrolled
-      ? 'Frais de formation réglés (Accès complet)'
-      : isPreview
-      ? 'Aperçu gratuit autorisé sans paiement'
-      : `Frais à régler : ${formatPrice(course.price || course.priceUSD || 0)}`;
+    // Course payment satisfied if enrolled, or free course, or preview allowed (and lesson not specifically locked)
+    const generalPaymentSatisfied =
+      isPrivilegedUser ||
+      !isPaidCourse ||
+      isEnrolledInCourse ||
+      (isPreview && !isLessonSpecificallyLocked);
 
-    // 2. Prerequisite & Sequential progression condition
+    // Lesson specific payment satisfied
+    const lessonPaymentSatisfied = !isLessonSpecificallyLocked || isLessonPaid;
+
+    const overallPaymentSatisfied = generalPaymentSatisfied && lessonPaymentSatisfied;
+
+    let paymentStatusText = '';
+    if (!isPaidCourse && !isLessonSpecificallyLocked) {
+      paymentStatusText = 'Formation Ouverte & Gratuite';
+    } else if (isLessonSpecificallyLocked && !isLessonPaid) {
+      paymentStatusText = `Leçon Premium verrouillée : ${formatPrice(lesson.lessonPrice || 5)} pour débloquer`;
+    } else if (isEnrolledInCourse || isLessonPaid) {
+      paymentStatusText = 'Frais réglés (Accès complet débloqué)';
+    } else if (isPreview) {
+      paymentStatusText = 'Aperçu gratuit autorisé sans paiement';
+    } else {
+      paymentStatusText = `Frais à régler : ${formatPrice(course.price || course.priceUSD || 0)}`;
+    }
+
+    // 4. Sequential Prerequisite Condition
     let prereqSatisfied = true;
     let requiredLesson: Lesson | null = null;
     const missingPrereqTitles: string[] = [];
 
-    // Prior lesson must be validated
     if (index > 0) {
       const prevLesson = allLessons[index - 1];
       if (!completedLessonIds.includes(prevLesson.id)) {
@@ -158,7 +314,6 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
       }
     }
 
-    // Explicit prerequisites list check
     if (lesson.prerequisites && lesson.prerequisites.length > 0) {
       for (const reqId of lesson.prerequisites) {
         if (!completedLessonIds.includes(reqId)) {
@@ -179,28 +334,26 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
         ? 'Leçon précédente validée'
         : `Leçon précédente obligatoire (${missingPrereqTitles[0] || 'Prérequis'})`;
 
-    // 3. Quiz condition with precise percentage
+    // 5. Lesson Checkpoint Quiz Condition (with precise passing score)
     let hasRequiredQuiz = false;
-    let quizId: string | undefined = lesson.quizId;
-    let quizTitle: string | undefined = undefined;
-    let requiredScore = lesson.requiredQuizScore || 75;
+    let quizId: string | undefined = lesson.prerequisiteQuizId || lesson.quizId;
+    let quizTitle: string | undefined = lesson.prerequisiteQuizTitle;
+    let requiredScore = lesson.requiredQuizScore || 80;
 
-    // Direct quiz on lesson
-    if (lesson.quizId || lesson.requiredQuizScore) {
+    if (lesson.prerequisiteQuizId || lesson.quizId || lesson.requiredQuizScore) {
       hasRequiredQuiz = true;
-      requiredScore = lesson.requiredQuizScore || 75;
-      quizId = lesson.quizId || course.finalQuiz?.id;
+      requiredScore = lesson.requiredQuizScore || 80;
+      quizId = lesson.prerequisiteQuizId || lesson.quizId || course.finalQuiz?.id;
     } else {
-      // Check if previous lesson had a checkpoint quiz
       if (index > 0) {
         const prev = allLessons[index - 1];
         if (prev.quizId || prev.requiredQuizScore) {
           hasRequiredQuiz = true;
           quizId = prev.quizId;
-          requiredScore = prev.requiredQuizScore || 75;
+          requiredScore = prev.requiredQuizScore || 80;
+          quizTitle = prev.title;
         }
       }
-      // Check if parent chapter has a checkpoint quiz
       const parentChapter = course.chapters.find((ch) => ch.lessons.some((l) => l.id === lesson.id));
       if (parentChapter?.checkpointQuiz && parentChapter.lessons[0].id !== lesson.id) {
         hasRequiredQuiz = true;
@@ -210,7 +363,6 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
       }
     }
 
-    // Look up user score in quizScores or currentUser.quizScores
     let userScore: number | undefined = undefined;
     if (quizId) {
       userScore = quizScores?.[quizId] ?? currentUser?.quizScores?.[quizId];
@@ -220,7 +372,8 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
     }
 
     const hasAttempted = userScore !== undefined;
-    const quizSatisfied = !hasRequiredQuiz || (hasAttempted && userScore >= requiredScore);
+    const quizSatisfied =
+      isPrivilegedUser || !hasRequiredQuiz || (hasAttempted && userScore >= requiredScore);
 
     const quizStatusText = !hasRequiredQuiz
       ? 'Aucun quiz exigé pour cette leçon'
@@ -230,37 +383,82 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
       ? `Quiz validé (${userScore}% obtenu >= ${requiredScore}%)`
       : `Score insuffisant (${userScore}% obtenu < ${requiredScore}% requis)`;
 
-    // Primary lock classification
-    let primaryLockReason: 'payment' | 'prerequisite' | 'quiz' | null = null;
+    // Determine Primary Lock Reason in strict hierarchical priority:
+    let primaryLockReason: LessonAccessStatus['primaryLockReason'] = null;
     let lockTitle = '';
     let lockBadge = '';
 
-    if (!paymentSatisfied) {
+    if (!authSatisfied) {
+      primaryLockReason = 'auth';
+      lockTitle = 'Connexion Obligatoire';
+      lockBadge = 'Connexion requise';
+    } else if (!courseQuizSatisfied) {
+      primaryLockReason = 'course_quiz';
+      lockTitle = `Épreuve d'Admission (${courseQuizRequiredScore}%)`;
+      lockBadge = `Admission ${courseQuizRequiredScore}%`;
+    } else if (!subscriptionSatisfied) {
+      primaryLockReason = 'subscription';
+      lockTitle = 'Pass Pro Requis';
+      lockBadge = 'Pass Pro';
+    } else if (isLessonSpecificallyLocked && !isLessonPaid) {
+      primaryLockReason = 'lesson_payment';
+      lockTitle = `Leçon Verrouillée (${formatPrice(lesson.lessonPrice || 5)})`;
+      lockBadge = `Payant (${lesson.lessonPrice || 5} $)`;
+    } else if (!generalPaymentSatisfied) {
       primaryLockReason = 'payment';
-      lockTitle = 'Frais de formation à payer';
+      lockTitle = 'Frais de formation à régler';
       lockBadge = 'Frais requis';
+    } else if (!quizSatisfied) {
+      primaryLockReason = 'quiz';
+      lockTitle = `Quiz d'étape requis (${requiredScore}%)`;
+      lockBadge = `Quiz ${requiredScore}% requis`;
     } else if (!prereqSatisfied) {
       primaryLockReason = 'prerequisite';
       lockTitle = 'Leçon précédente requise';
       lockBadge = 'Leçon requise';
-    } else if (!quizSatisfied) {
-      primaryLockReason = 'quiz';
-      lockTitle = `Quiz de validation requis (${requiredScore}%)`;
-      lockBadge = `Quiz ${requiredScore}% requis`;
     }
 
-    const isAccessible = paymentSatisfied && prereqSatisfied && quizSatisfied;
+    const isAccessible =
+      authSatisfied &&
+      courseQuizSatisfied &&
+      subscriptionSatisfied &&
+      overallPaymentSatisfied &&
+      quizSatisfied &&
+      prereqSatisfied;
 
     return {
       isAccessible,
       primaryLockReason,
       lockTitle,
       lockBadge,
+      authCondition: {
+        isSatisfied: authSatisfied,
+        requiresLogin,
+        statusText: authStatusText,
+      },
+      courseQuizCondition: {
+        isSatisfied: courseQuizSatisfied,
+        hasCourseAdmissionQuiz,
+        quizId: courseQuizId,
+        quizTitle: courseQuizTitle,
+        requiredScore: courseQuizRequiredScore,
+        userScore: admissionUserScore,
+        hasAttempted: hasAttemptedAdmission,
+        statusText: courseQuizStatusText,
+      },
+      subscriptionCondition: {
+        isSatisfied: subscriptionSatisfied,
+        requiresSubscription: requiresSub,
+        hasActiveSubscription,
+        statusText: subscriptionStatusText,
+      },
       paymentCondition: {
-        isSatisfied: paymentSatisfied,
+        isSatisfied: overallPaymentSatisfied,
         isPaidCourse,
-        isEnrolled,
+        isEnrolled: isEnrolledInCourse,
         isPreview,
+        isLessonSpecificallyLocked,
+        lessonPrice: lesson.lessonPrice || 5,
         price: course.price || course.priceUSD || 0,
         statusText: paymentStatusText,
       },
@@ -331,44 +529,89 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
   };
 
   return (
-    <div id="course-player-container" className="space-y-4 pb-12">
+    <div
+      id="course-player-container"
+      className={`space-y-4 pb-12 transition-all ${
+        isFocusMode
+          ? 'fixed inset-0 z-50 bg-slate-950/98 backdrop-blur-xl overflow-y-auto p-3 sm:p-6 text-slate-100 max-w-none'
+          : ''
+      }`}
+    >
       {/* Top Header & Breadcrumbs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b border-slate-200">
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b ${
+        isFocusMode ? 'border-slate-800' : 'border-slate-200'
+      }`}>
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
           <button
             id="back-to-catalog-btn"
             onClick={onBackToCatalog}
-            className="p-2 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200 transition-colors flex items-center gap-1.5 text-xs font-semibold shadow-xs shrink-0"
+            className={`p-2 rounded-xl border transition-colors flex items-center gap-1.5 text-xs font-semibold shadow-xs shrink-0 ${
+              isFocusMode
+                ? 'bg-slate-900 text-slate-200 border-slate-700 hover:bg-slate-800'
+                : 'bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border-slate-200'
+            }`}
           >
             <ChevronLeft className="w-4 h-4 text-slate-500" />
             <span className="hidden xs:inline">Catalogue</span>
           </button>
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] sm:text-xs text-sky-600 font-semibold truncate">
-              {course.title}
+            <div className="text-[11px] sm:text-xs text-sky-500 font-semibold truncate flex items-center gap-2">
+              <span>{course.title}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20">
+                MasterStudy LMS
+              </span>
             </div>
-            <h1 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 truncate">
+            <h1 className={`text-sm sm:text-base md:text-lg font-bold truncate ${
+              isFocusMode ? 'text-white' : 'text-slate-900'
+            }`}>
               {currentLesson.title}
             </h1>
           </div>
         </div>
 
-        {/* Global Progress & Certificate trigger & Tuition Payment */}
-        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap sm:flex-nowrap justify-end">
+        {/* Global Progress & Certificate trigger & Tuition Payment & Focus Mode */}
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap sm:flex-nowrap justify-end">
+          {/* Daily Learning Streak Badge */}
+          <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold ${
+            isFocusMode
+              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+              : 'bg-amber-50 border-amber-200 text-amber-900'
+          }`}>
+            <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 animate-pulse" />
+            <span>Série : 3 jours</span>
+          </div>
+
+          {/* Focus Mode Zen Button */}
+          <button
+            id="toggle-focus-mode-btn"
+            onClick={() => setIsFocusMode(!isFocusMode)}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 shadow-xs ${
+              isFocusMode
+                ? 'bg-amber-500 text-slate-950 border-amber-400 font-black'
+                : 'bg-white text-slate-700 hover:text-slate-950 border-slate-200 hover:bg-slate-50'
+            }`}
+            title="Activer/Désactiver le Mode Étude Immersif (Touche F)"
+          >
+            {isFocusMode ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5 text-slate-500" />}
+            <span className="hidden xs:inline">{isFocusMode ? 'Quitter Focus' : 'Mode Focus'}</span>
+          </button>
+
           {!isEnrolled && isPaidCourse && (
             <button
               id="unlock-course-fees-btn"
               onClick={() => setShowPaymentModal(true)}
-              className="px-3 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
             >
               <CreditCard className="w-3.5 h-3.5 text-slate-950" />
-              <span>Régler l'inscription ({formatPrice(course.price || course.priceUSD || 0)})</span>
+              <span>Régler ({formatPrice(course.price || course.priceUSD || 0)})</span>
             </button>
           )}
 
           <div className="text-right hidden sm:block">
-            <span className="text-xs font-bold text-slate-700">{progressPercent}% terminé</span>
-            <div className="w-28 sm:w-32 h-2 rounded-full bg-slate-100 border border-slate-200 overflow-hidden mt-1">
+            <span className={`text-xs font-bold ${isFocusMode ? 'text-slate-300' : 'text-slate-700'}`}>
+              {progressPercent}% validé
+            </span>
+            <div className="w-24 sm:w-28 h-1.5 rounded-full bg-slate-200/40 overflow-hidden mt-1">
               <div
                 className="h-full bg-sky-500 transition-all duration-500"
                 style={{ width: `${progressPercent}%` }}
@@ -379,7 +622,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
           <button
             id="launch-quiz-header-btn"
             onClick={() => onStartQuiz(course.finalQuiz?.id)}
-            className="px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 hover:text-white shadow-xs flex items-center gap-1.5 transition-all"
+            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 hover:text-white shadow-xs flex items-center gap-1.5 transition-all"
           >
             <Award className="w-4 h-4 text-slate-950" />
             <span className="hidden xs:inline">Quiz & Certificat</span>
@@ -388,6 +631,51 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
         </div>
       </div>
 
+      {/* Encouraging Celebration Banner */}
+      {showCelebration && (
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🎉</span>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold flex items-center gap-2">
+                <span>Félicitations ! Leçon validée avec succès</span>
+                <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black">
+                  +50 XP
+                </span>
+              </h4>
+              <p className="text-[11px] text-emerald-100">
+                Vous progressez vite sur <strong>{course.title}</strong> ! Ancrez vos acquis avec l'IA ou continuez.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                setActiveTab('ai_assistant');
+                setShowCelebration(false);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-all flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>Tester avec l'IA</span>
+            </button>
+            {currentIndex < allLessons.length - 1 && (
+              <button
+                onClick={() => {
+                  setShowCelebration(false);
+                  handleNextLesson();
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-white text-slate-900 text-xs font-bold shadow-xs hover:bg-slate-100 transition-all flex items-center gap-1"
+              >
+                <span>Leçon Suivante</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main Grid: Player on left, Curriculum on right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Player & Content */}
@@ -395,18 +683,68 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
           {/* Main Visual Stage (Animaker 2D, Video, Code Sandbox or Conditional Lock Stage) */}
           <div className="rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm">
             {!currentLessonAccess.isAccessible ? (
-              /* LOCKED SCREEN: 3 CONDITIONS ENFORCEMENT */
-              <div id="locked-lesson-screen" className="p-4 sm:p-6 bg-gradient-to-b from-slate-900 to-slate-950 text-white space-y-4">
+              /* LOCKED SCREEN: COMPREHENSIVE CONDITIONAL ACCESS ENFORCEMENT */
+              <div id="locked-lesson-screen" className="p-4 sm:p-6 bg-gradient-to-b from-slate-900 to-slate-950 text-white space-y-5 rounded-xl border border-slate-800">
                 {/* Header of Locked Screen */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
-                      <Lock className="w-5 h-5 text-amber-400" />
+                    <div
+                      className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 ${
+                        currentLessonAccess.primaryLockReason === 'auth'
+                          ? 'bg-sky-500/20 border-sky-500/40 text-sky-400'
+                          : currentLessonAccess.primaryLockReason === 'course_quiz'
+                          ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                          : currentLessonAccess.primaryLockReason === 'subscription'
+                          ? 'bg-purple-500/20 border-purple-500/40 text-purple-400'
+                          : currentLessonAccess.primaryLockReason === 'lesson_payment'
+                          ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                          : currentLessonAccess.primaryLockReason === 'quiz'
+                          ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
+                          : 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                      }`}
+                    >
+                      {currentLessonAccess.primaryLockReason === 'auth' ? (
+                        <LogIn className="w-5 h-5" />
+                      ) : currentLessonAccess.primaryLockReason === 'course_quiz' ? (
+                        <ShieldCheck className="w-5 h-5" />
+                      ) : currentLessonAccess.primaryLockReason === 'subscription' ? (
+                        <Crown className="w-5 h-5" />
+                      ) : currentLessonAccess.primaryLockReason === 'lesson_payment' ? (
+                        <Coins className="w-5 h-5" />
+                      ) : currentLessonAccess.primaryLockReason === 'quiz' ? (
+                        <Target className="w-5 h-5" />
+                      ) : (
+                        <Lock className="w-5 h-5" />
+                      )}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                          Accès Conditionné aux Leçons Supérieures
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                            currentLessonAccess.primaryLockReason === 'auth'
+                              ? 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                              : currentLessonAccess.primaryLockReason === 'course_quiz'
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                              : currentLessonAccess.primaryLockReason === 'subscription'
+                              ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                              : currentLessonAccess.primaryLockReason === 'lesson_payment'
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                              : currentLessonAccess.primaryLockReason === 'quiz'
+                              ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                              : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                          }`}
+                        >
+                          {currentLessonAccess.primaryLockReason === 'auth'
+                            ? 'Authentification Requise'
+                            : currentLessonAccess.primaryLockReason === 'course_quiz'
+                            ? 'Épreuve d\'Admission Conditionnelle'
+                            : currentLessonAccess.primaryLockReason === 'subscription'
+                            ? 'Réservé Pass Pro'
+                            : currentLessonAccess.primaryLockReason === 'lesson_payment'
+                            ? 'Atelier Premium Verrouillé'
+                            : currentLessonAccess.primaryLockReason === 'quiz'
+                            ? 'Quiz d\'Étape Requis'
+                            : 'Accès Conditionné'}
                         </span>
                         <span className="text-[11px] text-slate-400 font-semibold">
                           Leçon {currentIndex + 1}/{totalLessons}
@@ -420,72 +758,221 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
 
                   <span
                     className={`self-start sm:self-auto px-2.5 py-1 rounded-xl text-xs font-bold border flex items-center gap-1.5 shrink-0 ${
-                      currentLessonAccess.primaryLockReason === 'payment'
+                      currentLessonAccess.primaryLockReason === 'auth'
+                        ? 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                        : currentLessonAccess.primaryLockReason === 'course_quiz'
                         ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        : currentLessonAccess.primaryLockReason === 'subscription'
+                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                        : currentLessonAccess.primaryLockReason === 'lesson_payment'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                         : currentLessonAccess.primaryLockReason === 'quiz'
                         ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                        : 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                        : 'bg-slate-800 text-slate-300 border-slate-700'
                     }`}
                   >
                     <Lock className="w-3.5 h-3.5" />
-                    <span>{currentLessonAccess.lockTitle}</span>
+                    <span>{currentLessonAccess.lockBadge}</span>
                   </span>
                 </div>
 
-                {/* Primary Diagnostic Banner */}
+                {/* Primary Diagnostic Banner with Dynamic Direct Actions */}
                 <div
-                  className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                    currentLessonAccess.primaryLockReason === 'payment'
+                  className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                    currentLessonAccess.primaryLockReason === 'auth'
+                      ? 'bg-sky-950/40 border-sky-500/40 text-sky-100'
+                      : currentLessonAccess.primaryLockReason === 'course_quiz'
+                      ? 'bg-amber-950/40 border-amber-500/40 text-amber-100'
+                      : currentLessonAccess.primaryLockReason === 'subscription'
+                      ? 'bg-purple-950/40 border-purple-500/40 text-purple-100'
+                      : currentLessonAccess.primaryLockReason === 'lesson_payment'
+                      ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-100'
+                      : currentLessonAccess.primaryLockReason === 'payment'
                       ? 'bg-amber-950/40 border-amber-500/40 text-amber-100'
                       : currentLessonAccess.primaryLockReason === 'quiz'
                       ? 'bg-rose-950/40 border-rose-500/40 text-rose-100'
                       : 'bg-slate-800/60 border-slate-700 text-slate-200'
                   }`}
                 >
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
                     <div className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span>Condition Requise</span>
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      <span>Condition d'Accès Prioritaire Requise</span>
                     </div>
-                    <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-                      {currentLessonAccess.primaryLockReason === 'payment'
-                        ? `Ce cours requiert le règlement des frais (${formatPrice(
-                            course.price || course.priceUSD || 0
-                          )}) pour accéder aux leçons supérieures.`
-                        : currentLessonAccess.primaryLockReason === 'quiz'
-                        ? `Vous devez valider l'évaluation d'étape avec au moins ${currentLessonAccess.quizCondition.requiredScore}% de bonnes réponses.`
-                        : `Vous devez d'abord compléter la leçon précédente : « ${
-                            currentLessonAccess.prerequisiteCondition.requiredLesson?.title || 'Leçon précédente'
-                          } ».`}
+                    <p className="text-xs text-slate-200 max-w-2xl leading-relaxed">
+                      {currentLessonAccess.primaryLockReason === 'auth' ? (
+                        <span>
+                          Une connexion avec un compte Academia ITECH est obligatoire pour accéder à ce
+                          programme certifiant ou payant. Connectez-vous pour synchroniser votre progression et
+                          obtenir votre certificat.
+                        </span>
+                      ) : currentLessonAccess.primaryLockReason === 'course_quiz' ? (
+                        <span>
+                          L'accès à cette formation est conditionné par la réussite de l'épreuve d'admission : «{' '}
+                          <strong>{currentLessonAccess.courseQuizCondition.quizTitle}</strong> ». Vous devez
+                          obtenir au minimum{' '}
+                          <strong>{currentLessonAccess.courseQuizCondition.requiredScore}%</strong> de score.
+                          {currentLessonAccess.courseQuizCondition.hasAttempted && (
+                            <span className="block mt-1 text-amber-300 font-semibold">
+                              Dernier score obtenu : {currentLessonAccess.courseQuizCondition.userScore}% (Insuffisant)
+                            </span>
+                          )}
+                        </span>
+                      ) : currentLessonAccess.primaryLockReason === 'subscription' ? (
+                        <span>
+                          Ce cours de pointe est réservé aux titulaires du Pass Abonnement Pro. Activez votre pass
+                          pour accéder aux clusters Kubernetes et pipelines illimités.
+                        </span>
+                      ) : currentLessonAccess.primaryLockReason === 'lesson_payment' ? (
+                        <span>
+                          Cet atelier interactif est verrouillé unitairement pour{' '}
+                          <strong>{formatPrice(currentLesson.lessonPrice || 5)}</strong>. Vous pouvez régler
+                          cette leçon seule ou souscrire au cours complet.
+                        </span>
+                      ) : currentLessonAccess.primaryLockReason === 'payment' ? (
+                        <span>
+                          Ce cours requiert le règlement des frais de formation (
+                          {formatPrice(course.price || course.priceUSD || 0)}) pour accéder à la suite du programme.
+                        </span>
+                      ) : currentLessonAccess.primaryLockReason === 'quiz' ? (
+                        <span>
+                          Cette leçon supérieure requiert la validation préalable du Quiz d'Étape (
+                          {currentLessonAccess.quizCondition.requiredScore}% requis).
+                          {currentLessonAccess.quizCondition.hasAttempted && (
+                            <span className="block mt-1 text-rose-300 font-semibold">
+                              Dernier score obtenu : {currentLessonAccess.quizCondition.userScore}% (Inférieur au seuil)
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span>
+                          Vous devez d'abord compléter la leçon précédente : «{' '}
+                          <strong>
+                            {currentLessonAccess.prerequisiteCondition.requiredLesson?.title || 'Leçon précédente'}
+                          </strong>{' '}
+                          ».
+                        </span>
+                      )}
                     </p>
                   </div>
 
-                  {/* Primary Direct Action Button */}
-                  <div className="shrink-0">
-                    {currentLessonAccess.primaryLockReason === 'payment' ? (
+                  {/* Primary Direct Action Buttons depending on condition */}
+                  <div className="shrink-0 flex flex-col sm:flex-row items-center gap-2">
+                    {currentLessonAccess.primaryLockReason === 'auth' ? (
                       <button
-                        onClick={() => setShowPaymentModal(true)}
-                        className="w-full sm:w-auto px-4 py-2 rounded-xl font-bold text-xs sm:text-sm bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition-all"
+                        onClick={() => {
+                          if (onRequireAuth) {
+                            onRequireAuth();
+                          } else {
+                            window.dispatchEvent(new CustomEvent('open-auth-modal'));
+                          }
+                        }}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-sky-500 hover:bg-sky-400 text-white flex items-center justify-center gap-2 shadow-md shadow-sky-500/20 active:scale-95 transition-all"
+                      >
+                        <LogIn className="w-4 h-4" />
+                        <span>Se connecter / Créer un compte</span>
+                      </button>
+                    ) : currentLessonAccess.primaryLockReason === 'course_quiz' ? (
+                      <button
+                        onClick={() =>
+                          onStartQuiz(
+                            currentLessonAccess.courseQuizCondition.quizId || course.finalQuiz?.id
+                          )
+                        }
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 active:scale-95 transition-all"
+                      >
+                        <Target className="w-4 h-4 text-slate-950" />
+                        <span>
+                          {currentLessonAccess.courseQuizCondition.hasAttempted
+                            ? 'Repasser l\'Épreuve d\'Admission'
+                            : 'Passer l\'Épreuve d\'Admission'}{' '}
+                          ({currentLessonAccess.courseQuizCondition.requiredScore}%)
+                        </span>
+                      </button>
+                    ) : currentLessonAccess.primaryLockReason === 'subscription' ? (
+                      <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                        <button
+                          onClick={() => {
+                            if (onSubscribePlan) {
+                              onSubscribePlan('pro');
+                            } else {
+                              setShowPaymentModal(true);
+                            }
+                          }}
+                          className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center gap-2 shadow-md shadow-purple-600/20 active:scale-95 transition-all"
+                        >
+                          <Crown className="w-4 h-4" />
+                          <span>Activer le Pass Pro</span>
+                        </button>
+                        {course.price && course.price > 0 && (
+                          <button
+                            onClick={() => {
+                              setTargetLessonForPayment(undefined);
+                              setShowPaymentModal(true);
+                            }}
+                            className="w-full sm:w-auto px-3.5 py-2 rounded-xl font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all"
+                          >
+                            <span>Acheter à l'unité ({formatPrice(course.price)})</span>
+                          </button>
+                        )}
+                      </div>
+                    ) : currentLessonAccess.primaryLockReason === 'lesson_payment' ? (
+                      <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                        <button
+                          onClick={() => {
+                            setTargetLessonForPayment(currentLesson);
+                            setShowPaymentModal(true);
+                          }}
+                          className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
+                        >
+                          <Coins className="w-4 h-4 text-slate-950" />
+                          <span>Débloquer cette Leçon ({formatPrice(currentLesson.lessonPrice || 5)})</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setTargetLessonForPayment(undefined);
+                            setShowPaymentModal(true);
+                          }}
+                          className="w-full sm:w-auto px-3.5 py-2 rounded-xl font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all"
+                        >
+                          <span>Cours complet ({formatPrice(course.price || 40)})</span>
+                        </button>
+                      </div>
+                    ) : currentLessonAccess.primaryLockReason === 'payment' ? (
+                      <button
+                        onClick={() => {
+                          setTargetLessonForPayment(undefined);
+                          setShowPaymentModal(true);
+                        }}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 active:scale-95 transition-all"
                       >
                         <CreditCard className="w-4 h-4 text-slate-950" />
-                        <span>Régler les frais ({formatPrice(course.price || course.priceUSD || 0)})</span>
+                        <span>Régler le cours complet ({formatPrice(course.price || course.priceUSD || 0)})</span>
                       </button>
                     ) : currentLessonAccess.primaryLockReason === 'quiz' ? (
                       <button
-                        onClick={() => onStartQuiz(currentLessonAccess.quizCondition.quizId || course.finalQuiz?.id)}
-                        className="w-full sm:w-auto px-4 py-2 rounded-xl font-bold text-xs sm:text-sm bg-rose-500 hover:bg-rose-400 text-white flex items-center justify-center gap-1.5 shadow-md shadow-rose-500/20 active:scale-95 transition-all"
+                        onClick={() =>
+                          onStartQuiz(
+                            currentLessonAccess.quizCondition.quizId || course.finalQuiz?.id
+                          )
+                        }
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-rose-500 hover:bg-rose-400 text-white flex items-center justify-center gap-2 shadow-md shadow-rose-500/20 active:scale-95 transition-all"
                       >
                         <Target className="w-4 h-4 text-white" />
                         <span>
-                          {currentLessonAccess.quizCondition.hasAttempted ? 'Repasser le Quiz' : 'Passer le Quiz'} (
-                          {currentLessonAccess.quizCondition.requiredScore}%)
+                          {currentLessonAccess.quizCondition.hasAttempted
+                            ? 'Repasser le Quiz'
+                            : 'Passer le Quiz'}{' '}
+                          ({currentLessonAccess.quizCondition.requiredScore}%)
                         </span>
                       </button>
                     ) : (
                       <button
                         onClick={() => {
                           if (currentLessonAccess.prerequisiteCondition.requiredLesson) {
-                            setCurrentLessonId(currentLessonAccess.prerequisiteCondition.requiredLesson.id);
+                            setCurrentLessonId(
+                              currentLessonAccess.prerequisiteCondition.requiredLesson.id
+                            );
                           } else if (currentIndex > 0) {
                             setCurrentLessonId(allLessons[currentIndex - 1].id);
                           }
@@ -499,62 +986,17 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                   </div>
                 </div>
 
-                {/* 3 Pillars Requirements Cards */}
+                {/* 4 Multi-criteria Pillars Requirements Cards */}
                 <div className="space-y-2">
                   <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    Suivi des 3 Conditions d'Accès :
+                    Suivi des 4 Conditions d'Accès de la Plateforme :
                   </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                    {/* Pillar 1: Frais à Payer */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                    {/* Pillar 1: Connexion & Authentification */}
                     <div
                       className={`p-3 rounded-xl border transition-all flex flex-col justify-between space-y-2.5 ${
-                        currentLessonAccess.paymentCondition.isSatisfied
-                          ? 'bg-emerald-950/20 border-emerald-500/30'
-                          : 'bg-slate-800/40 border-amber-500/40'
-                      }`}
-                    >
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                            <CreditCard className="w-3 h-3 text-amber-400" />
-                            1. Frais
-                          </span>
-                          {currentLessonAccess.paymentCondition.isSatisfied ? (
-                            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                              Validé
-                            </span>
-                          ) : (
-                            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                              À payer
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs font-bold text-white">
-                          {currentLessonAccess.paymentCondition.isPaidCourse
-                            ? `Tarif : ${formatPrice(course.price || course.priceUSD || 0)}`
-                            : 'Formation Gratuite'}
-                        </div>
-                        <p className="text-[10px] text-slate-400 leading-relaxed">
-                          {currentLessonAccess.paymentCondition.statusText}
-                        </p>
-                      </div>
-
-                      {!currentLessonAccess.paymentCondition.isSatisfied && (
-                        <button
-                          onClick={() => setShowPaymentModal(true)}
-                          className="w-full py-1.5 px-2.5 rounded-lg text-xs font-bold bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 flex items-center justify-center gap-1 transition-all"
-                        >
-                          <Coins className="w-3 h-3" />
-                          <span>Régler l'accès</span>
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Pillar 2: Progression Séquentielle */}
-                    <div
-                      className={`p-3 rounded-xl border transition-all flex flex-col justify-between space-y-2.5 ${
-                        currentLessonAccess.prerequisiteCondition.isSatisfied
+                        currentLessonAccess.authCondition.isSatisfied
                           ? 'bg-emerald-950/20 border-emerald-500/30'
                           : 'bg-slate-800/40 border-sky-500/40'
                       }`}
@@ -562,48 +1004,180 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                            <ListOrdered className="w-3 h-3 text-sky-400" />
-                            2. Séquence
+                            <UserCheck className="w-3 h-3 text-sky-400" />
+                            1. Connexion
                           </span>
-                          {currentLessonAccess.prerequisiteCondition.isSatisfied ? (
+                          {currentLessonAccess.authCondition.isSatisfied ? (
                             <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                              Validé
+                              Connecté
                             </span>
                           ) : (
                             <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
-                              En attente
+                              Requis
                             </span>
                           )}
                         </div>
                         <div className="text-xs font-bold text-white truncate">
-                          {currentIndex > 0 ? allLessons[currentIndex - 1].title : 'Départ'}
+                          {currentLessonAccess.authCondition.isSatisfied
+                            ? currentUser?.name || 'Utilisateur Identifié'
+                            : 'Visiteur non connecté'}
                         </div>
-                        <p className="text-[10px] text-slate-400 leading-relaxed">
-                          {currentLessonAccess.prerequisiteCondition.statusText}
+                        <p className="text-[10px] text-slate-400 leading-relaxed line-clamp-2">
+                          {currentLessonAccess.authCondition.statusText}
                         </p>
                       </div>
 
-                      {!currentLessonAccess.prerequisiteCondition.isSatisfied && (
+                      {!currentLessonAccess.authCondition.isSatisfied && (
                         <button
                           onClick={() => {
-                            if (currentLessonAccess.prerequisiteCondition.requiredLesson) {
-                              setCurrentLessonId(currentLessonAccess.prerequisiteCondition.requiredLesson.id);
-                            } else if (currentIndex > 0) {
-                              setCurrentLessonId(allLessons[currentIndex - 1].id);
+                            if (onRequireAuth) {
+                              onRequireAuth();
+                            } else {
+                              window.dispatchEvent(new CustomEvent('open-auth-modal'));
                             }
                           }}
                           className="w-full py-1.5 px-2.5 rounded-lg text-xs font-bold bg-sky-500/20 hover:bg-sky-500 text-sky-300 hover:text-white border border-sky-500/40 flex items-center justify-center gap-1 transition-all"
                         >
-                          <ArrowRight className="w-3 h-3" />
-                          <span>Aller à la leçon</span>
+                          <LogIn className="w-3 h-3" />
+                          <span>Se connecter</span>
                         </button>
                       )}
                     </div>
 
-                    {/* Pillar 3: Condition du Quiz avec Pourcentage Précis */}
+                    {/* Pillar 2: Admission Globale ou Pass Abonnement */}
                     <div
                       className={`p-3 rounded-xl border transition-all flex flex-col justify-between space-y-2.5 ${
-                        currentLessonAccess.quizCondition.isSatisfied
+                        (currentLessonAccess.courseQuizCondition.isSatisfied &&
+                          currentLessonAccess.subscriptionCondition.isSatisfied)
+                          ? 'bg-emerald-950/20 border-emerald-500/30'
+                          : 'bg-slate-800/40 border-amber-500/40'
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                            <Award className="w-3 h-3 text-amber-400" />
+                            2. Admission / Pass
+                          </span>
+                          {currentLessonAccess.courseQuizCondition.isSatisfied &&
+                          currentLessonAccess.subscriptionCondition.isSatisfied ? (
+                            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              Validé
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              Conditionné
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs font-bold text-white truncate">
+                          {currentLessonAccess.courseQuizCondition.hasCourseAdmissionQuiz
+                            ? `Quiz Seuil : ${currentLessonAccess.courseQuizCondition.requiredScore}%`
+                            : currentLessonAccess.subscriptionCondition.requiresSubscription
+                            ? 'Abonnement Pass Pro'
+                            : 'Admission Libre'}
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-relaxed line-clamp-2">
+                          {currentLessonAccess.courseQuizCondition.hasCourseAdmissionQuiz
+                            ? currentLessonAccess.courseQuizCondition.statusText
+                            : currentLessonAccess.subscriptionCondition.statusText}
+                        </p>
+                      </div>
+
+                      {currentLessonAccess.courseQuizCondition.hasCourseAdmissionQuiz &&
+                      !currentLessonAccess.courseQuizCondition.isSatisfied ? (
+                        <button
+                          onClick={() =>
+                            onStartQuiz(
+                              currentLessonAccess.courseQuizCondition.quizId || course.finalQuiz?.id
+                            )
+                          }
+                          className="w-full py-1.5 px-2.5 rounded-lg text-xs font-bold bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 flex items-center justify-center gap-1 transition-all"
+                        >
+                          <Target className="w-3 h-3" />
+                          <span>Épreuve ({currentLessonAccess.courseQuizCondition.requiredScore}%)</span>
+                        </button>
+                      ) : currentLessonAccess.subscriptionCondition.requiresSubscription &&
+                        !currentLessonAccess.subscriptionCondition.isSatisfied ? (
+                        <button
+                          onClick={() => {
+                            if (onSubscribePlan) {
+                              onSubscribePlan('pro');
+                            } else {
+                              setShowPaymentModal(true);
+                            }
+                          }}
+                          className="w-full py-1.5 px-2.5 rounded-lg text-xs font-bold bg-purple-500/20 hover:bg-purple-500 text-purple-300 hover:text-white border border-purple-500/40 flex items-center justify-center gap-1 transition-all"
+                        >
+                          <Crown className="w-3 h-3" />
+                          <span>Prendre le Pass</span>
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {/* Pillar 3: Frais & Paiement (Cours ou Leçon individuelle) */}
+                    <div
+                      className={`p-3 rounded-xl border transition-all flex flex-col justify-between space-y-2.5 ${
+                        currentLessonAccess.paymentCondition.isSatisfied
+                          ? 'bg-emerald-950/20 border-emerald-500/30'
+                          : 'bg-slate-800/40 border-emerald-500/40'
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                            <CreditCard className="w-3 h-3 text-emerald-400" />
+                            3. Paiement
+                          </span>
+                          {currentLessonAccess.paymentCondition.isSatisfied ? (
+                            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              Réglé
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              À débloquer
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs font-bold text-white truncate">
+                          {currentLessonAccess.paymentCondition.isLessonSpecificallyLocked
+                            ? `Leçon : ${formatPrice(currentLessonAccess.paymentCondition.lessonPrice)}`
+                            : currentLessonAccess.paymentCondition.isPaidCourse
+                            ? `Cours : ${formatPrice(currentLessonAccess.paymentCondition.price)}`
+                            : 'Gratuit'}
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-relaxed line-clamp-2">
+                          {currentLessonAccess.paymentCondition.statusText}
+                        </p>
+                      </div>
+
+                      {!currentLessonAccess.paymentCondition.isSatisfied && (
+                        <button
+                          onClick={() => {
+                            if (currentLessonAccess.paymentCondition.isLessonSpecificallyLocked) {
+                              setTargetLessonForPayment(currentLesson);
+                            } else {
+                              setTargetLessonForPayment(undefined);
+                            }
+                            setShowPaymentModal(true);
+                          }}
+                          className="w-full py-1.5 px-2.5 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-slate-950 border border-emerald-500/40 flex items-center justify-center gap-1 transition-all"
+                        >
+                          <Coins className="w-3 h-3" />
+                          <span>
+                            {currentLessonAccess.paymentCondition.isLessonSpecificallyLocked
+                              ? `Débloquer (${formatPrice(currentLessonAccess.paymentCondition.lessonPrice)})`
+                              : 'Régler le cours'}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Pillar 4: Validation par Quiz d'Étape ou Séquence */}
+                    <div
+                      className={`p-3 rounded-xl border transition-all flex flex-col justify-between space-y-2.5 ${
+                        (currentLessonAccess.quizCondition.isSatisfied &&
+                          currentLessonAccess.prerequisiteCondition.isSatisfied)
                           ? 'bg-emerald-950/20 border-emerald-500/30'
                           : 'bg-slate-800/40 border-rose-500/40'
                       }`}
@@ -612,43 +1186,64 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                             <Target className="w-3 h-3 text-rose-400" />
-                            3. Quiz
+                            4. Quiz d'Étape
                           </span>
-                          {currentLessonAccess.quizCondition.isSatisfied ? (
+                          {currentLessonAccess.quizCondition.isSatisfied &&
+                          currentLessonAccess.prerequisiteCondition.isSatisfied ? (
                             <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                               {currentLessonAccess.quizCondition.hasRequiredQuiz
                                 ? `${currentLessonAccess.quizCondition.userScore}% Validé`
-                                : 'Non requis'}
+                                : 'Validé'}
                             </span>
                           ) : (
                             <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                              Seuil {currentLessonAccess.quizCondition.requiredScore}%
+                              {currentLessonAccess.quizCondition.hasRequiredQuiz
+                                ? `Seuil ${currentLessonAccess.quizCondition.requiredScore}%`
+                                : 'Séquence'}
                             </span>
                           )}
                         </div>
-                        <div className="text-xs font-bold text-white">
+                        <div className="text-xs font-bold text-white truncate">
                           {currentLessonAccess.quizCondition.hasRequiredQuiz
-                            ? `Seuil requis : ${currentLessonAccess.quizCondition.requiredScore}% min.`
-                            : 'Aucun quiz bloquant'}
+                            ? `Seuil requis : ${currentLessonAccess.quizCondition.requiredScore}%`
+                            : currentLessonAccess.prerequisiteCondition.requiredLesson?.title || 'Séquence valide'}
                         </div>
-                        <p className="text-[10px] text-slate-400 leading-relaxed">
-                          {currentLessonAccess.quizCondition.statusText}
+                        <p className="text-[10px] text-slate-400 leading-relaxed line-clamp-2">
+                          {!currentLessonAccess.quizCondition.isSatisfied
+                            ? currentLessonAccess.quizCondition.statusText
+                            : currentLessonAccess.prerequisiteCondition.statusText}
                         </p>
                       </div>
 
-                      {!currentLessonAccess.quizCondition.isSatisfied && (
+                      {!currentLessonAccess.quizCondition.isSatisfied ? (
                         <button
                           onClick={() =>
-                            onStartQuiz(currentLessonAccess.quizCondition.quizId || course.finalQuiz?.id)
+                            onStartQuiz(
+                              currentLessonAccess.quizCondition.quizId || course.finalQuiz?.id
+                            )
                           }
                           className="w-full py-1.5 px-2.5 rounded-lg text-xs font-bold bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border border-rose-500/40 flex items-center justify-center gap-1 transition-all"
                         >
                           <Target className="w-3 h-3" />
                           <span>
-                            {currentLessonAccess.quizCondition.hasAttempted ? 'Repasser' : 'Passer le Quiz'}
+                            {currentLessonAccess.quizCondition.hasAttempted ? 'Repasser le Quiz' : 'Passer le Quiz'}
                           </span>
                         </button>
-                      )}
+                      ) : !currentLessonAccess.prerequisiteCondition.isSatisfied ? (
+                        <button
+                          onClick={() => {
+                            if (currentLessonAccess.prerequisiteCondition.requiredLesson) {
+                              setCurrentLessonId(
+                                currentLessonAccess.prerequisiteCondition.requiredLesson.id
+                              );
+                            }
+                          }}
+                          className="w-full py-1.5 px-2.5 rounded-lg text-xs font-bold bg-sky-500/20 hover:bg-sky-500 text-sky-300 hover:text-white border border-sky-500/40 flex items-center justify-center gap-1 transition-all"
+                        >
+                          <ArrowRight className="w-3 h-3" />
+                          <span>Aller à la leçon</span>
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -656,40 +1251,100 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
             ) : currentLesson.type === 'animaker_animated' ||
               currentLesson.type === 'video_project' ||
               currentLesson.videoProjectData ||
-              currentLesson.animakerData ? (
-              <div className="p-3 sm:p-4 bg-slate-950">
-                <GeneratedVideoPlayer
-                  project={
+              currentLesson.animakerData ||
+              currentLesson.type === 'video' ? (
+              <div className="p-2 sm:p-4 bg-slate-950">
+                {(() => {
+                  const hasMounted = Boolean(
                     currentLesson.videoProjectData ||
-                    (currentLesson.animakerData
-                      ? convertAnimakerLessonToVideoProject(currentLesson.animakerData)
-                      : INITIAL_COURSE_VIDEO_PROJECT)
+                    currentLesson.animakerData ||
+                    currentLesson.type === 'animaker_animated' ||
+                    currentLesson.type === 'video_project'
+                  );
+                  const hasRaw = Boolean(currentLesson.videoUrl);
+                  const currentMode =
+                    videoModeByLesson[currentLesson.id] || (hasMounted ? 'mounted' : 'raw');
+
+                  if (currentMode === 'mounted' || (!hasRaw && hasMounted)) {
+                    const projectToPlay: CourseVideoProject =
+                      currentLesson.videoProjectData ||
+                      (currentLesson.animakerData
+                        ? convertAnimakerLessonToVideoProject(currentLesson.animakerData)
+                        : {
+                            ...INITIAL_COURSE_VIDEO_PROJECT,
+                            title: currentLesson.title,
+                            topic: course.title,
+                            clips: INITIAL_COURSE_VIDEO_PROJECT.clips.map((c) =>
+                              c.trackId === 'track-video' && currentLesson.videoUrl
+                                ? { ...c, sourceUrl: currentLesson.videoUrl, type: 'video' }
+                                : c
+                            ),
+                          });
+
+                    return (
+                      <GeneratedVideoPlayer
+                        project={projectToPlay}
+                        lessonTitle={currentLesson.title}
+                        courseTitle={course.title}
+                        onLessonComplete={() => onCompleteLesson(currentLesson.id)}
+                        hasRawVideo={hasRaw && isTeacherOrAdmin}
+                        onSwitchToRawVideo={
+                          isTeacherOrAdmin
+                            ? () => setVideoModeByLesson((prev) => ({ ...prev, [currentLesson.id]: 'raw' }))
+                            : undefined
+                        }
+                        canEdit={isTeacherOrAdmin}
+                        onOpenVideoStudio={
+                          isTeacherOrAdmin
+                            ? () => {
+                                setActiveVideoProject(projectToPlay);
+                                setEditingVideoModalOpen(true);
+                              }
+                            : undefined
+                        }
+                      />
+                    );
                   }
-                  lessonTitle={currentLesson.title}
-                  onLessonComplete={() => onCompleteLesson(currentLesson.id)}
-                />
-              </div>
-            ) : currentLesson.type === 'video' ? (
-              <div className="relative aspect-video bg-slate-900 flex items-center justify-center">
-                {currentLesson.videoUrl ? (
-                  <iframe
-                    src={currentLesson.videoUrl}
-                    title={currentLesson.title}
-                    className="w-full h-full border-0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : (
-                  <div className="text-center p-8 space-y-3">
-                    <PlayCircle className="w-16 h-16 text-sky-400 mx-auto" />
-                    <p className="text-sm text-slate-100 font-semibold">
-                      Vidéo de formation interactive Academia ITECH
-                    </p>
-                    <p className="text-xs text-slate-300 max-w-sm mx-auto">
-                      Module sonorisé avec transcription automatisée et repères chapitrés.
-                    </p>
-                  </div>
-                )}
+
+                  return (
+                    <VideoLessonPlayer
+                      videoUrl={currentLesson.videoUrl}
+                      lessonTitle={currentLesson.title}
+                      courseTitle={course.title}
+                      authorName={course.instructor?.name}
+                      onLessonComplete={() => onCompleteLesson(currentLesson.id)}
+                      hasMountedVideo={true}
+                      onSwitchToMountedVideo={
+                        isTeacherOrAdmin
+                          ? () => setVideoModeByLesson((prev) => ({ ...prev, [currentLesson.id]: 'mounted' }))
+                          : undefined
+                      }
+                      canEdit={isTeacherOrAdmin}
+                      onOpenVideoStudio={
+                        isTeacherOrAdmin
+                          ? () => {
+                              const fallbackProject: CourseVideoProject =
+                                currentLesson.videoProjectData ||
+                                (currentLesson.animakerData
+                                  ? convertAnimakerLessonToVideoProject(currentLesson.animakerData)
+                                  : {
+                                      ...INITIAL_COURSE_VIDEO_PROJECT,
+                                      title: currentLesson.title,
+                                      topic: course.title,
+                                      clips: INITIAL_COURSE_VIDEO_PROJECT.clips.map((c) =>
+                                        c.trackId === 'track-video' && currentLesson.videoUrl
+                                          ? { ...c, sourceUrl: currentLesson.videoUrl, type: 'video' }
+                                          : c
+                                      ),
+                                    });
+                              setActiveVideoProject(fallbackProject);
+                              setEditingVideoModalOpen(true);
+                            }
+                          : undefined
+                      }
+                    />
+                  );
+                })()}
               </div>
             ) : currentLesson.type === 'interactive_code' ? (
               <div className="p-4 sm:p-6 space-y-4 bg-slate-900 text-slate-100">
@@ -773,7 +1428,10 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   id="mark-completed-btn"
-                  onClick={() => onCompleteLesson(currentLesson.id)}
+                  onClick={() => {
+                    onCompleteLesson(currentLesson.id);
+                    setShowCelebration(true);
+                  }}
                   disabled={!currentLessonAccess.isAccessible}
                   className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
                     !currentLessonAccess.isAccessible
@@ -803,11 +1461,11 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
 
                 <button
                   id="ask-aida-context-btn"
-                  onClick={() => setSidebarTab('live_tutor')}
-                  className="px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 flex items-center gap-1.5 transition-colors shadow-2xs"
+                  onClick={() => setActiveTab('ai_assistant')}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-50 text-indigo-800 border border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5 transition-colors shadow-2xs"
                 >
-                  <Bot className="w-4 h-4 text-emerald-600 animate-pulse" />
-                  <span>Poser une question au Tuteur</span>
+                  <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" />
+                  <span>Assistant IA MasterStudy</span>
                 </button>
               </div>
 
@@ -835,36 +1493,73 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
 
           {/* Sub-Tabs: Lesson Content, Notes, Resources */}
           <div className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 space-y-4 shadow-xs">
-            <div className="flex items-center gap-2 border-b border-slate-200 pb-2.5">
+            <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2.5 overflow-x-auto no-scrollbar">
               <button
+                id="tab-lesson-content"
                 onClick={() => setActiveTab('content')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
                   activeTab === 'content'
-                    ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-sky-50 text-sky-700 border border-sky-200 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                Contenu de la Leçon
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Contenu</span>
               </button>
+
               <button
+                id="tab-masterstudy-ai"
+                onClick={() => setActiveTab('ai_assistant')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  activeTab === 'ai_assistant'
+                    ? 'bg-gradient-to-r from-indigo-50 to-sky-50 text-indigo-800 border border-indigo-300 shadow-2xs'
+                    : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                <span>Assistant IA MasterStudy</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-800">
+                  Co-Pilote
+                </span>
+              </button>
+
+              <button
+                id="tab-student-notes"
                 onClick={() => setActiveTab('notes')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
                   activeTab === 'notes'
-                    ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-sky-50 text-sky-700 border border-sky-200 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                Bloc-Notes Personnel
+                <FileText className="w-3.5 h-3.5" />
+                <span>Mes Notes</span>
               </button>
+
               <button
-                onClick={() => setActiveTab('resources')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                  activeTab === 'resources'
-                    ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                    : 'text-slate-600 hover:text-slate-900'
+                id="tab-lesson-qa"
+                onClick={() => setActiveTab('qa')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  activeTab === 'qa'
+                    ? 'bg-sky-50 text-sky-700 border border-sky-200 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                Ressources Téléchargeables ({currentLesson.resources?.length || 1})
+                <MessagesSquare className="w-3.5 h-3.5" />
+                <span>Questions & Réponses (Q&A)</span>
+              </button>
+
+              <button
+                id="tab-lesson-resources"
+                onClick={() => setActiveTab('resources')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  activeTab === 'resources'
+                    ? 'bg-sky-50 text-sky-700 border border-sky-200 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Ressources ({currentLesson.resources?.length || 1})</span>
               </button>
             </div>
 
@@ -1015,22 +1710,40 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
               </div>
             )}
 
-            {/* Tab 2: Notes */}
-            {activeTab === 'notes' && (
-              <div className="space-y-3">
-                <p className="text-xs text-slate-500">
-                  Vos notes sont sauvegardées localement pour chaque leçon.
-                </p>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={6}
-                  className="w-full p-3 rounded-xl bg-slate-50 text-slate-800 text-xs sm:text-sm border border-slate-200 focus:outline-none focus:border-sky-500 focus:bg-white"
-                />
-              </div>
+            {/* Tab 2: MasterStudy AI Assistant */}
+            {activeTab === 'ai_assistant' && (
+              <MasterStudyAIAssistant
+                course={course}
+                currentLesson={currentLesson}
+                userCode={userCode}
+                onInsertToNotes={(text) => {
+                  setNotes((prev) => prev + '\n\n' + text);
+                  setActiveTab('notes');
+                }}
+                onSwitchToNotesTab={() => setActiveTab('notes')}
+              />
             )}
 
-            {/* Tab 3: Resources */}
+            {/* Tab 3: Notes */}
+            {activeTab === 'notes' && (
+              <LessonStudentNotes
+                course={course}
+                currentLesson={currentLesson}
+                initialContent={notes}
+                onAutoGeneratedNotesRequested={() => setActiveTab('ai_assistant')}
+              />
+            )}
+
+            {/* Tab 4: Q&A Forum */}
+            {activeTab === 'qa' && (
+              <LessonDiscussionQA
+                course={course}
+                currentLesson={currentLesson}
+                currentUser={currentUser}
+              />
+            )}
+
+            {/* Tab 5: Resources */}
             {activeTab === 'resources' && (
               <div className="space-y-3">
                 <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
@@ -1249,17 +1962,72 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
         </div>
       </div>
 
-      {/* Payment Checkout Modal for conditional paid course access */}
+      {/* Payment Checkout Modal for conditional paid course access or unit lesson unlocking */}
       <PaymentCheckoutModal
         isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        course={course}
-        currentUser={currentUser}
-        onSuccess={() => {
-          onEnrollCourse(course.id);
+        onClose={() => {
           setShowPaymentModal(false);
+          setTargetLessonForPayment(undefined);
+        }}
+        course={course}
+        targetLesson={targetLessonForPayment}
+        currentUser={currentUser}
+        onSuccess={(_order, unlockedLessonId) => {
+          if (onEnrollCourse) {
+            onEnrollCourse(course.id, true, unlockedLessonId);
+          }
+          setShowPaymentModal(false);
+          setTargetLessonForPayment(undefined);
         }}
       />
+
+      {/* Video Editing Studio Modal for Teachers/Instructors Only (Strictly forbidden for learners) */}
+      {editingVideoModalOpen && activeVideoProject && isTeacherOrAdmin && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-slate-950 border-b border-slate-800 text-white">
+            <div className="flex items-center gap-2 text-xs font-bold text-sky-400">
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>Studio de Montage Vidéo • Leçon : {currentLesson.title}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditingVideoModalOpen(false)}
+              className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-all"
+            >
+              Fermer le Studio
+            </button>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <VideoEditingStudio
+              initialVideoProject={activeVideoProject}
+              courseTitle={course.title}
+              chapterTitle={
+                course.chapters.find((ch) => ch.lessons.some((l) => l.id === currentLesson.id))
+                  ?.title
+              }
+              onSaveVideoProject={(savedProject) => {
+                currentLesson.videoProjectData = savedProject;
+                currentLesson.type = 'video_project';
+                setActiveVideoProject(savedProject);
+                setVideoModeByLesson((prev) => ({ ...prev, [currentLesson.id]: 'mounted' }));
+              }}
+              onPublishToCourse={(animakerLesson, savedProject) => {
+                if (savedProject) {
+                  currentLesson.videoProjectData = savedProject;
+                  currentLesson.type = 'video_project';
+                  setActiveVideoProject(savedProject);
+                }
+                if (animakerLesson) {
+                  currentLesson.animakerData = animakerLesson;
+                }
+                setVideoModeByLesson((prev) => ({ ...prev, [currentLesson.id]: 'mounted' }));
+                setEditingVideoModalOpen(false);
+              }}
+              onClose={() => setEditingVideoModalOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

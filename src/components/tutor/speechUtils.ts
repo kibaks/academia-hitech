@@ -215,8 +215,108 @@ export function findBestVoice(
   return scoredVoices[0]?.voice || languageMatchingVoices[0] || null;
 }
 
+export interface SpeechSyncEventData {
+  charIndex: number;
+  word: string;
+  amplitude: number; // 0.0 to 1.0 based on vowel vs consonant
+  viseme: 'open_a' | 'open_o' | 'open_e' | 'narrow_m' | 'bite_f' | 'wide_smile' | 'rest';
+  isSpeaking: boolean;
+}
+
+type SpeechSyncListener = (data: SpeechSyncEventData | null) => void;
+const speechSyncListeners: Set<SpeechSyncListener> = new Set();
+
+let activeSpeechTicker: ReturnType<typeof setInterval> | null = null;
+let activeSpeechTimeout: ReturnType<typeof setTimeout> | null = null;
+
+export function clearSpeechTicker() {
+  if (activeSpeechTicker) {
+    clearInterval(activeSpeechTicker);
+    activeSpeechTicker = null;
+  }
+  if (activeSpeechTimeout) {
+    clearTimeout(activeSpeechTimeout);
+    activeSpeechTimeout = null;
+  }
+}
+
+export function subscribeSpeechSync(listener: SpeechSyncListener): () => void {
+  speechSyncListeners.add(listener);
+  return () => {
+    speechSyncListeners.delete(listener);
+  };
+}
+
+function broadcastSpeechSync(data: SpeechSyncEventData | null) {
+  speechSyncListeners.forEach((l) => {
+    try {
+      l(data);
+    } catch (e) {
+      console.error('Speech sync listener error:', e);
+    }
+  });
+}
+
 /**
- * Execute Speech Synthesis with strict accent and safety handling
+ * Phoneme-to-Viseme & Vocal Amplitude Converter with Acoustic Duration
+ * Analyzes phonetic context to map exact lip shape, vocal energy, and acoustic duration in ms
+ */
+export function getVisemeAndAmplitudeForChar(
+  char: string,
+  prevChar: string = '',
+  nextChar: string = ''
+): {
+  viseme: 'open_a' | 'open_o' | 'open_e' | 'narrow_m' | 'bite_f' | 'wide_smile' | 'rest';
+  amplitude: number;
+  durationMs: number;
+} {
+  const c = char.toLowerCase();
+  const combo = (prevChar + c).toLowerCase();
+  const nextCombo = (c + nextChar).toLowerCase();
+
+  // Punctuation and pause
+  if ([' ', ',', '.', '!', '?', ';', ':', '\n', '-', '—', '…', '"', "'"].includes(c)) {
+    return { viseme: 'rest', amplitude: 0.1, durationMs: 140 };
+  }
+
+  // Rounded back vowels & diphthongs (O, OU, ON, AU, EAU, Ô) -> round 'O' puckered lips
+  if (
+    ['ou', 'on', 'eu', 'au', 'eau', 'om'].includes(combo) ||
+    ['ou', 'on', 'eu', 'au'].includes(nextCombo) ||
+    ['o', 'ô', 'ö'].includes(c)
+  ) {
+    return { viseme: 'open_o', amplitude: 0.92, durationMs: 125 };
+  }
+
+  // Open jaw resonant vowels (A, AN, AM, À, Â) -> wide tall mouth opening
+  if (['an', 'am'].includes(combo) || ['an', 'am'].includes(nextCombo) || ['a', 'à', 'â', 'ä'].includes(c)) {
+    return { viseme: 'open_a', amplitude: 0.98, durationMs: 130 };
+  }
+
+  // Front unrounded vowels (E, É, È, Ê, I, Î, Y, U) -> smiling horizontal slit aperture
+  if (
+    ['e', 'é', 'è', 'ê', 'ë', 'i', 'î', 'ï', 'y', 'u', 'û', 'ü'].includes(c) ||
+    ['in', 'im', 'un', 'ai', 'ei'].includes(combo)
+  ) {
+    return { viseme: 'open_e', amplitude: 0.85, durationMs: 110 };
+  }
+
+  // Bilabial consonants (lips pressed firmly together: M, B, P) -> closed lips
+  if (['m', 'b', 'p'].includes(c)) {
+    return { viseme: 'narrow_m', amplitude: 0.35, durationMs: 50 };
+  }
+
+  // Labiodental consonants (teeth touch lower lip: F, V, W) -> biting lower lip
+  if (['f', 'v', 'w'].includes(c)) {
+    return { viseme: 'bite_f', amplitude: 0.55, durationMs: 65 };
+  }
+
+  // Sibilants, dentals, palatals (wide grin / teeth matrix: S, Z, T, D, N, L, R, J, CH, C, K, G, X)
+  return { viseme: 'wide_smile', amplitude: 0.72, durationMs: 55 };
+}
+
+/**
+ * Execute Speech Synthesis with strict accent, safety handling and live syllable synchronization
  */
 export function playTutorSpeech({
   text,
@@ -242,10 +342,12 @@ export function playTutorSpeech({
     return null;
   }
 
+  clearSpeechTicker();
   window.speechSynthesis.cancel();
 
   const clean = cleanTextForSpeech(text, langCode);
   if (!clean) {
+    broadcastSpeechSync(null);
     if (onEnd) onEnd();
     return null;
   }
@@ -262,19 +364,87 @@ export function playTutorSpeech({
   const bestVoice = findBestVoice(langCode, gender);
   if (bestVoice) {
     utterance.voice = bestVoice;
-    // Ensure utterance lang matches chosen voice lang
     utterance.lang = bestVoice.lang;
   }
 
+  const chars = clean.split('');
+  let syncCharIndex = 0;
+  let isUtteranceActive = false;
+
+  const stepPhoneme = () => {
+    if (!isUtteranceActive) return;
+
+    if (syncCharIndex < chars.length) {
+      const char = chars[syncCharIndex];
+      const prevChar = chars[syncCharIndex - 1] || '';
+      const nextChar = chars[syncCharIndex + 1] || '';
+      const { viseme, amplitude, durationMs } = getVisemeAndAmplitudeForChar(char, prevChar, nextChar);
+
+      // Find surrounding word for context
+      const startWord = Math.max(0, clean.lastIndexOf(' ', syncCharIndex));
+      const endWord = clean.indexOf(' ', syncCharIndex);
+      const currentWord = clean.substring(
+        startWord,
+        endWord === -1 ? clean.length : endWord
+      ).trim();
+
+      broadcastSpeechSync({
+        charIndex: syncCharIndex,
+        word: currentWord,
+        amplitude,
+        viseme,
+        isSpeaking: true,
+      });
+
+      syncCharIndex++;
+
+      // Schedule next phoneme scaled inversely by playback rate
+      const stepDuration = Math.max(28, Math.round(durationMs / (rate || 1.0)));
+      if (activeSpeechTimeout) clearTimeout(activeSpeechTimeout);
+      activeSpeechTimeout = setTimeout(stepPhoneme, stepDuration);
+    } else {
+      // Natural soft tail pulse while speech engine wraps up
+      const pulse = 0.45 + Math.sin(Date.now() / 140) * 0.25;
+      broadcastSpeechSync({
+        charIndex: syncCharIndex,
+        word: '',
+        amplitude: pulse,
+        viseme: pulse > 0.6 ? 'open_a' : 'wide_smile',
+        isSpeaking: true,
+      });
+      activeSpeechTimeout = setTimeout(stepPhoneme, 70);
+    }
+  };
+
   utterance.onstart = () => {
+    isUtteranceActive = true;
+    syncCharIndex = 0;
     if (onStart) onStart();
+    stepPhoneme();
+  };
+
+  utterance.onboundary = (event) => {
+    if (event.name === 'word' && event.charIndex !== undefined) {
+      // Immediately lock onto browser's exact audio word position
+      syncCharIndex = event.charIndex;
+      if (activeSpeechTimeout) {
+        clearTimeout(activeSpeechTimeout);
+      }
+      stepPhoneme();
+    }
   };
 
   utterance.onend = () => {
+    isUtteranceActive = false;
+    clearSpeechTicker();
+    broadcastSpeechSync(null);
     if (onEnd) onEnd();
   };
 
   utterance.onerror = (e) => {
+    isUtteranceActive = false;
+    clearSpeechTicker();
+    broadcastSpeechSync(null);
     console.warn('Speech synthesis notification:', e);
     if (onError) onError();
   };
@@ -287,6 +457,8 @@ export function playTutorSpeech({
  * Stop any ongoing speech synthesis immediately
  */
 export function stopTutorSpeech(): void {
+  clearSpeechTicker();
+  broadcastSpeechSync(null);
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }

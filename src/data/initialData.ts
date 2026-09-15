@@ -1,4 +1,12 @@
 import { Course, Badge, Center, RewardItem, LeaderboardUser, UserProfile, Trainer } from '../types';
+import {
+  INITIAL_COURSE_VIDEO_PROJECT,
+  CARTOON_AI_ODYSSEY_PROJECT,
+  CARTOON_WHITEBOARD_CLOUD_PROJECT,
+  CARTOON_SAFETY_HEROES_PROJECT,
+  CARTOON_FINTECH_MAGIC_COIN_PROJECT,
+  CARTOON_KIDS_CODING_PROJECT,
+} from './videoProjectsData';
 
 export const INITIAL_TRAINERS: Trainer[] = [
   {
@@ -189,6 +197,132 @@ export const INITIAL_BADGES: Badge[] = [
 
 export const INITIAL_COURSES: Course[] = [
   {
+    id: 'course-cartoon-ai-odyssey',
+    title: 'L\'Odyssée de l\'Intelligence Artificielle en Dessin Animé Illustratif',
+    slug: 'odyssee-ia-dessin-anime-illustre',
+    category: 'ia_data',
+    level: 'Débutant',
+    rating: 5.0,
+    reviewCount: 420,
+    studentCount: 2350,
+    durationHours: 6.5,
+    price: 0,
+    pricingType: 'free',
+    isFeatured: true,
+    isNew: true,
+    hasCertificate: true,
+    authorId: 'trainer-nia-ai',
+    authorName: 'Professeure Nia & Milo le Robot',
+    authorAvatar: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=300&auto=format&fit=crop&q=80',
+    authorRole: 'Formatrice Pédagogique & Spécialiste Dessin Animé 2D',
+    centerId: 'center-1',
+    centerName: 'Kinshasa Silicon River & Digital Campus',
+    thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1000&auto=format&fit=crop&q=80',
+    bannerImage: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=1200&auto=format&fit=crop&q=80',
+    shortDescription: 'Découvrez l\'IA, le Cloud, la Sécurité et la Fintech à travers des leçons animées 2D, des mascottes expressives et des quiz interactifs sans complexité de montage.',
+    description: 'Une formation conçue sous forme de dessin animé pédagogique propre et moderne. Chaque concept est vulgarisé par des mascottes 2D attachantes (Professeure Nia, Milo le Robot, Leo l\'Explorateur, Zack Sécurité, Amina Diallo). Les apprenants suivent les leçons vidéo animées de façon fluide, rythmée par des quiz de validation en direct sans accès ni distraction d\'outils de montage.',
+    tags: ['Dessin Animé', 'Illustration 2D', 'IA Débutant', 'Pédagogie Visuelle', 'Tableau Blanc', 'Academia ITECH'],
+    skillsGained: [
+      'Compréhension intuitive des réseaux de neurones',
+      'Visualisation des architectures Cloud et datacenters',
+      'Maîtrise des réflexes de cybersécurité en entreprise',
+      'Principes de la monnaie numérique et mobile money'
+    ],
+    chapters: [
+      {
+        id: 'chap-cartoon-1',
+        title: 'Module 1 : Le Réveil de l\'IA & les Réseaux de Neurones',
+        description: 'Introduction animée avec la Professeure Nia et son assistant robot Milo',
+        lessons: [
+          {
+            id: 'les-cartoon-101',
+            title: '1.1 L\'Odyssée de l\'IA : Comment une machine apprend-elle ? (Dessin Animé)',
+            durationMinutes: 12,
+            type: 'video_project',
+            videoProjectData: CARTOON_AI_ODYSSEY_PROJECT,
+            content: `### 🎨 L'Odyssée de l'Intelligence Artificielle\n\nBienvenue dans ce cours animé ! Suivez la **Professeure Nia** et son assistant **Milo le Robot** pour explorer le fonctionnement fascinant des réseaux de neurones.\n\n#### Points clés abordés dans la vidéo :\n- **Le neurone artificiel** : de l'entrée pondérée au signal d'activation.\n- **L'entraînement par l'exemple** : comment l'IA ajuste ses poids pour reconnaître des motifs.\n- **Arrêt Quiz interactif** : testez vos acquis en direct pendant la vidéo !\n\n*Conçu pour une immersion totale de l'apprenant sans distraction de montage.*`,
+          },
+          {
+            id: 'les-cartoon-102',
+            title: '1.2 Le Cloud & les Réseaux Expliqués en Whiteboard Doodle par Leo',
+            durationMinutes: 10,
+            type: 'video_project',
+            videoProjectData: CARTOON_WHITEBOARD_CLOUD_PROJECT,
+            content: `### 🖍️ Le Cloud Computing sur Tableau Blanc Doodle\n\nAvec **Leo l'Explorateur**, découvrez pourquoi le "Cloud" n'est pas un nuage magique mais un réseau mondial interconnecté de centres de données.\n\n#### Au programme :\n- Datacenters & câbles sous-marins\n- Haute disponibilité et redondance\n- Quiz de validation au milieu de la capsule`,
+          }
+        ]
+      },
+      {
+        id: 'chap-cartoon-2',
+        title: 'Module 2 : Sécurité, Fintech & Pratique du Code en BD',
+        description: 'Vignettes interactives, bandes dessinées pédagogiques et algorithmes pour tous',
+        lessons: [
+          {
+            id: 'les-cartoon-201',
+            title: '2.1 Les Héros de la Sécurité Usine & Numérique en Bande Dessinée',
+            durationMinutes: 15,
+            type: 'video_project',
+            videoProjectData: CARTOON_SAFETY_HEROES_PROJECT,
+            content: `### 🛡️ Les Héros de la Sécurité avec Zack le Gardien\n\nFormat bande dessinée aux couleurs vives : apprenez les règles d'or de la protection industrielle et de la cybersécurité des infrastructures.`,
+          },
+          {
+            id: 'les-cartoon-202',
+            title: '2.2 La Pièce Magique : Fintech & Mobile Money par Amina',
+            durationMinutes: 12,
+            type: 'video_project',
+            videoProjectData: CARTOON_FINTECH_MAGIC_COIN_PROJECT,
+            content: `### 💳 Fintech & Mobile Money en 2D Vectorielle\n\nSuivez Amina pour comprendre les flux financiers numériques, l'idempotence et les passerelles de paiement sécurisées.`,
+          },
+          {
+            id: 'les-cartoon-203',
+            title: '2.3 Premiers Pas en Algorithmique avec Maya la Codeuse',
+            durationMinutes: 14,
+            type: 'video_project',
+            videoProjectData: CARTOON_KIDS_CODING_PROJECT,
+            content: `### 💻 Logique & Algorithmique Débutant\n\nMaya vous guide pas à pas dans la création de boucles, conditions et fonctions à travers des exemples visuels ludiques.`,
+          }
+        ]
+      }
+    ],
+    finalQuiz: {
+      id: 'quiz-cartoon-final',
+      title: 'Certification Fondations de l\'IA & Culture Numérique Animée',
+      description: 'Grand quiz récapitulatif avec badge certifié.',
+      courseId: 'course-cartoon-ai-odyssey',
+      passingScore: 80,
+      timeLimitMinutes: 15,
+      xpReward: 350,
+      questions: [
+        {
+          id: 'q-cart-1',
+          question: 'Dans un réseau de neurones illustré, quel est le rôle d\'un poids synaptique ?',
+          options: [
+            'Il détermine l\'importance accordée à chaque information entrante',
+            'Il mesure la vitesse du ventilateur de l\'ordinateur',
+            'Il stocke l\'historique du navigateur',
+            'Il chiffre le mot de passe utilisateur'
+          ],
+          correctIndex: 0,
+          points: 10,
+          explanation: 'Les poids synaptiques quantifient la force de connexion entre neurones et s\'ajustent pendant l\'apprentissage.'
+        },
+        {
+          id: 'q-cart-2',
+          question: 'Que représente le "Cloud" dans la vidéo de Leo ?',
+          options: [
+            'De l\'eau condensée dans l\'atmosphère',
+            'Un réseau mondial de serveurs physiques reliés par fibres optiques',
+            'Un superordinateur sur la Lune',
+            'Une clé USB magique sans matériel'
+          ],
+          correctIndex: 1,
+          points: 10,
+          explanation: 'Le Cloud repose sur des infrastructures physiques concrètes réparties dans le monde.'
+        }
+      ]
+    }
+  },
+  {
     id: 'course-ia-llm',
     title: 'Masterclass IA Générative, LLMs & Traitement des Langues Africaines (NLP)',
     slug: 'masterclass-ia-generative-llm-afrique',
@@ -233,6 +367,7 @@ export const INITIAL_COURSES: Course[] = [
             durationMinutes: 18,
             type: 'video',
             videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+            videoProjectData: INITIAL_COURSE_VIDEO_PROJECT,
             content: `### Comprendre le mécanisme d'Attention dans les Transformers
 
 Le papier fondateur *"Attention Is All You Need"* (Vaswani et al., 2017) a révolutionné le traitement automatique du langage naturel (NLP).
@@ -729,6 +864,537 @@ Le RAG combine un système de recherche sémantique avec la puissance générati
           options: ['kube-proxy', 'etcd', 'kubelet', 'containerd'],
           correctIndex: 1,
           explanation: 'etcd est la base clé-valeur distribuée et hautement disponible stockant tout l\'état de Kubernetes.',
+          points: 50
+        }
+      ]
+    }
+  },
+  // =========================================================================
+  // COURS EXEMPLE 1 : CONDITIONNÉ À LA CONNEXION + ABONNEMENT PASS PRO
+  // =========================================================================
+  {
+    id: 'course-cloud-k8s-subscription',
+    title: 'Masterclass Architecte Cloud Native & Kubernetes (Réservé Pass Abonnement Pro)',
+    slug: 'architecte-cloud-kubernetes-pass-pro',
+    category: 'cloud_devops',
+    level: 'Avancé',
+    rating: 4.97,
+    reviewCount: 240,
+    studentCount: 1120,
+    durationHours: 32.0,
+    price: 49,
+    originalPrice: 99,
+    pricingType: 'subscription',
+    subscriptionPlanRequired: 'pro',
+    requiresLogin: true,
+    isFeatured: true,
+    isNew: true,
+    hasCertificate: true,
+    authorId: 'trainer-landry-b',
+    authorName: 'Dr. Landry Bakweto',
+    authorAvatar: 'https://images.unsplash.com/photo-1531384441138-2736e62e0919?w=300&auto=format&fit=crop&q=80',
+    authorRole: 'Professeur Agrégé en Systèmes Distribués & Cloud',
+    centerId: 'center-1',
+    centerName: 'Kinshasa Silicon River & Digital Campus',
+    thumbnail: 'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=800&auto=format&fit=crop&q=80',
+    bannerImage: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&auto=format&fit=crop&q=80',
+    shortDescription: 'Ce programme d\'élite exige une connexion authentifiée et un abonnement Pass Pro actif pour accéder aux clusters dédiés et pipelines GitOps.',
+    description: 'Une formation haut niveau pour concevoir des infrastructures résilientes, des maillages de services (Istio) et des déploiements Kubernetes multi-cloud à haute disponibilité en Afrique subsaharienne et à l\'international.',
+    tags: ['Kubernetes', 'Abonnement', 'Pass Pro', 'Docker', 'GitOps', 'ArgoCD', 'Cloud'],
+    skillsGained: [
+      'Déploiement de clusters Kubernetes haute disponibilité',
+      'Orchestration GitOps avec ArgoCD & Helm',
+      'Sécurisation des secrets et politiques réseau Cilium',
+      'Monitoring d\'infrastructures distribuées avec Prometheus & Grafana'
+    ],
+    chapters: [
+      {
+        id: 'chap-k8s-sub1',
+        title: 'Module 1 : Architecture du Control Plane & Topologies Résilientes',
+        description: 'Conception d\'un cluster d\'entreprise multi-maîtres avec etcd distribué',
+        lessons: [
+          {
+            id: 'les-k8s-sub101',
+            title: '1.1 Fondamentaux de la haute disponibilité Kubernetes (Aperçu ouvert)',
+            durationMinutes: 20,
+            type: 'video',
+            allowPreview: true,
+            requiresPayment: false,
+            content: `### Architecture Kubernetes Haute Disponibilité
+Ce module introductif présente les concepts de base du Control Plane (API Server, Controller Manager, Scheduler, etcd) et les mécanismes de quorum Raft.`
+          },
+          {
+            id: 'les-k8s-sub102',
+            title: '1.2 Déploiement d\'un cluster de production avec Ingress & Cert-Manager (Pass Pro Requis)',
+            durationMinutes: 35,
+            type: 'interactive_code',
+            allowPreview: false,
+            requiresPayment: true,
+            requiresSubscription: true,
+            codeLanguage: 'yaml',
+            codeStarter: `apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: core-ingress-api\nspec:\n  replicas: 3\n  # Complétez la spec pour haute disponibilité...`,
+            content: `Configuration de certificats Let's Encrypt automatisés avec ACME et équilibrage de charge via Ingress Controller.`
+          }
+        ]
+      }
+    ],
+    finalQuiz: {
+      id: 'quiz-k8s-sub-final',
+      title: 'Certification Architecte Kubernetes Cloud Native',
+      description: 'Évaluation finale pour valider votre titre d\'Architecte Kubernetes certifié.',
+      courseId: 'course-cloud-k8s-subscription',
+      passingScore: 80,
+      timeLimitMinutes: 20,
+      xpReward: 450,
+      questions: [
+        {
+          id: 'qk8s-1',
+          question: 'Comment Kubernetes maintient-il le quorum dans un cluster etcd à 3 nœuds ?',
+          options: [
+            'Il requiert au moins 2 nœuds actifs pour valider une écriture (majorité absolue (N/2)+1)',
+            'Un seul nœud suffit quel que soit l\'état des autres',
+            'Il fait appel à un serveur DNS externe',
+            'Les écritures sont stockées en mémoire tampon sans quorum'
+          ],
+          correctIndex: 0,
+          explanation: 'Dans l\'algorithme Raft, un cluster de 3 nœuds tolère la perte d\'1 nœud car 2 nœuds forment la majorité (quorum = 2).',
+          points: 50
+        },
+        {
+          id: 'qk8s-2',
+          question: 'Quelle ressource Kubernetes définit la communication réseau autorisée entre Pods ?',
+          options: ['NetworkPolicy', 'IngressRoute', 'ClusterRole', 'ServiceAccount'],
+          correctIndex: 0,
+          explanation: 'Les NetworkPolicies spécifient les règles de filtrage de paquets de couche 3/4 pour isoler les pods.',
+          points: 50
+        }
+      ]
+    }
+  },
+
+  // =========================================================================
+  // COURS EXEMPLE 2 : LEÇONS SPÉCIFIQUES VERROUILLÉES POUR UN PAIEMENT À L'ACTE
+  // =========================================================================
+  {
+    id: 'course-mobile-money-locked-lessons',
+    title: 'Génie Logiciel & Intégration Mobile Money (Avec Leçons Ateliers Payantes à l\'Acte)',
+    slug: 'genie-logiciel-mobile-money-lecons-payantes',
+    category: 'business',
+    level: 'Intermédiaire',
+    rating: 4.93,
+    reviewCount: 295,
+    studentCount: 1420,
+    durationHours: 22.0,
+    price: 0, // Entrée gratuite pour les leçons théoriques, mais ateliers spécifiques verrouillés pour paiement
+    pricingType: 'free',
+    isFeatured: true,
+    isNew: true,
+    hasCertificate: true,
+    authorId: 'trainer-amina-d',
+    authorName: 'Amina Diallo',
+    authorAvatar: 'https://images.unsplash.com/photo-1589156280159-27698a70f29e?w=300&auto=format&fit=crop&q=80',
+    authorRole: 'Directrice R&D Systèmes de Paiement Panafricains',
+    centerId: 'center-3',
+    centerName: 'Abidjan Fintech & Tech Lab',
+    thumbnail: 'https://images.unsplash.com/photo-1556742049-0a67e5572293?w=800&auto=format&fit=crop&q=80',
+    bannerImage: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=1200&auto=format&fit=crop&q=80',
+    shortDescription: 'Programme modulaire : leçons théoriques ouvertes à tous, avec 2 ateliers pratiques avancés verrouillés nécessitant un paiement unitaire (5 $).',
+    description: 'Apprenez à développer des passerelles de paiement sécurisées adaptées au contexte africain (M-Pesa, Wave, Orange Money). Les leçons fondamentales sont gratuites, et vous pouvez débloquer les ateliers de code en production à la carte pour 5 $ ou via le pass complet.',
+    tags: ['Fintech', 'Mobile Money', 'Leçons Payantes', 'Wave', 'M-Pesa', 'Orange Money', 'Webhooks'],
+    skillsGained: [
+      'Architecture de passerelle de micro-paiement USSD et Web',
+      'Sécurisation des webhooks de paiement avec signatures HMAC-SHA256',
+      'Gestion de l\'idempotence contre les doubles débits',
+      'Audit financier et réconciliation automatique des comptes'
+    ],
+    chapters: [
+      {
+        id: 'chap-mm-free',
+        title: 'Module 1 : Fondements des Paiements Digitaux en Afrique (Accès Ouvert)',
+        description: 'Comprendre l\'écosystème bancaire, la réglementation BCEAO et les flux C2B/B2C',
+        lessons: [
+          {
+            id: 'les-mm-101',
+            title: '1.1 Panorama des réseaux Mobile Money (M-Pesa, Wave, Orange, Airtel)',
+            durationMinutes: 18,
+            type: 'video',
+            allowPreview: true,
+            requiresPayment: false,
+            content: `### Panorama des réseaux Mobile Money en Afrique
+Analyse comparative des protocoles USSD, API REST et QR Code selon les zones économiques (UEMOA, CEMAC, Afrique de l'Est).`
+          },
+          {
+            id: 'les-mm-102',
+            title: '1.2 Spécifications des Webhooks et gestion des échecs réseau temporaires',
+            durationMinutes: 22,
+            type: 'article',
+            allowPreview: true,
+            requiresPayment: false,
+            content: `### Résilience des notifications de paiement
+Comment architecturer des files d'attente asynchrones (RabbitMQ, Redis) pour traiter les callbacks de paiement sans perte de paquets.`
+          }
+        ]
+      },
+      {
+        id: 'chap-mm-paid',
+        title: 'Module 2 : Ateliers Pratiques en Production (Leçons Premium Verrouillées)',
+        description: 'Laboratoires de code avancés débloquables unitairement (5 $ par leçon) ou avec le Pass',
+        lessons: [
+          {
+            id: 'les-mm-workshop-prod',
+            title: '2.1 Atelier Code : Implémentation du Webhook C2B avec Anti-Replay & Idempotence',
+            durationMinutes: 30,
+            type: 'interactive_code',
+            allowPreview: false,
+            requiresPayment: true,
+            lessonPrice: 5,
+            isPremiumLocked: true,
+            codeLanguage: 'typescript',
+            codeStarter: `import crypto from 'crypto';\n\nexport function verifyMpesaSignature(payload: string, signature: string, secretKey: string): boolean {\n  // TODO: Implémentez la validation HMAC sécurisée\n  return false;\n}`,
+            content: `### Atelier Pratique Débloqué : Signature Cryptographique & Idempotence
+Cette leçon premium vous donne le code source complet et l'accès au simulateur OpenAPI pour tester en direct la réception des push STK M-Pesa.`
+          },
+          {
+            id: 'les-mm-reconciliation-lab',
+            title: '2.2 Laboratoire Virtuel : Réconciliation bancaire automatisée & Audit Trail BCEAO',
+            durationMinutes: 35,
+            type: 'article',
+            allowPreview: false,
+            requiresPayment: true,
+            lessonPrice: 5,
+            isPremiumLocked: true,
+            content: `### Audit Trail & Réconciliation Automatisée
+Système complet de comparaison des journaux de transactions télécoms et bancaires avec alerte d'écart en temps réel.`
+          }
+        ]
+      }
+    ],
+    finalQuiz: {
+      id: 'quiz-mm-cert',
+      title: 'Évaluation Finale : Spécialiste Intégration Mobile Money',
+      description: 'Validez vos compétences pour obtenir votre certificat officiel d\'ingénieur Fintech.',
+      courseId: 'course-mobile-money-locked-lessons',
+      passingScore: 75,
+      timeLimitMinutes: 15,
+      xpReward: 350,
+      questions: [
+        {
+          id: 'qmm-1',
+          question: 'Pourquoi la clé d\'idempotence est-elle indispensable lors d\'un appel API de débit Mobile Money ?',
+          options: [
+            'Pour chiffrer le mot de passe du client',
+            'Pour garantir qu\'un retry réseau n\'exécute pas deux fois le même débit sur le compte du client',
+            'Pour accélérer la connexion internet en 4G',
+            'Pour envoyer un SMS marketing'
+          ],
+          correctIndex: 1,
+          explanation: 'L\'idempotence garantit qu\'une requête répétée avec la même clé produit le même résultat sans créer de transaction additionnelle.',
+          points: 50
+        }
+      ]
+    }
+  },
+
+  // =========================================================================
+  // COURS EXEMPLE 3 : ACCÈS CONDITIONNÉ PAR LA RÉUSSITE D'UN QUIZ D'ADMISSION (80%)
+  // =========================================================================
+  {
+    id: 'course-cyber-advanced-quiz-conditioned',
+    title: 'Bootcamp Expert Cybersécurité Offensive & Red Team (Admission : Quiz 80% requis)',
+    slug: 'bootcamp-expert-cybersecurite-admission-quiz',
+    category: 'cybersecurity',
+    level: 'Avancé',
+    rating: 4.98,
+    reviewCount: 410,
+    studentCount: 890,
+    durationHours: 36.0,
+    price: 39,
+    originalPrice: 79,
+    pricingType: 'paid',
+    requiresLogin: true,
+    prerequisiteQuizId: 'quiz-cyber-admission',
+    prerequisiteQuizTitle: 'Épreuve d\'Admission : Fondamentaux Linux, Réseaux & Cryptographie (80% requis)',
+    prerequisiteQuizMinScore: 80,
+    isFeatured: true,
+    isNew: true,
+    hasCertificate: true,
+    authorId: 'trainer-malik-k',
+    authorName: 'Malik Konaté',
+    authorAvatar: 'https://images.unsplash.com/photo-1507152832244-10d45c7eda57?w=300&auto=format&fit=crop&q=80',
+    authorRole: 'Consultant SOC Certifié CISSP & OSCP',
+    centerId: 'center-2',
+    centerName: 'Dakar AI & Cyber Hub',
+    thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80',
+    bannerImage: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=1200&auto=format&fit=crop&q=80',
+    shortDescription: 'L\'accès à ce cursus d\'élite est verrouillé : vous devez impérativement obtenir au moins 80% au quiz d\'admission technique pour débloquer l\'inscription.',
+    description: 'Formation intensive réservée aux profils ayant validé le test d\'entrée. Vous apprendrez le test d\'intrusion avancé, l\'analyse de malwares, la défense active de périmètre et la sécurité des infrastructures critiques.',
+    tags: ['Cybersécurité', 'Admission Quiz', '80% Requis', 'Red Team', 'Pentest', 'Linux', 'SOC'],
+    skillsGained: [
+      'Tests d\'intrusion applicatifs et réseaux avancés',
+      'Analyse de trafic chiffré et détection d\'anomalies IDS/IPS',
+      'Élévation de privilèges Linux & Windows Active Directory',
+      'Audit de conformité et durcissement de systèmes critiques'
+    ],
+    prerequisiteQuiz: {
+      id: 'quiz-cyber-admission',
+      title: 'Épreuve d\'Admission SOC & Pentest (Seuil éliminatoire : 80%)',
+      description: 'Démontrez votre maîtrise des prérequis réseau et système pour débloquer l\'accès au Bootcamp Expert.',
+      courseId: 'course-cyber-advanced-quiz-conditioned',
+      passingScore: 80,
+      timeLimitMinutes: 10,
+      xpReward: 300,
+      questions: [
+        {
+          id: 'qadm-1',
+          question: 'Lors d\'un scan de ports SYN Stealth Scan (Nmap -sS), quelle est la particularité de la poignée de main TCP ?',
+          options: [
+            'La connexion TCP complète est établie puis fermée avec FIN',
+            'Le scanner envoie un SYN, reçoit SYN-ACK puis envoie immédiatement un RST pour ne pas finaliser la connexion',
+            'Le scan utilise uniquement le protocole UDP sur le port 53',
+            'Le scanner bloque la carte réseau'
+          ],
+          correctIndex: 1,
+          explanation: 'Le half-open scan (-sS) n\'établit jamais la connexion complète, réduisant la trace dans les journaux applicatifs standards.',
+          points: 34
+        },
+        {
+          id: 'qadm-2',
+          question: 'Dans la commande Linux `chmod 4755 /usr/bin/script`, à quoi sert le bit 4 au début ?',
+          options: [
+            'Il rend le fichier en lecture seule pour root',
+            'Il active le bit SUID (Set User ID) pour exécuter le binaire avec les privilèges du propriétaire',
+            'Il chiffre le script en AES-256',
+            'Il supprime le fichier après 4 jours'
+          ],
+          correctIndex: 1,
+          explanation: 'Le bit SUID (valeur 4) permet à tout utilisateur d\'exécuter le binaire avec les privilèges du propriétaire (souvent root).',
+          points: 33
+        },
+        {
+          id: 'qadm-3',
+          question: 'Quel type d\'attaque utilise des tables pré-calculées d\'empreintes cryptographiques pour casser des condensats ?',
+          options: [
+            'Attaque par force brute séquentielle',
+            'Attaque par Tables Arc-en-ciel (Rainbow Tables)',
+            'Attaque par injection SQL aveugle',
+            'Dépassement de tampon (Buffer Overflow)'
+          ],
+          correctIndex: 1,
+          explanation: 'Les Rainbow Tables utilisent un compromis temps-mémoire précalculé pour inverser les fonctions de hachage non salées.',
+          points: 33
+        }
+      ]
+    },
+    chapters: [
+      {
+        id: 'chap-cyber-adm1',
+        title: 'Module 1 : Reconnaissance Passive & Cartographie d\'Attaque',
+        description: 'OSINT avancée, footprinting et identification des faiblesses de surface',
+        lessons: [
+          {
+            id: 'les-cyber-adm101',
+            title: '1.1 Détection des vecteurs d\'attaque & Modélisation des menaces (MITRE ATT&CK)',
+            durationMinutes: 25,
+            type: 'video',
+            allowPreview: true,
+            content: `Comprendre la matrice MITRE ATT&CK pour anticiper les phases de déplacement latéral et d'exfiltration.`
+          },
+          {
+            id: 'les-cyber-adm102',
+            title: '1.2 Exploitation de vulnérabilités Web & Contournement WAF en environnement isolé',
+            durationMinutes: 30,
+            type: 'interactive_code',
+            allowPreview: false,
+            requiresPayment: true,
+            codeLanguage: 'python',
+            codeStarter: `# Exploit PoC en environnement sandbox\nimport requests\n\ndef test_injection(url: str, payload: str):\n    pass`,
+            content: `Mise en pratique encadrée sur laboratoire éphémère pour tester les défenses d'une API bancaire.`
+          }
+        ]
+      }
+    ],
+    finalQuiz: {
+      id: 'quiz-cyber-master-final',
+      title: 'Examen de Certification Pentesteur Expert Academia ITECH',
+      description: 'L\'examen ultime validant vos compétences pratiques d\'audit de sécurité offensive.',
+      courseId: 'course-cyber-advanced-quiz-conditioned',
+      passingScore: 80,
+      timeLimitMinutes: 25,
+      xpReward: 500,
+      questions: [
+        {
+          id: 'qcm-1',
+          question: 'Quelle mesure est la plus efficace pour prévenir les attaques par Cross-Site Request Forgery (CSRF) ?',
+          options: [
+            'Utiliser des jetons anti-CSRF imprévisibles et l\'attribut de cookie SameSite=Strict',
+            'Masquer l\'adresse IP du serveur',
+            'Désactiver le protocole TLS',
+            'Changer le nom de domaine de l\'application'
+          ],
+          correctIndex: 0,
+          explanation: 'Les jetons synchrones liés à la session utilisateur et le mode SameSite empêchent les requêtes forgées par des tiers.',
+          points: 50
+        }
+      ]
+    }
+  },
+
+  // =========================================================================
+  // COURS EXEMPLE 4 : LEÇONS CONDITIONNÉES PAR DES QUIZ D'ÉTAPE (CHECKPOINTS 80%)
+  // =========================================================================
+  {
+    id: 'course-ia-agentic-checkpoints',
+    title: 'Agents IA Autonomes & Multi-LLMs (Leçons Débloquées par Quiz d\'Étape 80%)',
+    slug: 'agents-ia-autonomes-lecons-conditionnees-quiz',
+    category: 'ia_data',
+    level: 'Avancé',
+    rating: 4.96,
+    reviewCount: 340,
+    studentCount: 1680,
+    durationHours: 26.0,
+    price: 40,
+    originalPrice: 75,
+    pricingType: 'paid',
+    requiresLogin: true,
+    isFeatured: true,
+    isNew: true,
+    hasCertificate: true,
+    authorId: 'trainer-fatou-s',
+    authorName: 'Fatou Sow',
+    authorAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80',
+    authorRole: 'Chercheuse Senior IA & Systèmes Multi-Agents',
+    centerId: 'center-2',
+    centerName: 'Dakar AI & Cyber Hub',
+    thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+    bannerImage: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=1200&auto=format&fit=crop&q=80',
+    shortDescription: 'Progression rigoureuse : chaque chapitre clé est verrouillé et exige 80% au quiz d\'étape précédent pour ouvrir la leçon suivante.',
+    description: 'Concevez des agents autonomes capables d\'appeler des outils, de corriger leur code et de collaborer en essaim. Chaque leçon avancée est conditionnée par la réussite du quiz de l\'étape précédente avec 80% minimum.',
+    tags: ['Agents IA', 'Quiz Checkpoint', '80% Requis', 'LangGraph', 'ReAct', 'Gemini', 'Python'],
+    skillsGained: [
+      'Conception de boucles d\'action-réflexion ReAct et Tree-of-Thoughts',
+      'Orchestration d\'agents avec LangGraph et gestion d\'état persistant',
+      'Intégration d\'outils externes (Recherche web, SQL, APIs)',
+      'Déploiement d\'agents fiables avec garde-fous de sécurité'
+    ],
+    chapters: [
+      {
+        id: 'chap-ag1',
+        title: 'Module 1 : Fondations des Architectures Agentiques',
+        description: 'Perception, mémoire court/long terme et prise de décision des LLMs',
+        lessons: [
+          {
+            id: 'les-ag101',
+            title: '1.1 Anatomie d\'un Agent : Boucle ReAct (Thought -> Action -> Observation)',
+            durationMinutes: 20,
+            type: 'video',
+            allowPreview: true,
+            requiresPayment: false,
+            content: `### Le paradigme ReAct
+Comment les modèles modernes utilisent la planification pas-à-pas pour invoquer des fonctions et analyser les réponses d'environnement.`
+          },
+          {
+            id: 'les-ag102',
+            title: '1.2 Validation du Module 1 : Quiz d\'Étape ReAct (Seuil obligatoire : 80%)',
+            durationMinutes: 15,
+            type: 'exercise',
+            allowPreview: true,
+            quizId: 'quiz-agents-step1',
+            requiredQuizScore: 80,
+            content: `Ce quiz de jalon vérifie votre compréhension du flux de contrôle de l'agent. Vous devez impérativement obtenir au moins 80% pour déverrouiller la leçon 2.1 sur LangGraph.`
+          }
+        ],
+        checkpointQuiz: {
+          id: 'quiz-agents-step1',
+          title: 'Quiz de Validation Étape 1 : Fondations des Agents (Seuil : 80%)',
+          description: 'Obtenez 80% minimum pour débloquer immédiatement la Leçon 2.1.',
+          courseId: 'course-ia-agentic-checkpoints',
+          passingScore: 80,
+          timeLimitMinutes: 10,
+          xpReward: 250,
+          questions: [
+            {
+              id: 'qag1-1',
+              question: 'Dans la boucle ReAct, que représente la phase "Observation" ?',
+              options: [
+                'Le texte écrit par l\'utilisateur au départ',
+                'Le résultat retourné par l\'outil ou l\'API exécuté par l\'agent',
+                'La mémoire RAM consommée par le modèle',
+                'Le code Python compilé'
+              ],
+              correctIndex: 1,
+              explanation: 'L\'observation est la donnée brute renvoyée par le monde extérieur ou l\'outil invoqué lors de la phase Action.',
+              points: 50
+            },
+            {
+              id: 'qag1-2',
+              question: 'Quelle est la fonction principale d\'un "Garde-fou" (Guardrail) dans un système agentique ?',
+              options: [
+                'Empêcher l\'agent d\'exécuter des actions destructrices ou non autorisées hors de son périmètre',
+                'Remplacer le LLM par une base SQL',
+                'Augmenter la vitesse du processeur',
+                'Traduire les réponses en binaire'
+              ],
+              correctIndex: 0,
+              explanation: 'Les garde-fous vérifient la sécurité des entrées et des sorties pour garantir l\'alignement et la conformité.',
+              points: 50
+            }
+          ]
+        }
+      },
+      {
+        id: 'chap-ag2',
+        title: 'Module 2 : Orchestration Multi-Agents & LangGraph (Conditionné par Quiz 1)',
+        description: 'Coordination de graphes d\'états cycliques et collaboration entre agents spécialisés',
+        lessons: [
+          {
+            id: 'les-ag201',
+            title: '2.1 Implémentation d\'un Graphe LangGraph avec Auto-Correction (Conditionné par Quiz Étape 1 à 80%)',
+            durationMinutes: 32,
+            type: 'interactive_code',
+            allowPreview: false,
+            requiresPayment: true,
+            prerequisiteQuizId: 'quiz-agents-step1',
+            prerequisiteQuizTitle: 'Quiz Étape 1 : Fondations des Agents',
+            requiredQuizScore: 80,
+            codeLanguage: 'python',
+            codeStarter: `from typing import TypedDict\n\nclass AgentState(TypedDict):\n    messages: list\n    next_step: str\n\n# Définissez le graphe avec nœud de validation...`,
+            content: `### LangGraph Avancé : Graphe Cyclique avec Rétro-Contrôle
+Félicitations pour avoir obtenu au moins 80% au quiz d'étape ! Vous avez désormais accès à cet atelier avancé.`
+          },
+          {
+            id: 'les-ag202',
+            title: '2.2 Déploiement d\'un Essaim Multi-Agents (Superviseur & Travailleurs Spécialisés)',
+            durationMinutes: 38,
+            type: 'article',
+            allowPreview: false,
+            requiresPayment: true,
+            prerequisiteQuizId: 'quiz-agents-step1',
+            requiredQuizScore: 80,
+            content: `Architecture d'un routeur superviseur distribuant les sous-tâches à des agents spécialisés (chercheur, codeur, relecteur).`
+          }
+        ]
+      }
+    ],
+    finalQuiz: {
+      id: 'quiz-agents-master',
+      title: 'Certification Finale : Maître Architecte Systèmes Agentiques IA',
+      description: 'Démontrez votre savoir-faire pour décrocher le certificat officiel d\'Architecte IA.',
+      courseId: 'course-ia-agentic-checkpoints',
+      passingScore: 80,
+      timeLimitMinutes: 20,
+      xpReward: 400,
+      questions: [
+        {
+          id: 'qagf-1',
+          question: 'Pourquoi préférer un graphe d\'état (comme LangGraph) à une chaîne linéaire (Chain) pour un agent complexe ?',
+          options: [
+            'Parce que le graphe permet des cycles, des boucles de réessai et de l\'auto-correction non réalisables en chaîne linéaire',
+            'Parce que le graphe ne nécessite aucun code Python',
+            'Parce que les graphes s\'exécutent sans connexion réseau',
+            'Parce que le graphe supprime tous les coûts d\'API'
+          ],
+          correctIndex: 0,
+          explanation: 'Les graphes permettent des flux cycliques indispensables pour qu\'un agent puisse tester, échouer et réajuster son plan.',
           points: 50
         }
       ]

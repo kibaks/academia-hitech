@@ -1,28 +1,107 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import {
+  initializeFirestore,
   getFirestore,
   doc,
   getDoc,
+  getDocFromServer,
   setDoc,
   collection,
   query,
   where,
-  orderBy,
   getDocs,
   onSnapshot,
   limit,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { UserProfile, CourseChatMessage } from '../types';
-import { INITIAL_USER_PROFILE, DEMO_PROFILES } from '../data/initialData';
 
 // Initialize Firebase App
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Firestore with specific databaseId if configured
-export const db = firebaseConfig.firestoreDatabaseId
-  ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-  : getFirestore(app);
+// Initialize Firebase Auth
+export const auth = getAuth(app);
+
+// Initialize Firestore with experimentalForceLongPolling for seamless reliability in iframes and proxies
+export const db = (() => {
+  try {
+    return initializeFirestore(
+      app,
+      {
+        experimentalForceLongPolling: true,
+      },
+      firebaseConfig.firestoreDatabaseId || undefined
+    );
+  } catch {
+    return firebaseConfig.firestoreDatabaseId
+      ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+      : getFirestore(app);
+  }
+})();
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): FirestoreErrorInfo {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo:
+        auth.currentUser?.providerData?.map((provider) => ({
+          providerId: provider.providerId,
+          email: provider.email,
+        })) || [],
+    },
+    operationType,
+    path,
+  };
+  console.warn('Firestore Error Context:', JSON.stringify(errInfo));
+  return errInfo;
+}
+
+/**
+ * Validates connection to Firestore backend as per Firebase skill
+ */
+export async function testFirestoreConnection(): Promise<boolean> {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+    return true;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.info('[Firebase] Mode hors-ligne / persistance locale active.');
+    }
+    return false;
+  }
+}
 
 const PROFILES_COLLECTION = 'user_profiles';
 const COURSE_CHATS_COLLECTION = 'course_chats';
@@ -111,7 +190,12 @@ export async function fetchUserProfileFromFirestore(userId: string): Promise<Use
     // Check local storage fallback
     return getStoredUserProfile(userId);
   } catch (error) {
-    console.warn('[Firebase] Erreur chargement profil Firestore:', error);
+    const errStr = String(error);
+    if (errStr.includes('permission-denied') || errStr.includes('Missing or insufficient permissions')) {
+      handleFirestoreError(error, OperationType.GET, `${PROFILES_COLLECTION}/${userId}`);
+    } else {
+      console.info('[Firebase] Profil restauré depuis le stockage local');
+    }
     return getStoredUserProfile(userId);
   }
 }
@@ -129,7 +213,12 @@ export async function saveUserProfileToFirestore(profile: UserProfile): Promise<
     cleanData.updatedAt = new Date().toISOString();
     await setDoc(userDocRef, cleanData, { merge: true });
   } catch (error) {
-    console.warn('[Firebase] Erreur sauvegarde profil Firestore (conservation locale active):', error);
+    const errStr = String(error);
+    if (errStr.includes('permission-denied') || errStr.includes('Missing or insufficient permissions')) {
+      handleFirestoreError(error, OperationType.WRITE, `${PROFILES_COLLECTION}/${profile.id}`);
+    } else {
+      console.info('[Firebase] Sauvegarde locale garantie pour', profile.id);
+    }
   }
 }
 
@@ -148,7 +237,12 @@ export function subscribeToUserProfile(userId: string, onUpdate: (profile: UserP
       }
     },
     (error) => {
-      console.warn('[Firebase] Listener profil interrompu ou non autorisé:', error);
+      const errStr = String(error);
+      if (errStr.includes('permission-denied') || errStr.includes('Missing or insufficient permissions')) {
+        handleFirestoreError(error, OperationType.GET, `${PROFILES_COLLECTION}/${userId}`);
+      } else {
+        console.info('[Firebase] Synchronisation profil active en local');
+      }
     }
   );
 }
@@ -195,7 +289,12 @@ export async function saveCourseChatMessageToFirestore(message: CourseChatMessag
       createdAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.warn('[Firebase] Erreur sauvegarde message chat Firestore (conservé en local):', error);
+    const errStr = String(error);
+    if (errStr.includes('permission-denied') || errStr.includes('Missing or insufficient permissions')) {
+      handleFirestoreError(error, OperationType.WRITE, `${COURSE_CHATS_COLLECTION}/${message.id}`);
+    } else {
+      console.info('[Firebase] Message sauvegardé dans le stockage local du cours');
+    }
   }
 }
 
@@ -221,7 +320,12 @@ export function subscribeToCourseChat(
       }
     },
     (err) => {
-      console.warn('[Firebase] Note écoute chat en direct Firestore:', err);
+      const errStr = String(err);
+      if (errStr.includes('permission-denied') || errStr.includes('Missing or insufficient permissions')) {
+        handleFirestoreError(err, OperationType.LIST, COURSE_CHATS_COLLECTION);
+      } else {
+        console.info('[Firebase] Forum synchronisé avec les données locales');
+      }
     }
   );
 }

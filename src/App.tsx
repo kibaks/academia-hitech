@@ -256,22 +256,45 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleEnrollCourse = (courseId: string, forcePaid = false) => {
+  const handleSubscribePlan = (plan: 'pro' | 'enterprise') => {
+    setCurrentUser((prev) => ({
+      ...prev,
+      subscription: {
+        status: 'active',
+        plan,
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+    }));
+    triggerPreloader(`Activation de votre Pass ${plan.toUpperCase()} réussie !`, () => {
+      // Re-render and stay on course
+    });
+  };
+
+  const handleEnrollCourse = (courseId: string, forcePaid = false, unlockedLessonId?: string) => {
     if (!forcePaid && (!isAuthenticated || currentUser.role === 'visitor')) {
       handleOpenAuth('register', 'learner');
       return;
     }
+
+    if (unlockedLessonId) {
+      // Granular unlocked lesson payment
+      setCurrentUser((prev) => ({
+        ...prev,
+        paidLessonIds: Array.from(new Set([...(prev.paidLessonIds || []), unlockedLessonId])),
+      }));
+      return;
+    }
+
     if (!enrolledCourseIds.includes(courseId)) {
       setEnrolledCourseIds((prev) => [...prev, courseId]);
     }
     // If visitor or guest who just paid, ensure their role is learner and course is unlocked
-    if (forcePaid && currentUser.role === 'visitor') {
-      setCurrentUser((prev) => ({
-        ...prev,
-        role: 'learner',
-        enrolledCourses: Array.from(new Set([...(prev.enrolledCourses || []), courseId])),
-      }));
-    }
+    setCurrentUser((prev) => ({
+      ...prev,
+      paidCourseIds: Array.from(new Set([...(prev.paidCourseIds || []), courseId])),
+      enrolledCourses: Array.from(new Set([...(prev.enrolledCourses || []), courseId])),
+      ...(forcePaid && prev.role === 'visitor' ? { role: 'learner' as const } : {}),
+    }));
   };
 
   const handleCompleteLesson = (lessonId: string) => {
@@ -576,6 +599,8 @@ export default function App() {
             onBackToCatalog={() => setActiveTab('catalog')}
             onOpenAIAssistantWithContext={handleOpenAIAssistantWithContext}
             onEnrollCourse={handleEnrollCourse}
+            onRequireAuth={() => handleOpenAuth('login')}
+            onSubscribePlan={handleSubscribePlan}
           />
         )}
 
