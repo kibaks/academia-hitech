@@ -23,6 +23,8 @@ import {
   Settings,
   ShieldCheck,
   Layers,
+  FileText,
+  Download,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -35,6 +37,7 @@ interface HeaderProps {
   activeTab: string;
   onNavigate: (tab: string) => void;
   onOpenCertVerifier: () => void;
+  onOpenUserGuide?: () => void;
   onOpenAuth: (mode: 'login' | 'register' | 'demo') => void;
   onLogout: () => void;
   onOpenDrawer?: () => void;
@@ -61,6 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeTab,
   onNavigate,
   onOpenCertVerifier,
+  onOpenUserGuide,
   onOpenAuth,
   onLogout,
   onOpenDrawer,
@@ -266,6 +270,20 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Award className="w-3.5 h-3.5 text-amber-600" />
                 <span className="hidden xl:inline">Vérifier Diplôme</span>
+              </button>
+            )}
+
+            {/* Quick Guide Utilisateur PDF Button (Mobile & Desktop) */}
+            {onOpenUserGuide && (
+              <button
+                id="open-user-guide-btn"
+                onClick={onOpenUserGuide}
+                title="Manuel Utilisateur & Téléchargement Guide PDF"
+                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-colors shrink-0 active:scale-95"
+              >
+                <Download className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                <span className="hidden xs:inline text-[11px] sm:text-xs">Guide PDF</span>
+                <span className="xs:hidden text-[10px]">Guide</span>
               </button>
             )}
 
@@ -519,6 +537,26 @@ export const Header: React.FC<HeaderProps> = ({
                             </div>
                           </div>
                         </button>
+
+                        {onOpenUserGuide && (
+                          <button
+                            onClick={() => {
+                              onOpenUserGuide();
+                              setShowUserMenu(false);
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-slate-700 hover:bg-sky-50 text-left font-medium group transition-colors"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center shrink-0">
+                                <FileText className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <div className="font-bold text-slate-800 group-hover:text-sky-600">Manuel Utilisateur (PDF)</div>
+                                <div className="text-[10px] text-slate-400">Documentation & guide A4 complet</div>
+                              </div>
+                            </div>
+                          </button>
+                        )}
 
                         <button
                           onClick={() => {

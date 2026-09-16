@@ -55,6 +55,7 @@ import { LearnerJourneyView } from './components/learner/LearnerJourneyView';
 import { AdminCurrencySettings } from './components/admin/AdminCurrencySettings';
 import { MobileDrawer } from './components/common/MobileDrawer';
 import { Footer } from './components/common/Footer';
+import { UserGuideModal } from './components/docs/UserGuideModal';
 import { Lock, ShieldAlert, ArrowRight, Sparkles } from 'lucide-react';
 
 export default function App() {
@@ -64,6 +65,9 @@ export default function App() {
 
   // Mobile Drawer State
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState<boolean>(false);
+
+  // Documentation & User Guide Modal State
+  const [showUserGuideModal, setShowUserGuideModal] = useState<boolean>(false);
 
   // Authentication & Session States
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -163,6 +167,78 @@ export default function App() {
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [activeCertificate, setActiveCertificate] = useState<EarnedCertificate | null>(null);
   const [tutorContextLesson, setTutorContextLesson] = useState<string>('');
+
+  // Expose seamless navigation helper for capturing real documentation screenshots
+  useEffect(() => {
+    (window as unknown as { __ACADEMIA_NAVIGATE__?: (params: {
+      tab?: string;
+      role?: UserRole;
+      openQuiz?: boolean;
+      openCert?: boolean;
+      courseId?: string;
+    }) => void }).__ACADEMIA_NAVIGATE__ = (params: {
+      tab?: string;
+      role?: UserRole;
+      openQuiz?: boolean;
+      openCert?: boolean;
+      courseId?: string;
+    }) => {
+      setIsLoading(false);
+      if (params.role) {
+        if (params.role === 'visitor') {
+          setIsAuthenticated(false);
+          const p = DEMO_PROFILES.find((x) => x.role === 'visitor') || { ...currentUser, role: 'visitor' as const };
+          setCurrentUser(p);
+        } else {
+          const matchingProfile = DEMO_PROFILES.find((p) => p.role === params.role);
+          const base = matchingProfile || { ...currentUser, role: params.role };
+          const updated = getEffectiveProfile(base);
+          setStoredActiveUserId(updated.id);
+          setStoredUserProfileLocally(updated);
+          setIsAuthenticated(true);
+          setCurrentUser(updated);
+        }
+      }
+      if (params.courseId) {
+        const c = courses.find((x) => x.id === params.courseId);
+        if (c) setSelectedCourse(c);
+      }
+      if (params.tab) {
+        setActiveTab(params.tab);
+      }
+      if (params.openQuiz) {
+        const target = selectedCourse || courses[0];
+        const q = target.finalQuiz || (target.chapters?.[0]?.checkpointQuiz) || null;
+        if (q) {
+          setSelectedCourse(target);
+          setActiveQuiz(q);
+        }
+      } else {
+        setActiveQuiz(null);
+      }
+      if (params.openCert) {
+        const cert = currentUser.earnedCertificates[0] || {
+          id: 'CERT-2026-IT-98214',
+          courseId: 'course-ia-llm',
+          courseTitle: 'Maîtrise de l\'Intelligence Artificielle & Grands Modèles de Langage',
+          studentName: 'Landry Bakweto',
+          studentEmail: 'landry.bakweto@kinshasa-tech.cd',
+          issuedAt: new Date().toISOString(),
+          score: 96,
+          honor: 'Mention Très Bien',
+          verificationUrl: 'https://academia-itech.org/verify/CERT-2026-IT-98214',
+          qrCodeUrl: 'https://academia-itech.org/verify/CERT-2026-IT-98214',
+          instructorName: 'Fatou Sow',
+          centerName: 'Kinshasa Silicon River & Digital Campus',
+        };
+        setActiveCertificate(cert);
+      } else {
+        setActiveCertificate(null);
+      }
+      setShowUserGuideModal(false);
+      setShowAuthModal(false);
+    };
+  }, [courses, selectedCourse, currentUser]);
 
   // Trigger preloader momentarily on role switch or explicit demand
   const triggerPreloader = (msg: string, callback?: () => void) => {
@@ -535,6 +611,7 @@ export default function App() {
         onOpenAuth={handleOpenAuth}
         onLogout={handleLogout}
         onOpenDrawer={() => setIsMobileDrawerOpen(true)}
+        onOpenUserGuide={() => setShowUserGuideModal(true)}
         onOpenCertVerifier={() => {
           if (currentUser.earnedCertificates.length > 0) {
             setActiveCertificate(currentUser.earnedCertificates[0]);
@@ -774,6 +851,7 @@ export default function App() {
           centers={centers}
           activeCenter={activeCenter}
           onSelectCenter={setActiveCenter}
+          onOpenUserGuide={() => setShowUserGuideModal(true)}
           onOpenCertVerifier={() => {
             if (currentUser.earnedCertificates.length > 0) {
               setActiveCertificate(currentUser.earnedCertificates[0]);
@@ -784,6 +862,12 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Official PDF User Guide & Documentation Modal */}
+      <UserGuideModal
+        isOpen={showUserGuideModal}
+        onClose={() => setShowUserGuideModal(false)}
+      />
 
       {/* Interactive Quiz Assessment Modal Overlay */}
       {activeQuiz && (
@@ -848,6 +932,7 @@ export default function App() {
         onSelectCenter={setActiveCenter}
         onOpenAuth={handleOpenAuth}
         onLogout={handleLogout}
+        onOpenUserGuide={() => setShowUserGuideModal(true)}
         onOpenCertVerifier={() => {
           if (currentUser.earnedCertificates.length > 0) {
             setActiveCertificate(currentUser.earnedCertificates[0]);

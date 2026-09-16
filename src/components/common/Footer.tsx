@@ -19,15 +19,17 @@ import {
   CheckCircle2,
   Coins,
   Send,
-  Lock
+  Lock,
+  FileText
 } from 'lucide-react';
 
 interface FooterProps {
   onNavigate: (tab: string) => void;
   onOpenCertVerifier?: () => void;
+  onOpenUserGuide?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenCertVerifier }) => {
+export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenCertVerifier, onOpenUserGuide }) => {
   const { currencyInfo } = useCurrency();
 
   return (
@@ -200,6 +202,14 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenCertVerifier }
                   <span>Tuteur IA Multilingue 24/7</span>
                 </button>
               </li>
+              {onOpenUserGuide && (
+                <li>
+                  <button onClick={onOpenUserGuide} className="hover:text-sky-300 transition-colors text-left flex items-center gap-1 text-sky-300 font-semibold">
+                    <FileText className="w-3 h-3 text-sky-400" />
+                    <span>Manuel Utilisateur (PDF)</span>
+                  </button>
+                </li>
+              )}
               <li>
                 <button onClick={onOpenCertVerifier || (() => onNavigate('home'))} className="hover:text-sky-300 transition-colors text-left flex items-center gap-1">
                   <Award className="w-3 h-3 text-amber-400" />

@@ -29,9 +29,13 @@ import {
   FolderDown,
   ChevronDown,
   Coins,
-  Settings
+  Settings,
+  Download,
+  FileText,
+  Loader2,
 } from 'lucide-react';
 import { Logo } from './Logo';
+import { generateUserGuidePDF } from '../../lib/pdfGuideGenerator';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -45,6 +49,7 @@ interface MobileDrawerProps {
   activeTab: string;
   onNavigate: (tab: string) => void;
   onOpenCertVerifier: () => void;
+  onOpenUserGuide?: () => void;
   onOpenAuth: (mode: 'login' | 'register' | 'demo') => void;
   onLogout: () => void;
   searchQuery: string;
@@ -62,6 +67,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   activeTab,
   onNavigate,
   onOpenCertVerifier,
+  onOpenUserGuide,
   onOpenAuth,
   onLogout,
   searchQuery,
@@ -69,8 +75,23 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 }) => {
   const [showCenterSelector, setShowCenterSelector] = useState(false);
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   const { currencyCode, currencyInfo, setCurrencyCode, availableCurrencies } = useCurrency();
+
+  const handleMobileDownloadPdf = async () => {
+    setIsDownloadingPdf(true);
+    try {
+      await generateUserGuidePDF();
+      onClose();
+    } catch (err) {
+      console.error('Erreur lors de la génération du PDF:', err);
+      window.open('/api/documentation/html', '_blank');
+      onClose();
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -585,6 +606,50 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </div>
               <ChevronRight className="w-3.5 h-3.5 opacity-50 shrink-0" />
             </button>
+
+            {/* Dedicated User Guide & PDF Download Banner in Mobile Drawer */}
+            <div className="p-3 my-2 rounded-2xl bg-gradient-to-br from-sky-50 to-blue-50 border border-sky-200">
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-7 h-7 rounded-lg bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-xs text-sky-950 truncate">Manuel & Guide Utilisateur</div>
+                  <div className="text-[10px] text-sky-700">Guide illustré A4 • 14 scénarios</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <button
+                  id="mobile-drawer-open-guide-btn"
+                  onClick={() => {
+                    if (onOpenUserGuide) onOpenUserGuide();
+                    onClose();
+                  }}
+                  className="py-2 px-2 rounded-xl bg-white border border-sky-300 text-sky-800 text-[11px] font-bold text-center hover:bg-sky-50 transition-colors flex items-center justify-center gap-1 shadow-2xs"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                  <span>Consulter</span>
+                </button>
+                <button
+                  id="mobile-drawer-download-pdf-btn"
+                  onClick={handleMobileDownloadPdf}
+                  disabled={isDownloadingPdf}
+                  className="py-2 px-2 rounded-xl bg-sky-600 text-white text-[11px] font-bold text-center hover:bg-sky-500 disabled:opacity-60 transition-colors flex items-center justify-center gap-1 shadow-xs active:scale-95"
+                >
+                  {isDownloadingPdf ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                      <span>Génération...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3.5 h-3.5 shrink-0" />
+                      <span>Télécharger PDF</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

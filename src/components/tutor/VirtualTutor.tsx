@@ -1763,34 +1763,126 @@ export const VirtualTutor: React.FC<VirtualTutorProps> = ({
                         CLOUDFLARE
                       </div>
                       <h4 className="text-sm font-bold text-slate-900">
-                        Code Cloudflare Worker (Anti-blocage + Réponses Illimitées)
+                        Code Cloudflare Worker v4.0 (Diagnostic Visuel + IA + Anti-blocage)
                       </h4>
                     </div>
                     <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 font-bold border border-emerald-300">
-                      Version 3.0 (Anti-blocage + Relais IA)
+                      Version 4.0 (Recommandée)
                     </span>
                   </div>
 
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    Ce script résout le problème des messages limités ou lents grâce à <code>ctx.waitUntil</code> (réponse immédiate en 15ms à Meta pour bloquer tout retry).
+                    Ce script intègre un <strong>tableau de bord de diagnostic visuel</strong>. En ouvrant votre lien Worker dans votre navigateur, il teste votre jeton Meta en direct et vous indique exactement pourquoi l'agent ne répond pas.
                   </p>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-3">
                     <button
                       type="button"
                       onClick={() => {
-                        const code = `// Cloudflare Worker - Robot Android (Academia ITECH) v2.0
-// Anti-blocage Meta + Traitement d'arrière-plan + IA Gemini
+                        const code = `// Cloudflare Worker - Robot Android (Academia ITECH) v4.0
+// Diagnostic Visuel Intégré + Anti-blocage Meta + Traitement d'arrière-plan + IA Gemini
+
+// 👉 VOUS POUVEZ COLLER VOTRE NOUVEAU JETON META DIRECTEMENT ICI :
+const MY_META_TOKEN = ""; // Collez ici votre jeton EAAN... si vous ne voulez pas passer par les variables Cloudflare
+
+const MY_PHONE_ID = "979483715258628";
 const seenMessages = new Set();
+let lastInbound = null;
+let lastOutboundResult = null;
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // 1. Validation Webhook Meta (GET)
+    // 1. Validation Webhook Meta (GET avec challenge)
     if (request.method === "GET") {
       const challenge = url.searchParams.get("hub.challenge");
-      return new Response(challenge || "OK", { status: 200 });
+      if (challenge) {
+        return new Response(challenge, { status: 200, headers: { "Content-Type": "text/plain" } });
+      }
+
+      // Si un humain ouvre le lien dans un navigateur -> Page de Diagnostic en Direct
+      const token = (MY_META_TOKEN || env.META_TOKEN || "").trim();
+      const phoneId = (env.PHONE_ID || MY_PHONE_ID).trim();
+      const geminiKey = (env.GEMINI_API_KEY || "").trim();
+
+      let tokenStatus = "missing";
+      let tokenMessage = "Aucun jeton configuré dans MY_META_TOKEN ou env.META_TOKEN";
+
+      if (token) {
+        try {
+          const testRes = await fetch("https://graph.facebook.com/v19.0/me?access_token=" + encodeURIComponent(token));
+          const testData = await testRes.json();
+          if (testRes.ok) {
+            tokenStatus = "valid";
+            tokenMessage = "Jeton Meta VALIDE et actif (App ID : " + (testData.id || "OK") + ")";
+          } else {
+            tokenStatus = "error";
+            tokenMessage = "Rejeté par Meta : " + (testData.error?.message || JSON.stringify(testData));
+          }
+        } catch (e) {
+          tokenStatus = "error";
+          tokenMessage = "Erreur vérification : " + e.message;
+        }
+      }
+
+      const html = \`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnostic Worker WhatsApp - Academia ITECH</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #090d16; color: #e2e8f0; padding: 2rem; max-width: 760px; margin: 0 auto; line-height: 1.6; }
+    .card { background: #131c2e; border-radius: 1rem; padding: 1.5rem; margin-bottom: 1.25rem; border: 1px solid #1e293b; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
+    .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; }
+    .valid { background: #064e3b; color: #6ee7b7; border: 1px solid #059669; }
+    .error { background: #881337; color: #fca5a5; border: 1px solid #e11d48; }
+    .warning { background: #78350f; color: #fde68a; border: 1px solid #d97706; }
+    pre { background: #05080f; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; font-size: 0.8rem; color: #38bdf8; border: 1px solid #1e293b; }
+    h1 { color: #38bdf8; font-size: 1.5rem; margin-top: 0; }
+    h2 { font-size: 1rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0; }
+    .code-box { background: #0f172a; padding: 0.75rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.85rem; border: 1px solid #334155; }
+  </style>
+</head>
+<body>
+  <h1>🤖 Diagnostic Worker WhatsApp - Academia ITECH</h1>
+  
+  <div class="card">
+    <h2>1. Validation du Jeton Meta (META_TOKEN)</h2>
+    <p>
+      <span class="badge \${tokenStatus}">\${tokenStatus.toUpperCase()}</span>
+      <strong style="margin-left: 0.5rem;">\${tokenMessage}</strong>
+    </p>
+    \${tokenStatus !== 'valid' ? \`
+      <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 1rem; border-radius: 0.75rem; margin-top: 0.75rem; font-size: 0.85rem; color: #fef3c7;">
+        <strong>👉 Solution immédiate :</strong><br>
+        1. Rendez-vous sur <strong>developers.facebook.com</strong> ➔ Votre App ➔ WhatsApp ➔ Démarrage rapide.<br>
+        2. Copiez le <strong>Temporary access token</strong> (commençant par EAAN...).<br>
+        3. Ouvrez le code de votre Worker dans Cloudflare, collez-le à la ligne 5 dans <code>const MY_META_TOKEN = "VOTRE_JETON";</code> et cliquez sur <strong>Save and Deploy</strong>.
+      </div>
+    \` : ''}
+  </div>
+
+  <div class="card">
+    <h2>2. Configuration & Phone ID</h2>
+    <p><strong>Phone Number ID :</strong> <code>\${phoneId}</code></p>
+    <p><strong>Cerveau IA Gemini :</strong> \${geminiKey ? '<span class="badge valid">Connecté (Clé active)</span>' : '<span class="badge warning">Mode conversationnel local (Optionnel : ajoutez GEMINI_API_KEY)</span>'}</p>
+  </div>
+
+  <div class="card">
+    <h2>3. Dernier Message Entrant WhatsApp Reçu</h2>
+    \${lastInbound ? '<pre>' + JSON.stringify(lastInbound, null, 2) + '</pre>' : '<p style="color:#94a3b8; font-size:0.85rem;">Aucun message reçu depuis le dernier déploiement.<br><em>Assurez-vous d\\'avoir cliqué sur <strong>Gérer</strong> sous le Webhook sur Meta et coché <strong>messages</strong>.</em></p>'}
+  </div>
+
+  <div class="card">
+    <h2>4. Dernier Résultat d\\'Envoi vers Meta</h2>
+    \${lastOutboundResult ? '<pre>' + JSON.stringify(lastOutboundResult, null, 2) + '</pre>' : '<p style="color:#94a3b8; font-size:0.85rem;">Aucun envoi effectué pour l\\'instant.</p>'}
+  </div>
+</body>
+</html>\`;
+
+      return new Response(html, { status: 200, headers: { "Content-Type": "text/html;charset=UTF-8" } });
     }
 
     // 2. Réception des messages WhatsApp (POST)
@@ -1802,18 +1894,22 @@ export default {
         return new Response("OK", { status: 200 });
       }
 
-      // Traitement asynchrone pour ne JAMAIS bloquer Meta (réponse < 20ms)
+      // Enregistrement pour diagnostic
+      lastInbound = {
+        receivedAt: new Date().toISOString(),
+        bodySummary: body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0] || body
+      };
+
       if (ctx && ctx.waitUntil) {
         ctx.waitUntil(handleIncoming(body, env));
       } else {
         await handleIncoming(body, env);
       }
 
-      // Toujours répondre 200 OK immédiatement à Meta pour éviter les doublons et les blocages
       return new Response("EVENT_RECEIVED", { status: 200 });
     }
 
-    return new Response("Academia ITECH WhatsApp Gateway Active", { status: 200 });
+    return new Response("Academia ITECH Gateway Active", { status: 200 });
   },
 };
 
@@ -1824,61 +1920,49 @@ async function handleIncoming(body, env) {
 
     if (!msg || !msg.text) return;
 
-    // Déduplication : ignorer les messages déjà traités
     if (seenMessages.has(msg.id)) return;
     seenMessages.add(msg.id);
     if (seenMessages.size > 200) seenMessages.clear();
 
-    const from = msg.from; // Numéro de l'étudiant
+    const from = msg.from;
     const userText = msg.text.body.trim();
 
-    const META_TOKEN = env.META_TOKEN || "";
-    const PHONE_ID = env.PHONE_ID || "979483715258628";
-    const GEMINI_KEY = env.GEMINI_API_KEY || "";
-
-    console.log("-> Nouveau message WhatsApp de " + from + " : " + userText);
+    const token = (MY_META_TOKEN || env.META_TOKEN || "").trim();
+    const phoneId = (env.PHONE_ID || MY_PHONE_ID).trim();
+    const geminiKey = (env.GEMINI_API_KEY || "").trim();
 
     let aiReply = "";
 
-    // 1. Si une clé Gemini est fournie dans Cloudflare (Settings > Variables)
-    if (GEMINI_KEY) {
+    // IA Gemini si clé présente
+    if (geminiKey) {
       try {
-        const prompt = "Tu es le Robot Android ITECH, tuteur intelligent interactif d'Academia ITECH sur WhatsApp. Réponds avec bienveillance, clarté pédagogique et un langage direct et amical (formatage WhatsApp avec *gras* et émojis). Réponds précisément à ce message : " + userText;
-        const gRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + GEMINI_KEY, {
+        const prompt = "Tu es le Robot Android ITECH, tuteur d'Academia ITECH sur WhatsApp (+1 555-631-6001). Réponds de façon bienveillante, pédagogique et structurée en utilisant le formatage WhatsApp (*gras*, listes, émojis). Réponds précisément à ce message : " + userText;
+        const gRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + geminiKey, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-          }),
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
         });
         const gData = await gRes.json();
         aiReply = gData.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      } catch (err) {
-        console.error("Erreur Gemini:", err);
-      }
+      } catch (e) {}
     }
 
-    // 2. Moteur conversationnel intelligent de secours (cohérent même sans clé Gemini)
     if (!aiReply) {
       const lower = userText.toLowerCase();
       if (lower.match(/^(bonjour|salut|coucou|hello|bonsoir|hi)/)) {
-        aiReply = "🤖 Bip bop ! Bonjour ! Je suis le *Robot Android ITECH*, votre tuteur interactif chez Academia ITECH.\\n\\nComment puis-je vous guider aujourd'hui ?\\n- 🐍 *Python & Programmation*\\n- 🌐 *Développement Web (HTML, CSS, JS)*\\n- 🎯 *Tapez !quiz pour un défi*\\n\\nDe quoi voulez-vous parler ?";
-      } else if (lower.includes("qui es-tu") || lower.includes("qui est tu") || lower.includes("t'es qui") || lower.includes("presentation")) {
-        aiReply = "🤖 Je suis le *Robot Android ITECH*, le tuteur virtuel interactif officiel d'Academia ITECH !\\n\\nMon rôle est de vous accompagner 24h/24 dans votre apprentissage avec mes animations motion, mes cours interactifs et la réponse à toutes vos questions de programmation et de tech.";
-      } else if (lower.includes("quiz") || lower.includes("defi") || lower.includes("test")) {
-        aiReply = "🎯 *Mini-Quiz Academia ITECH* :\\n\\nEn informatique, que signifie l'acronyme *API* ?\\n\\n1️⃣ Application Programming Interface\\n2️⃣ Automated Program Instruction\\n3️⃣ Advanced Private Internet\\n\\n👉 _Envoyez 1, 2 ou 3 !_";
-      } else if (lower.includes("merci")) {
-        aiReply = "Avec grand plaisir ! 🤖 Bip bop ! N'hésitez pas si vous avez d'autres questions sur vos leçons ou vos projets de code. Bon courage !";
+        aiReply = "🤖 Bip bop ! Bonjour ! Je suis le *Robot Android ITECH*, votre tuteur interactif chez Academia ITECH.\\n\\nComment puis-je vous guider aujourd'hui ?\\n- 🐍 *Python & Programmation*\\n- 🌐 *Développement Web*\\n- 🎯 *Tapez !quiz pour un défi*";
+      } else if (lower.includes("quiz") || lower.includes("defi")) {
+        aiReply = "🎯 *Mini-Quiz Academia ITECH* :\\n\\nEn informatique, que signifie le sigle *API* ?\\n\\n1️⃣ Application Programming Interface\\n2️⃣ Automated Program Instruction\\n3️⃣ Advanced Private Internet\\n\\n👉 _Répondez 1, 2 ou 3 !_";
       } else {
-        aiReply = "🤖 *Robot Android ITECH* :\\n\\nJ'ai bien noté votre question : _\\"" + userText + "\\\"_.\\n\\n💡 *Conseil* : Pour que je puisse analyser vos questions complexes en détail avec mon cerveau IA complet, ajoutez la variable *GEMINI_API_KEY* dans les paramètres de votre Cloudflare Worker. En attendant, quel langage de programmation apprenez-vous actuellement ?";
+        aiReply = "🤖 *Robot Android ITECH* :\\n\\nJ'ai bien reçu votre message : \\"" + userText + "\\\".\\n\\nJe suis ravi de vous accompagner dans vos cours de programmation ! Posez-moi vos questions de code ou demandez un exemple.";
       }
     }
 
-    // Envoi de la réponse sur WhatsApp via Meta Cloud API
-    const metaRes = await fetch("https://graph.facebook.com/v19.0/" + PHONE_ID + "/messages", {
+    // Appel API Meta Cloud
+    const metaRes = await fetch("https://graph.facebook.com/v19.0/" + phoneId + "/messages", {
       method: "POST",
       headers: {
-        "Authorization": "Bearer " + META_TOKEN,
+        "Authorization": "Bearer " + token,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -1888,10 +1972,19 @@ async function handleIncoming(body, env) {
         text: { body: aiReply },
       }),
     });
+
     const metaData = await metaRes.json();
-    console.log("Statut Envoi Meta (" + metaRes.status + "):", JSON.stringify(metaData));
-  } catch (error) {
-    console.error("Erreur générale handler:", error);
+    lastOutboundResult = {
+      sentAt: new Date().toISOString(),
+      recipient: from,
+      httpStatus: metaRes.status,
+      metaResponse: metaData
+    };
+  } catch (err) {
+    lastOutboundResult = {
+      error: err.message,
+      occurredAt: new Date().toISOString()
+    };
   }
 }`;
                         copyToClipboard(code, 'cloudflare-worker');
@@ -1901,18 +1994,25 @@ async function handleIncoming(body, env) {
                       {copiedField === 'cloudflare-worker' ? (
                         <>
                           <Check className="w-4 h-4 text-white" />
-                          <span>Code v2.0 Copié !</span>
+                          <span>Code v4.0 Copié !</span>
                         </>
                       ) : (
                         <>
                           <Copy className="w-4 h-4" />
-                          <span>Copier le Code Cloudflare v2.0 (Corrigé)</span>
+                          <span>Copier le Code Cloudflare v4.0 (Diagnostic Intégré)</span>
                         </>
                       )}
                     </button>
-                    <span className="text-[11px] text-slate-500">
-                      Collez-le dans votre Worker ➔ Cliquez sur <strong>Save and Deploy</strong>
-                    </span>
+
+                    <a
+                      href="https://patient-pine-7b82.landrykibakweto123.workers.dev/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-white border border-amber-300 hover:bg-amber-50 text-amber-900 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors"
+                    >
+                      <ExternalLink className="w-4 h-4 text-amber-700" />
+                      <span>Ouvrir la page de Diagnostic de mon Worker ↗</span>
+                    </a>
                   </div>
 
                   <div className="relative">

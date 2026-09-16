@@ -1,8 +1,10 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type, Modality, ThinkingLevel } from "@google/genai";
 import { createServer as createViteServer } from "vite";
+import { renderOfficialDocumentationHtml } from "./serverDocumentationHtml";
 
 dotenv.config();
 
@@ -292,6 +294,77 @@ async function callResilientGenerateContentStream(
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString(), aiReady: !!process.env.GEMINI_API_KEY });
 });
+
+// Guide Screenshot loader for high-resolution printable PDF documentation
+function getGuideImageBase64(filename: string): string {
+  try {
+    const fullPath = path.join(process.cwd(), "src/assets/images", filename);
+    if (fs.existsSync(fullPath)) {
+      return `data:image/jpeg;base64,${fs.readFileSync(fullPath).toString("base64")}`;
+    }
+  } catch (e) {
+    console.error("Failed to read guide image:", filename, e);
+  }
+  return "";
+}
+
+// Serve all screenshots as Base64 dictionary for client-side PDF rendering
+app.get("/api/guide-assets-base64", (_req, res) => {
+  const imagesMap: Record<string, string> = {
+    home: "real_home.jpg",
+    permissions: "real_permissions.jpg",
+    catalog: "real_catalog.jpg",
+    player: "real_player.jpg",
+    quiz: "real_quiz.jpg",
+    certificate: "real_certificate.jpg",
+    gamification: "real_gamification.jpg",
+    tutor: "real_tutor.jpg",
+    whatsapp: "real_whatsapp.jpg",
+    studio: "real_studio.jpg",
+    curriculum: "real_curriculum_builder.jpg",
+    tracker: "real_progress_tracker.jpg",
+    centers: "real_center_management.jpg",
+    currencies: "real_admin_currency.jpg",
+  };
+  const result: Record<string, string> = {};
+  for (const [key, filename] of Object.entries(imagesMap)) {
+    result[key] = getGuideImageBase64(filename);
+  }
+  res.json(result);
+});
+
+// Serve individual screenshots directly
+app.get("/api/guide-assets/:imageKey", (req, res) => {
+  const imagesMap: Record<string, string> = {
+    home: "real_home.jpg",
+    permissions: "real_permissions.jpg",
+    catalog: "real_catalog.jpg",
+    player: "real_player.jpg",
+    quiz: "real_quiz.jpg",
+    certificate: "real_certificate.jpg",
+    gamification: "real_gamification.jpg",
+    tutor: "real_tutor.jpg",
+    whatsapp: "real_whatsapp.jpg",
+    studio: "real_studio.jpg",
+    curriculum: "real_curriculum_builder.jpg",
+    tracker: "real_progress_tracker.jpg",
+    centers: "real_center_management.jpg",
+    currencies: "real_admin_currency.jpg",
+  };
+  const filename = imagesMap[req.params.imageKey];
+  if (!filename) return res.status(404).send("Image not found");
+  const filePath = path.join(process.cwd(), "src/assets/images", filename);
+  if (!fs.existsSync(filePath)) return res.status(404).send("File missing");
+  res.sendFile(filePath);
+});
+
+// Printable HTML Documentation Endpoint for PDF Export (With Crisp Embedded Real Screenshots)
+app.get("/api/documentation/html", (_req, res) => {
+  const html = renderOfficialDocumentationHtml(getGuideImageBase64);
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(html);
+});
+
 
 // ============================================================================
 // VODACOM M-PESA RDC - OPEN API SANDBOX & TEST MODE ENDPOINTS
