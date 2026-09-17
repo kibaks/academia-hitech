@@ -352,7 +352,138 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({
         </div>
       </section>
 
-      {/* 3. FEATURED COURSES SHOWCASE & SPOTLIGHT */}
+      {/* 2.5 TRANSPARENCY & ACCESS REQUIREMENTS SPECIFICATION */}
+      <section className="max-w-7xl mx-auto">
+        <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
+                <Lock className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Politique d'Accès & Transparence</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+                Mode Visiteur vs Compte Connecté : Ce qui est Accessible et ce qui Exige une Connexion
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 max-w-3xl">
+                Afin de garantir la valeur académique des diplômes, l'intégrité des examens et la protection de la vie privée des étudiants, certaines fonctionnalités avancées sont masquées en mode visiteur.
+              </p>
+            </div>
+
+            <div className="shrink-0 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onViewPermissions}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all flex items-center gap-1.5"
+              >
+                <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                <span>Consulter la Matrice RBAC Complète</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left: Free Visitor Discovery */}
+            <div className="p-5 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-4">
+              <div className="flex items-center gap-2 text-emerald-800">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">
+                  <Globe2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold">Accessible Librement en Mode Visiteur</h3>
+                  <span className="text-[11px] text-emerald-700 font-medium">Sans inscription obligatoire</span>
+                </div>
+              </div>
+
+              <ul className="space-y-2.5 text-xs text-slate-700">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span><strong>Catalogue public des cours :</strong> Consultation des fiches programmes, technologies abordées et biographies des formateurs.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span><strong>Aperçu découverte des cours :</strong> Visionnage de la leçon 1 d'introduction pour tester la qualité pédagogique.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span><strong>Vérificateur de diplômes blockchain :</strong> Outil public de vérification de l'authenticité d'un certificat tiers via son ID.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span><strong>Découverte du Tuteur IA :</strong> Présentation de la technologie AIDA et aperçu de la connectivité WhatsApp.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span><strong>Liste des campus affiliés :</strong> Coordonnées et spécialités des centres partenaires de formation.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Right: Requires Login / Account */}
+            <div className="p-5 rounded-2xl bg-slate-900 text-white border border-slate-800 space-y-4 shadow-sm">
+              <div className="flex items-center gap-2 text-amber-400">
+                <div className="w-8 h-8 rounded-xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center text-amber-400 font-bold">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Exige la Connexion ou Création de Compte</h3>
+                  <span className="text-[11px] text-amber-400 font-medium">Inscription 100% gratuite pour les étudiants</span>
+                </div>
+              </div>
+
+              <ul className="space-y-2.5 text-xs text-slate-300">
+                <li className="flex items-start gap-2.5">
+                  <Lock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <span><strong>Lecteur complet & exécution de code :</strong> Leçons 2+, terminal Docker/Python en direct, téléchargement des codes sources.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Lock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <span><strong>Inscription officielle & suivi de progrès :</strong> Sauvegarde de l'avancement, cohorte étudiante et carnet de compétences.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Lock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <span><strong>Passage des examens & QCMs :</strong> Épreuves chronométrées, calcul des notes et validation des prérequis de formation.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Lock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <span><strong>Certificats officiels nominatifs :</strong> Génération du diplôme HD avec QR code sécurisé lié à votre identité.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Lock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <span><strong>Tuteur AIDA 24h/24 & WhatsApp :</strong> Historique personnalisé des questions, cours audio et rappels quotidiens.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Lock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <span><strong>Gamification & Campus Social :</strong> Cumul de points XP (+50 XP/leçon), badges, classement et mur d'échanges étudiants.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Quick Action Bar for Visitor */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+            <div className="text-xs text-slate-600">
+              Prêt à déverrouiller l'intégralité des fonctionnalités ? La création de votre compte étudiant prend moins de 30 secondes.
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onOpenAuth('login')}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all"
+              >
+                Se Connecter
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenAuth('register', 'learner')}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-sky-500 hover:bg-sky-400 shadow-xs shadow-sky-500/20 active:scale-95 transition-all flex items-center gap-1.5"
+              >
+                <span>Créer un Compte Gratuit</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
       <section className="max-w-7xl mx-auto space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>

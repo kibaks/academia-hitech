@@ -22,6 +22,9 @@ import {
   MessageSquare,
   AlertTriangle,
   Lightbulb,
+  UploadCloud,
+  FolderOpen,
+  Image as ImageIcon,
 } from 'lucide-react';
 import {
   STOCK_B_ROLL_ITEMS,
@@ -51,6 +54,33 @@ export const MediaLibraryPanel: React.FC<MediaLibraryPanelProps> = ({
   const [activeTab, setActiveTab] = useState<'cartoon' | 'broll' | 'avatars' | 'titles' | 'audio' | 'quiz' | 'ai_gen'>('cartoon');
   const [cartoonFilter, setCartoonFilter] = useState<'all' | 'characters' | 'scenes' | 'bubbles'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const customMediaInputRef = React.useRef<HTMLInputElement>(null);
+  const [isDraggingMedia, setIsDraggingMedia] = useState(false);
+
+  const handleProcessMediaFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (dataUrl) {
+        const isVideo = file.type.startsWith('video/');
+        const newClip: TimelineClip = {
+          id: `clip-custom-${Date.now()}`,
+          trackId: 'track-video',
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          type: 'b_roll',
+          startSeconds: Math.round(currentTime),
+          durationSeconds: isVideo ? 20 : 15,
+          sourceUrl: dataUrl,
+          thumbnail: dataUrl,
+          color: '#0284c7',
+          transform: { x: 0, y: 0, scale: 1, opacity: 1 },
+          transition: { type: 'crossfade', durationSeconds: 0.6 },
+        };
+        onAddClipToTimeline(newClip);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // AI Generator Form State
   const [aiTopic, setAiTopic] = useState('Deep Learning : Mécanisme d’Attention & Transformers');
@@ -635,7 +665,62 @@ export const MediaLibraryPanel: React.FC<MediaLibraryPanelProps> = ({
         {/* TAB 1: B-ROLL & STOCK VIDEOS */}
         {activeTab === 'broll' && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            {/* Custom Media Upload Section */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDraggingMedia(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                setIsDraggingMedia(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDraggingMedia(false);
+                if (e.dataTransfer.files?.[0]) {
+                  handleProcessMediaFile(e.dataTransfer.files[0]);
+                }
+              }}
+              onClick={() => customMediaInputRef.current?.click()}
+              className={`p-3.5 rounded-2xl border-2 border-dashed text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 ${
+                isDraggingMedia
+                  ? 'border-sky-400 bg-sky-950/50 scale-[1.01]'
+                  : 'border-slate-700 hover:border-sky-500/70 bg-slate-800/40 hover:bg-slate-800/80'
+              }`}
+            >
+              <input
+                ref={customMediaInputRef}
+                type="file"
+                accept="image/*,video/*"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    handleProcessMediaFile(e.target.files[0]);
+                  }
+                }}
+              />
+              <div className="p-2 rounded-xl bg-sky-500/20 text-sky-400">
+                <UploadCloud className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">
+                  Téléverser une Image ou Vidéo Locale
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  Glissez-déposez ou <span className="text-sky-400 font-semibold underline">parcourez vos fichiers</span> (PNG, JPG, MP4)
+                </p>
+              </div>
+              <button
+                type="button"
+                className="mt-1 px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-[11px] font-bold flex items-center gap-1.5 shadow-sm"
+              >
+                <FolderOpen className="w-3 h-3" />
+                <span>Sélectionner depuis mon appareil</span>
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
               <h4 className="text-xs font-bold text-white uppercase tracking-wider">
                 Bibliothèque B-Roll & Plans Vidéo
               </h4>

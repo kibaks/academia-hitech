@@ -51,6 +51,7 @@ import {
   ArrowRight,
   Presentation
 } from 'lucide-react';
+import { ImageUploader } from '../common/ImageUploader';
 
 interface CourseCurriculumBuilderProps {
   onSaveCourse: (course: Course) => void;
@@ -1535,22 +1536,37 @@ export const CourseCurriculumBuilder: React.FC<CourseCurriculumBuilderProps> = (
               <span>Médias & Visuels</span>
             </h3>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Image Miniature (Card)
-              </label>
-              <input
-                type="url"
-                value={thumbnail}
-                onChange={(e) => setThumbnail(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs mb-2"
-              />
-              <img
-                src={thumbnail}
-                alt="Miniature"
-                className="w-full h-36 object-cover rounded-2xl border border-slate-200"
-              />
-            </div>
+            <ImageUploader
+              id="course-thumbnail-uploader"
+              label="Image Miniature du Cours"
+              description="PNG, JPG, WEBP (1200x800 px recommandé)"
+              value={thumbnail}
+              onChange={(newImg) => setThumbnail(newImg)}
+              aspectRatio="video"
+              placeholderText="Glissez une image pour la miniature ou cliquez"
+              presets={[
+                { label: 'IA & Data', url: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=800&auto=format&fit=crop&q=80' },
+                { label: 'Cloud Tech', url: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop&q=80' },
+                { label: 'Code & Web', url: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop&q=80' },
+                { label: 'Cybersécurité', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80' },
+                { label: 'Business', url: 'https://images.unsplash.com/photo-1556742049-0a67e5572293?w=800&auto=format&fit=crop&q=80' },
+              ]}
+            />
+
+            <ImageUploader
+              id="course-banner-uploader"
+              label="Bannière d'En-tête du Cours"
+              description="PNG, JPG, WEBP (1600x600 px recommandé pour l'en-tête)"
+              value={bannerImage}
+              onChange={(newImg) => setBannerImage(newImg)}
+              aspectRatio="wide"
+              placeholderText="Glissez ou choisissez une bannière panoramique"
+              presets={[
+                { label: 'Bannière Tech & Code', url: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=1200&auto=format&fit=crop&q=80' },
+                { label: 'Bannière Data & IA', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80' },
+                { label: 'Bannière Cyber Sécurité', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&auto=format&fit=crop&q=80' },
+              ]}
+            />
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">

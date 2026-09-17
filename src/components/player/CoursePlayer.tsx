@@ -541,7 +541,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
       <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b ${
         isFocusMode ? 'border-slate-800' : 'border-slate-200'
       }`}>
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <button
             id="back-to-catalog-btn"
             onClick={onBackToCatalog}
@@ -550,10 +550,12 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                 ? 'bg-slate-900 text-slate-200 border-slate-700 hover:bg-slate-800'
                 : 'bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border-slate-200'
             }`}
+            title="Retour au Catalogue"
           >
             <ChevronLeft className="w-4 h-4 text-slate-500" />
             <span className="hidden xs:inline">Catalogue</span>
           </button>
+          
           <div className="min-w-0 flex-1">
             <div className="text-[11px] sm:text-xs text-sky-500 font-semibold truncate flex items-center gap-2">
               <span>{course.title}</span>
@@ -561,7 +563,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({
                 MasterStudy LMS
               </span>
             </div>
-            <h1 className={`text-sm sm:text-base md:text-lg font-bold truncate ${
+            <h1 className={`text-sm sm:text-base md:text-lg font-bold truncate mt-0.5 ${
               isFocusMode ? 'text-white' : 'text-slate-900'
             }`}>
               {currentLesson.title}

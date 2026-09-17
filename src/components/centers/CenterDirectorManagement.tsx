@@ -3,6 +3,7 @@ import { Center, Trainer, Course } from '../../types';
 import { CENTER_TEMPLATES } from '../../data/templatesData';
 import { AdminCurrencySettings } from '../admin/AdminCurrencySettings';
 import { AdminInstructorManagement } from '../admin/AdminInstructorManagement';
+import { ImageUploader } from '../common/ImageUploader';
 import {
   Building2,
   Users,
@@ -401,6 +402,19 @@ export const CenterDirectorManagement: React.FC<CenterDirectorManagementProps> =
                       value={maxStudents}
                       onChange={(e) => setMaxStudents(Number(e.target.value))}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <ImageUploader
+                      id="director-center-logo-uploader"
+                      label="Logo Officiel du Campus / Centre"
+                      description="PNG, SVG, JPG (format carré recommandé)"
+                      value={logo}
+                      onChange={(newLogo) => setLogo(newLogo)}
+                      aspectRatio="square"
+                      shape="rounded"
+                      placeholderText="Glissez le logo de votre campus ou parcourez vos fichiers"
                     />
                   </div>
                 </div>

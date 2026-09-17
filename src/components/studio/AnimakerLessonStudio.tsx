@@ -59,6 +59,8 @@ import {
   Settings2,
   FileText,
   Flame,
+  UploadCloud,
+  FolderOpen,
 } from 'lucide-react';
 
 export interface AnimakerLessonStudioProps {
@@ -1528,6 +1530,47 @@ export const AnimakerLessonStudio: React.FC<AnimakerLessonStudioProps> = ({
                       </div>
                     </button>
                   ))}
+                </div>
+
+                {/* Custom Avatar File Upload */}
+                <div className="pt-2 flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <img
+                      src={activeScene.characterAvatar || ANIMAKER_CHARACTERS[0].avatar}
+                      alt="Avatar Actif"
+                      className="w-9 h-9 rounded-full object-cover border-2 border-amber-400 shrink-0"
+                    />
+                    <div className="min-w-0 text-xs">
+                      <span className="font-bold text-slate-800 block truncate">
+                        {activeScene.characterName || 'Personnage de la scène'}
+                      </span>
+                      <span className="text-[10px] text-slate-500">Avatar ou visage actif</span>
+                    </div>
+                  </div>
+                  <label className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-amber-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors shrink-0">
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>Charger ma photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const res = ev.target?.result as string;
+                            if (res) {
+                              updateActiveScene({
+                                characterAvatar: res,
+                              });
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
                 </div>
               </div>
 

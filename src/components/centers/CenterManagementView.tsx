@@ -3,6 +3,7 @@ import { Center, Trainer, Course } from '../../types';
 import { useCurrency } from '../../context/CurrencyContext';
 import { AdminCurrencySettings } from '../admin/AdminCurrencySettings';
 import { AdminInstructorManagement } from '../admin/AdminInstructorManagement';
+import { ImageUploader } from '../common/ImageUploader';
 import {
   Building2,
   Users,
@@ -427,15 +428,17 @@ export const CenterManagementView: React.FC<CenterManagementViewProps> = ({
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">URL du Logo du Centre :</label>
-              <input
-                type="text"
-                value={centerLogo}
-                onChange={(e) => setCenterLogo(e.target.value)}
-                className="w-full p-3 rounded-xl bg-slate-50 text-slate-900 text-xs border border-slate-200 focus:outline-none focus:border-sky-500 focus:bg-white"
-              />
-            </div>
+            <ImageUploader
+              id="center-logo-uploader"
+              label="Logo Officiel du Centre / Campus"
+              description="PNG, SVG, JPG (format carré recommandé)"
+              value={centerLogo}
+              onChange={(newLogo) => setCenterLogo(newLogo)}
+              aspectRatio="square"
+              shape="rounded"
+              placeholderText="Glissez le logo de votre campus ou parcourez vos fichiers"
+              className="py-1"
+            />
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700">Couleur Primaire Thématique :</label>

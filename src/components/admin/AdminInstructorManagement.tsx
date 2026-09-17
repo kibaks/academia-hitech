@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Trainer, Course, Center } from '../../types';
 import { BLACK_INSTRUCTORS_PRESETS, AVATAR_PHOTO_PRESETS, InstructorPreset } from '../../data/trainersPresets';
+import { ImageUploader } from '../common/ImageUploader';
 import {
   Users,
   UserPlus,
@@ -460,40 +461,21 @@ export const AdminInstructorManagement: React.FC<AdminInstructorManagementProps>
                     </div>
                   </div>
 
-                  {/* Photo Preview & Custom URL Input */}
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                    <div className="sm:col-span-3 flex flex-col items-center text-center space-y-1.5">
-                      <img
-                        src={formAvatar || customAvatarInput || AVATAR_PHOTO_PRESETS[0].url}
-                        alt="Aperçu Photo"
-                        referrerPolicy="no-referrer"
-                        onError={(e) => {
-                          e.currentTarget.src = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80';
-                        }}
-                        className="w-20 h-20 rounded-2xl object-cover border-2 border-sky-200 shadow-sm"
-                      />
-                      <span className="text-[10px] font-bold text-slate-500 uppercase">Aperçu Photo</span>
-                    </div>
-
-                    <div className="sm:col-span-9 space-y-2">
-                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-sky-600" />
-                        URL de la Photo du Formateur :
-                      </label>
-                      <input
-                        type="url"
-                        value={formAvatar}
-                        onChange={(e) => {
-                          setFormAvatar(e.target.value);
-                          setCustomAvatarInput(e.target.value);
-                        }}
-                        placeholder="https://images.unsplash.com/photo-..."
-                        className="w-full px-3.5 py-2 rounded-xl bg-white text-slate-900 text-xs border border-slate-200 focus:outline-none focus:border-sky-500 font-mono"
-                      />
-                      <p className="text-[11px] text-slate-500">
-                        Vous pouvez coller l'URL d'une photo d'identité ou cliquer sur l'un des portraits ci-dessus.
-                      </p>
-                    </div>
+                  {/* Photo Uploader (File Upload, Drag & Drop, or URL) */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <ImageUploader
+                      id="trainer-avatar-uploader"
+                      label="Photo du Formateur (Téléversement ou Fichier)"
+                      description="PNG, JPG, WEBP (format carré recommandé)"
+                      value={formAvatar || customAvatarInput}
+                      onChange={(newAvatar) => {
+                        setFormAvatar(newAvatar);
+                        setCustomAvatarInput(newAvatar);
+                      }}
+                      aspectRatio="square"
+                      shape="rounded"
+                      placeholderText="Glissez une photo d'identité ou parcourez vos fichiers"
+                    />
                   </div>
 
                   <div className="flex justify-end pt-2">

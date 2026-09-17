@@ -56,7 +56,27 @@ import { AdminCurrencySettings } from './components/admin/AdminCurrencySettings'
 import { MobileDrawer } from './components/common/MobileDrawer';
 import { Footer } from './components/common/Footer';
 import { UserGuideModal } from './components/docs/UserGuideModal';
-import { Lock, ShieldAlert, ArrowRight, Sparkles } from 'lucide-react';
+import { Breadcrumbs, BreadcrumbItem } from './components/common/Breadcrumbs';
+import {
+  Lock,
+  ShieldAlert,
+  ArrowRight,
+  Sparkles,
+  Home,
+  BookOpen,
+  Play,
+  GraduationCap,
+  Layers,
+  Compass,
+  User,
+  Bot,
+  Trophy,
+  FileText,
+  CheckCircle,
+  Shield,
+  Building2,
+  Coins,
+} from 'lucide-react';
 
 export default function App() {
   // Preloader State
@@ -584,6 +604,402 @@ export default function App() {
     </div>
   );
 
+  // Generate breadcrumb items dynamically based on current navigation state
+  const getBreadcrumbItems = (): BreadcrumbItem[] => {
+    switch (activeTab) {
+      case 'home':
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            isCurrent: true,
+            badge: 'Portail Panafricain',
+          },
+        ];
+
+      case 'catalog':
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: 'catalog',
+            label: 'Catalogue des Formations',
+            icon: BookOpen,
+            isCurrent: true,
+            badge: `${courses.length} Cursus Certifiants`,
+          },
+        ];
+
+      case 'player': {
+        const targetCourse = selectedCourse || courses[0];
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: 'catalog',
+            label: 'Catalogue',
+            icon: BookOpen,
+            tab: 'catalog',
+            onClick: () => setActiveTab('catalog'),
+          },
+          {
+            id: 'course-player',
+            label: targetCourse ? targetCourse.title : 'Lecteur Interactif',
+            icon: Play,
+            isCurrent: true,
+            badge: 'MasterStudy LMS',
+          },
+        ];
+      }
+
+      case 'studio':
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: 'trainer-space',
+            label: 'Espace Formateur',
+            icon: GraduationCap,
+            tab: 'catalog',
+            onClick: () => setActiveTab('catalog'),
+          },
+          {
+            id: 'studio',
+            label: 'Studio IA Pédagogique & Vidéos',
+            icon: Sparkles,
+            isCurrent: true,
+            badge: 'Gemini 3.7 Flash',
+          },
+        ];
+
+      case 'course-builder':
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: 'trainer-space',
+            label: 'Espace Formateur',
+            icon: GraduationCap,
+            tab: 'studio',
+            onClick: () => setActiveTab('studio'),
+          },
+          {
+            id: 'studio',
+            label: 'Studio IA',
+            icon: Sparkles,
+            tab: 'studio',
+            onClick: () => setActiveTab('studio'),
+          },
+          {
+            id: 'builder',
+            label: editingCourse ? `Éditeur : ${editingCourse.title}` : 'Créateur de Cours Certifiant',
+            icon: Layers,
+            isCurrent: true,
+            badge: 'MasterStudy + Elementor',
+          },
+        ];
+
+      case 'progress-tracker':
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: 'trainer-space',
+            label: 'Espace Formateur',
+            icon: GraduationCap,
+            tab: 'studio',
+            onClick: () => setActiveTab('studio'),
+          },
+          {
+            id: 'progress-tracker',
+            label: 'Suivi Pédagogique & Analytique',
+            icon: Compass,
+            isCurrent: true,
+            badge: 'Temps Réel',
+          },
+        ];
+
+      case 'tuteur':
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: 'learner-space',
+            label: 'Espace Apprenant',
+            icon: User,
+            tab: 'catalog',
+            onClick: () => setActiveTab('catalog'),
+          },
+          {
+            id: 'tuteur',
+            label: 'Tuteur Virtuel IA Aïda & WhatsApp',
+            icon: Bot,
+            isCurrent: true,
+            badge: 'Multilingue Audio',
+          },
+        ];
+
+      case 'gamification':
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: 'learner-space',
+            label: 'Espace Apprenant',
+            icon: User,
+            tab: 'catalog',
+            onClick: () => setActiveTab('catalog'),
+          },
+          {
+            id: 'gamification',
+            label: 'Gamification, Badges & Récompenses',
+            icon: Trophy,
+            isCurrent: true,
+            badge: `Niv. ${currentUser.level} • ${currentUser.xp} XP`,
+          },
+        ];
+
+      case 'dashboard':
+      case 'my-learning':
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: 'learner-space',
+            label: 'Espace Apprenant',
+            icon: User,
+            tab: 'catalog',
+            onClick: () => setActiveTab('catalog'),
+          },
+          {
+            id: 'dashboard',
+            label: 'Mes Cours & Inscriptions Actives',
+            icon: FileText,
+            isCurrent: true,
+            badge: `${enrolledCoursesList.length} Inscrits`,
+          },
+        ];
+
+      case 'learner-journey':
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: 'learner-space',
+            label: 'Espace Apprenant',
+            icon: User,
+            tab: 'catalog',
+            onClick: () => setActiveTab('catalog'),
+          },
+          {
+            id: 'learner-journey',
+            label: 'Mon Parcours & Jalons Certifiants',
+            icon: CheckCircle,
+            isCurrent: true,
+          },
+        ];
+
+      case 'profile':
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: 'member-space',
+            label: 'Espace Membre',
+            icon: User,
+            tab: 'catalog',
+            onClick: () => setActiveTab('catalog'),
+          },
+          {
+            id: 'profile',
+            label: `Profil & Portfolio : ${currentUser.name}`,
+            icon: User,
+            isCurrent: true,
+            badge: currentUser.role.toUpperCase(),
+          },
+        ];
+
+      case 'centers':
+      case 'center-management':
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: 'admin-space',
+            label: 'Administration',
+            icon: Shield,
+            tab: 'permissions',
+            onClick: () => setActiveTab('permissions'),
+          },
+          {
+            id: 'center-management',
+            label: `Direction de Campus : ${activeCenter.name}`,
+            icon: Building2,
+            isCurrent: true,
+            badge: activeCenter.country,
+          },
+        ];
+
+      case 'admin-currency':
+      case 'currencies':
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: 'admin-space',
+            label: 'Administration',
+            icon: Shield,
+            tab: 'permissions',
+            onClick: () => setActiveTab('permissions'),
+          },
+          {
+            id: 'admin-currency',
+            label: 'Multi-Devises & Mobile Money RDC',
+            icon: Coins,
+            isCurrent: true,
+            badge: 'CDF / USD / XOF / XAF',
+          },
+        ];
+
+      case 'permissions':
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: 'admin-space',
+            label: 'Administration',
+            icon: Shield,
+            tab: 'permissions',
+            onClick: () => setActiveTab('permissions'),
+          },
+          {
+            id: 'permissions',
+            label: 'Matrice des Rôles & Permissions (RBAC)',
+            icon: Shield,
+            isCurrent: true,
+            badge: '6 Niveaux de Rôle',
+          },
+        ];
+
+      default:
+        return [
+          {
+            id: 'home',
+            label: 'Accueil',
+            icon: Home,
+            tab: 'home',
+            onClick: () => setActiveTab('home'),
+          },
+          {
+            id: activeTab,
+            label: activeTab,
+            isCurrent: true,
+          },
+        ];
+    }
+  };
+
+  const handleBreadcrumbBack = () => {
+    switch (activeTab) {
+      case 'player':
+        setActiveTab('catalog');
+        break;
+      case 'course-builder':
+      case 'progress-tracker':
+        setActiveTab('studio');
+        break;
+      case 'tuteur':
+      case 'gamification':
+      case 'dashboard':
+      case 'my-learning':
+      case 'learner-journey':
+      case 'profile':
+        setActiveTab('catalog');
+        break;
+      case 'center-management':
+      case 'centers':
+      case 'admin-currency':
+      case 'currencies':
+        setActiveTab('permissions');
+        break;
+      case 'catalog':
+      case 'permissions':
+      case 'studio':
+        setActiveTab('home');
+        break;
+      default:
+        setActiveTab('home');
+        break;
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-sky-500 selection:text-white">
       {/* Animated Tech Logo Preloader on startup & role transitions */}
@@ -625,7 +1041,20 @@ export default function App() {
       />
 
       {/* Main App Stage */}
-      <main className="flex-1 max-w-7xl w-full min-w-0 overflow-x-hidden mx-auto px-2.5 sm:px-6 lg:px-8 pt-4 sm:pt-5 pb-24 md:pb-12">
+      <main className="flex-1 max-w-7xl w-full min-w-0 overflow-x-hidden mx-auto px-2.5 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-24 md:pb-12 space-y-4">
+        {/* Global Breadcrumb Navigation Bar (Fil d'Ariane) - Visible sur toutes les sous-pages */}
+        {activeTab !== 'home' && (
+          <Breadcrumbs
+            items={getBreadcrumbItems()}
+            onNavigate={(tab) => {
+              setActiveTab(tab);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onBack={handleBreadcrumbBack}
+            currentRole={currentUser.role}
+            centerName={activeCenter.name}
+          />
+        )}
         {/* VIEW 0: Visitor Homepage */}
         {activeTab === 'home' && (
           <VisitorHome

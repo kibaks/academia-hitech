@@ -15,7 +15,9 @@ import {
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
-  KeyRound
+  KeyRound,
+  Camera,
+  UploadCloud
 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -42,6 +44,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [registerStep, setRegisterStep] = useState<1 | 2>(1);
   const [selectedRole, setSelectedRole] = useState<UserRole>(defaultRole);
   const [selectedCenterId, setSelectedCenterId] = useState(centers[0]?.id || 'center-1');
+  const [registeredAvatar, setRegisteredAvatar] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
+  const avatarFileInputRef = React.useRef<HTMLInputElement>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -113,7 +117,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       id: `user-${Date.now()}`,
       name: fullName,
       email: email,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      avatar: registeredAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       role: selectedRole === 'visitor' ? 'learner' : selectedRole,
       centerId: assignedCenter.id,
       centerName: assignedCenter.name,
@@ -443,6 +447,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Photo de Profil / Avatar Upload */}
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <img
+                      src={registeredAvatar}
+                      alt="Avatar"
+                      className="w-10 h-10 rounded-full object-cover border-2 border-indigo-200 shrink-0"
+                    />
+                    <div className="min-w-0 text-xs">
+                      <span className="font-bold text-slate-800 block">Photo de profil</span>
+                      <span className="text-[10px] text-slate-500">Optionnelle (depuis votre appareil)</span>
+                    </div>
+                  </div>
+                  <input
+                    ref={avatarFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          if (ev.target?.result) {
+                            setRegisteredAvatar(ev.target.result as string);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => avatarFileInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>Charger</span>
+                  </button>
                 </div>
 
                 <div className="pt-2 flex items-center justify-between gap-3">
